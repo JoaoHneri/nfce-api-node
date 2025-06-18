@@ -270,6 +270,39 @@ export class NFCeController {
     }
   }
 
+  async obterEstatisticasCache(req: Request, res: Response): Promise<void> {
+      try {
+          const stats = this.sefazNfceService.obterEstatisticasCache();
+          
+          res.status(200).json({
+              sucesso: true,
+              mensagem: 'Estatísticas do cache de Tools',
+              dados: stats
+          });
+      } catch (error: any) {
+          res.status(500).json({
+              sucesso: false,
+              erro: error.message
+          });
+      }
+  }
+
+  async limparCacheManual(req: Request, res: Response): Promise<void> {
+      try {
+          this.sefazNfceService.limparCache();
+          
+          res.status(200).json({
+              sucesso: true,
+              mensagem: 'Cache limpo com sucesso'
+          });
+      } catch (error: any) {
+          res.status(500).json({
+              sucesso: false,
+              erro: error.message
+          });
+      }
+  }
+
 
 
   
