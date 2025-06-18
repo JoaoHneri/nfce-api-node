@@ -1,17 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
-
-export interface ConsultaResponse {
-    sucesso: boolean;
-    status: string;
-    cStat: string;
-    xMotivo: string;
-    chaveAcesso: string;
-    protocolo?: string;
-    dataAutorizacao?: string;
-    xmlCompleto: string;
-    aguardar?: boolean;
-    erro?: string;
-}
+import { ConsultaResponse, CancelamentoResponse } from '../types';
 
 export class SefazResponseParser {
     private parser: XMLParser;
@@ -94,4 +82,53 @@ export class SefazResponseParser {
             };
         }
     }
+
+    parseCancelamentoResponse(xmlResponse: string, chave: string): CancelamentoResponse {
+        try {
+            const dadosXML = this.parser.parse(xmlResponse);
+            const retEvento = dadosXML.retEventoNFe || dadosXML.retEnvEventoNFe;
+            const infEvento = retEvento?.infEvento || retEvento?.retEvento?.infEvento;
+            
+            const cStat = infEvento?.cStat || "999";
+            const xMotivo = infEvento?.xMotivo || "Resposta inválida";
+
+            const baseResponse = {
+                cStat,
+                xMotivo,
+                chaveAcesso: chave,
+                xmlCompleto: xmlResponse
+            };
+
+            // Cancelamento autorizado
+            if (cStat === "135") {
+                return {
+                    ...baseResponse,
+                    sucesso: true,
+                    status: "cancelado",
+                    protocolo: infEvento?.nProt || null
+                };
+            }
+            // Cancelamento rejeitado
+            else {
+                return {
+                    ...baseResponse,
+                    sucesso: false,
+                    status: "erro_cancelamento"
+                };
+            }
+
+        } catch (error: any) {
+            return {
+                sucesso: false,
+                status: "erro_parser",
+                cStat: "999",
+                xMotivo: "Erro ao processar resposta de cancelamento",
+                chaveAcesso: chave,
+                xmlCompleto: xmlResponse,
+                erro: error.message
+            };
+        }
+    }
+
+
 }

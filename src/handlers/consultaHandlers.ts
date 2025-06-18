@@ -1,4 +1,5 @@
-import { SefazResponseParser, ConsultaResponse } from "../parsers/sefazResponseParsers";
+import { SefazResponseParser } from "../parsers/sefazResponseParsers";
+import { ConsultaResponse } from "../types";
 
 export class ConsultaHandler {
     private parser: SefazResponseParser;

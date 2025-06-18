@@ -118,3 +118,32 @@ export interface SefazEndpoints {
   nfceStatusServico: string;
   nfceCancelamento: string;
 }
+
+export interface ConsultaResponse {
+    sucesso: boolean;
+    status: string;
+    cStat: string;
+    xMotivo: string;
+    chaveAcesso: string;
+    protocolo?: string;
+    dataAutorizacao?: string;
+    xmlCompleto: string;
+    aguardar?: boolean;
+    erro?: string;
+}
+export interface CancelamentoRequest {
+    chaveAcesso: string;
+    protocolo: string;
+    justificativa: string;
+}
+
+export interface CancelamentoResponse {
+    sucesso: boolean;
+    status: string;
+    cStat: string;
+    xMotivo: string;
+    chaveAcesso: string;
+    protocolo?: string;
+    xmlCompleto: string;
+    erro?: string;
+}
