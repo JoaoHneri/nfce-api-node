@@ -9,52 +9,68 @@ import { ConsultaHandler } from "../handlers/consultaNfceHandlers";
 import { CancelamentoHandler } from "../handlers/cancelamentoHandler";
 import { EmissaoNfceHandler } from "../handlers/emissaoNfceHandler";
 export class SefazNfceService {
-    private tools: Tools;
     private emissaoHandler: EmissaoNfceHandler;
-    private certificadoConfig: CertificadoConfig;
     private consultaHandler: ConsultaHandler;
     private cancelamentoHandler: CancelamentoHandler;
 
-    constructor(certificadoConfig: CertificadoConfig, ambiente: 'homologacao' | 'producao' = 'homologacao') {
+    constructor() {
         this.emissaoHandler = new EmissaoNfceHandler();
-        this.certificadoConfig = certificadoConfig;
         this.consultaHandler = new ConsultaHandler();
         this.cancelamentoHandler = new CancelamentoHandler();
-        
-        this.tools = new Tools(
+    }
+
+
+    async emitirNFCe(dados: NFCeData, certificadoConfig: CertificadoConfig): Promise<SefazResponse> {
+        const tools = this.criarTools(certificadoConfig);
+        return await this.emissaoHandler.emitirNFCe(tools, this.carregarConfigCertificado(certificadoConfig), dados);
+    }
+
+    async consultarNFCe(chave: string, certificadoConfig: CertificadoConfig) {
+        const tools = this.criarTools(certificadoConfig);
+        return await this.consultaHandler.consultarNFCe(tools, chave);
+    }
+
+    async cancelarNFCe(dados: CancelamentoRequest, certificadoConfig: CertificadoConfig) {
+        const tools = this.criarTools(certificadoConfig);
+        return await this.cancelamentoHandler.cancelarNFCe(tools, this.carregarConfigCertificado(certificadoConfig), dados);
+    }
+
+    private criarTools(certificadoConfig: CertificadoConfig) {
+        return new Tools(
             {
-                //Configuração de habiente e sistema
                 mod: "65",
-                tpAmb: 2,
-                UF: "SP",
+                tpAmb: certificadoConfig.tpAmb || 2,
+                UF: certificadoConfig.UF || "SP",
                 versao: "4.00",
                 CSC: certificadoConfig.CSC,
                 CSCid: certificadoConfig.CSCid,
-                timeout: 10000, //10 segundos
-                // Optativo: Leia sobre Requisitos.
+                timeout: 10000,
                 xmllint: `C:/Users/joaoh/Downloads/windowsLibs/libs/libxml2-2.9.3-win32-x86_64/bin/xmllint.exe`,
-                openssl: "C:/Users/joaoh/Downloads/windowsLibs/libs/openssl-3.5.0.win86/bin/openssl.exe" as any, // ou qualquer string válida
-                CPF: "",
+                openssl: "C:/Users/joaoh/Downloads/windowsLibs/libs/openssl-3.5.0.win86/bin/openssl.exe" as any,
+                CPF: certificadoConfig.CPF || "",
                 CNPJ: certificadoConfig.CNPJ || "",
             },
             {
-
                 pfx: certificadoConfig.pfx,
                 senha: certificadoConfig.senha,
             }
         );
     }
+    
+    private carregarConfigCertificado(certificadoConfig: CertificadoConfig): CertificadoConfig {
+            console.log('🔑 Carregando configuração do certificado...')
 
-
-    async emitirNFCe(dados: NFCeData): Promise<SefazResponse> {
-        return await this.emissaoHandler.emitirNFCe(this.tools, this.certificadoConfig, dados);
+            return {
+                pfx: certificadoConfig.pfx || '',
+                senha: certificadoConfig.senha || '',
+                CSC: certificadoConfig.CSC || '',
+                CSCid: certificadoConfig.CSCid || '',
+                CNPJ: certificadoConfig.CNPJ || '',
+                CPF: certificadoConfig.CPF || '',
+                tpAmb: certificadoConfig.tpAmb || 2, // 1 para produção, 2 para homologação
+                UF: certificadoConfig.UF || '', // Sigla do estado, ex: 'SP', 'RJ'
+            };
     }
 
-    async consultarNFCe(chave: string) {
-        return await this.consultaHandler.consultarNFCe(this.tools, chave);
-    }
 
-    async cancelarNFCe(dados: CancelamentoRequest) {
-        return await this.cancelamentoHandler.cancelarNFCe(this.tools, this.certificadoConfig, dados);
-    }
 }

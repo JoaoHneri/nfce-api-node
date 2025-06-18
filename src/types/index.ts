@@ -6,6 +6,7 @@ export interface CertificadoConfig {
   CNPJ?: string;
   CPF?: string;
   tpAmb?: number; // '1' para produção, '2' para homologação
+  UF?: string; // Sigla do estado, ex: 'SP', 'RJ'
 }
 
 export interface NFCeData {

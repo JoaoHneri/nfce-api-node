@@ -9,19 +9,20 @@ export class NFCeController {
 
   constructor() {
     // Carregar configuração do certificado
-    const certificadoConfig = this.carregarConfigCertificado();
-    this.sefazNfceService = new SefazNfceService(certificadoConfig, 'homologacao');
+    this.sefazNfceService = new SefazNfceService();
   }
 
 
   async emitirNFCe(req: Request, res: Response): Promise<void> {
     try {
-      const dadosNFCe: NFCeData = req.body;
+
+      const { dadosNFCe, certificado } = req.body;
+
 
       console.log('📝 Iniciando emissão de NFCe...');
 
       // ✅ TUDO É FEITO NO HANDLER
-      const resultado = await this.sefazNfceService.emitirNFCe(dadosNFCe);
+      const resultado = await this.sefazNfceService.emitirNFCe(dadosNFCe, certificado);
 
       if (resultado.sucesso) {
         console.log('🎉 NFCe autorizada com sucesso!');
@@ -188,6 +189,7 @@ export class NFCeController {
     try {
 
       const { chave } = req.params;
+      const { certificado } = req.body;
 
       if (!chave) {
         res.status(400).json({
@@ -197,7 +199,7 @@ export class NFCeController {
         return;
       }
 
-      const resultado = await this.sefazNfceService.consultarNFCe(chave);
+      const resultado = await this.sefazNfceService.consultarNFCe(chave, certificado);
 
       res.status(200).json({ resultado });
 
@@ -218,7 +220,7 @@ export class NFCeController {
 
   async cancelarNFCe(req: Request, res: Response): Promise<void> {
     try {
-      const { chaveAcesso, protocolo, justificativa } = req.body;
+      const { chaveAcesso, protocolo, justificativa, certificado } = req.body;
 
       // Validação básica
       if (!chaveAcesso || !protocolo || !justificativa) {
@@ -239,7 +241,7 @@ export class NFCeController {
       };
 
       // Cancelamento via service
-      const resultado = await this.sefazNfceService.cancelarNFCe(dadosCancelamento);
+      const resultado = await this.sefazNfceService.cancelarNFCe(dadosCancelamento, certificado);
       console.log(`🚫 Resultado do cancelamento: ${JSON.stringify(resultado)}`);
       res.status(200).json(resultado);
 
@@ -257,16 +259,8 @@ export class NFCeController {
     }
   }
 
-  private carregarConfigCertificado(): CertificadoConfig {
-    console.log('🔑 Carregando configuração do certificado...')
 
-    return {
-      pfx: process.env.CERTIFICADO_PATH || '',
-      senha: process.env.CERTIFICADO_SENHA || '',
-      CSC: process.env.CSC || '',
-      CSCid: process.env.CSC_ID || '',
-      CNPJ: process.env.CNPJ || '',
-      CPF: process.env.CPF || '',
-    };
-  }
+  
+
+  
 }
