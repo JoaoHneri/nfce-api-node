@@ -1,0 +1,38 @@
+{
+  "name": "nfce-node-api",
+  "version": "1.0.0",
+  "description": "��#\u0000 \u0000n\u0000f\u0000c\u0000e\u0000-\u0000a\u0000p\u0000i\u0000-\u0000n\u0000o\u0000d\u0000e\u0000\r\u0000 \u0000",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoaoHneri/nfce-api-node.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JoaoHneri/nfce-api-node/issues"
+  },
+  "homepage": "https://github.com/JoaoHneri/nfce-api-node#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "multer": "^2.0.1",
+    "node-sped-nfe": "^1.2.34",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/multer": "^1.4.13",
+    "@types/node": "^24.0.3",
+    "@types/uuid": "^10.0.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  }
+}
