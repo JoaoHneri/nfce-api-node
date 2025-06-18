@@ -22,9 +22,9 @@ export class SefazNfceService {
                 CSC: certificadoConfig.CSC,
                 CSCid: certificadoConfig.CSCid,
                 timeout: 10000, //10 segundos
-                //Optativo: Leia sobre Requisitos.
-                xmllint: `./libs/libxml2-2.9.3-win32-x86_64/bin/xmllint.exe`,
-                openssl: null,
+                // Optativo: Leia sobre Requisitos.
+                xmllint: `C:/Users/joaoh/Downloads/windowsLibs/libs/libxml2-2.9.3-win32-x86_64/bin/xmllint.exe`,
+                openssl: "C:/Users/joaoh/Downloads/windowsLibs/libs/openssl-3.5.0.win86/bin/openssl.exe" as any, // ou qualquer string válida
                 CPF: "",
                 CNPJ: "",
             },
@@ -105,7 +105,7 @@ export class SefazNfceService {
 
         // Impostos
         dados.produtos.forEach((_, index) => {
-            const impostos = dados.impostos || { orig: "0", CSOSN: "102", CST_PIS: "49", CST_COFINS: "49" };
+            const impostos = dados.impostos || { orig: "0", CSOSN: "400", CST_PIS: "49", CST_COFINS: "49" };
 
             NFe.tagProdICMSSN(index, { orig: impostos.orig, CSOSN: impostos.CSOSN });
             NFe.tagProdPIS(index, { CST: impostos.CST_PIS, qBCProd: "0.0000", vAliqProd: "0.0000", vPIS: "0.00" });
