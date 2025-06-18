@@ -150,9 +150,8 @@ export class EmissaoNfceHandler {
 
         const uf = dados.emitente.endereco.UF;
         const cUF = dados.ide.cUF;
-        const tpAmb = dados.ide.tpAmb;
-        const ambiente = tpAmb === '1' ? 'producao' : 'homologacao';
-
+        const tpAmb = certificadoConfig.tpAmb || 2; // 1 - Produção, 2 - Homologação
+        const ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
         const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
         const url = endpoints[uf]?.nfceAutorizacao;
 

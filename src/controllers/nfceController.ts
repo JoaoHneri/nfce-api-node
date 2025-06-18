@@ -12,6 +12,42 @@ export class NFCeController {
     this.sefazNfceService = new SefazNfceService();
   }
 
+  private validarCertificado(certificado: CertificadoConfig, res: Response): boolean {
+    // Validação se certificado existe
+    if (!certificado) {
+      res.status(400).json({
+        sucesso: false,
+        mensagem: 'Dados do certificado são obrigatórios',
+        erro: 'O campo "certificado" deve ser enviado na requisição'
+      });
+      return false;
+    }
+
+    // Validação dos campos obrigatórios
+    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfx', 'senha', 'CSC', 'CSCid', 'CNPJ', 'tpAmb', 'UF'];
+    const camposFaltando = camposObrigatorios.filter(campo => !certificado[campo]);
+    
+    if (camposFaltando.length > 0) {
+      res.status(400).json({
+        sucesso: false,
+        mensagem: 'Campos obrigatórios do certificado não informados',
+        erro: `Campos faltando: ${camposFaltando.join(', ')}`
+      });
+      return false;
+    }
+
+    // Validar se arquivo do certificado existe
+    // if (!fs.existsSync(certificado.pfx)) {
+    //   res.status(400).json({
+    //     sucesso: false,
+    //     mensagem: 'Arquivo de certificado não encontrado',
+    //     erro: `Caminho inválido: ${certificado.pfx}`
+    //   });
+    //   return false;
+    // }
+
+    return true;
+  }
 
   async emitirNFCe(req: Request, res: Response): Promise<void> {
     try {
@@ -233,7 +269,7 @@ export class NFCeController {
        if (!this.validarCertificado(certificado, res)) {
         return; // Resposta já foi enviada pela função
       }
-      
+
       // Validação básica
       if (!chaveAcesso || !protocolo || !justificativa) {
         res.status(400).json({
@@ -272,42 +308,6 @@ export class NFCeController {
   }
 
 
-  private validarCertificado(certificado: CertificadoConfig, res: Response): boolean {
-    // Validação se certificado existe
-    if (!certificado) {
-      res.status(400).json({
-        sucesso: false,
-        mensagem: 'Dados do certificado são obrigatórios',
-        erro: 'O campo "certificado" deve ser enviado na requisição'
-      });
-      return false;
-    }
-
-    // Validação dos campos obrigatórios
-    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfx', 'senha', 'CSC', 'CSCid', 'CNPJ', 'tpAmb', 'UF'];
-    const camposFaltando = camposObrigatorios.filter(campo => !certificado[campo]);
-    
-    if (camposFaltando.length > 0) {
-      res.status(400).json({
-        sucesso: false,
-        mensagem: 'Campos obrigatórios do certificado não informados',
-        erro: `Campos faltando: ${camposFaltando.join(', ')}`
-      });
-      return false;
-    }
-
-    // Validar se arquivo do certificado existe
-    // if (!fs.existsSync(certificado.pfx)) {
-    //   res.status(400).json({
-    //     sucesso: false,
-    //     mensagem: 'Arquivo de certificado não encontrado',
-    //     erro: `Caminho inválido: ${certificado.pfx}`
-    //   });
-    //   return false;
-    // }
-
-    return true;
-  }
 
   
 }
