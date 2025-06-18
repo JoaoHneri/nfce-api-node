@@ -18,13 +18,11 @@ export class NFCeController {
       const { dadosNFCe, certificado } = req.body;
 
        if (!validarCertificado(certificado, res)) {
-        return; // Resposta já foi enviada pela função
+        return;
       }
-
 
       console.log('📝 Iniciando emissão de NFCe...');
 
-      // ✅ TUDO É FEITO NO HANDLER
       const resultado = await this.sefazNfceService.emitirNFCe(dadosNFCe, certificado);
 
       if (resultado.sucesso) {
@@ -62,7 +60,7 @@ export class NFCeController {
     }
   }
 
-  // Teste de conectividade
+
   async testeConectividade(req: Request, res: Response): Promise<void> {
     try {
       console.log('🔧 Testando conectividade...');
@@ -89,104 +87,122 @@ export class NFCeController {
     }
   }
 
-  // Exemplo de dados para emissão de NFCe
   async obterExemplo(req: Request, res: Response): Promise<void> {
-      const exemplo: NFCeData = {
-          emitente: {
-              CNPJ: "12345678000199", //CNPJ fictício válido
-              xNome: "EMPRESA EXEMPLO LTDA",
-              xFant: "LOJA EXEMPLO",
-              IE: "123456789", //IE fictícia
-              CRT: "1", // 1-Simples Nacional
-              endereco: {
-                  xLgr: "RUA EXEMPLO",
-                  nro: "123",
-                  xBairro: "CENTRO",
-                  cMun: "3550308", // São Paulo
-                  xMun: "SÃO PAULO",
-                  UF: "SP",
-                  CEP: "01234567", //CEP fictício
-                  cPais: "1058",
-                  xPais: "BRASIL",
-                  fone: "1199999999" //Telefone fictício
-              }
+      const exemploCompleto = {
+          certificado: {
+              pfx: "/caminho/para/seu/certificado.pfx",
+              senha: "senha_do_certificado",
+              CSC: "seu_codigo_CSC_aqui",
+              CSCid: "1",
+              CNPJ: "12345678000199",
+              tpAmb: 2, // 2 = Homologação, 1 = Produção
+              UF: "SP"
           },
-          destinatario: {
-              CPF: "12345678901", //CPF fictício
-              xNome: "CONSUMIDOR FINAL",
-              indIEDest: "9" // 9-Não contribuinte
-          },
-          ide: {
-              cUF: "35", // São Paulo
-              cNF: "00001234", //Código numérico sequencial
-              natOp: "VENDA",
-              serie: "1", //Série recomendada (não zero)
-              nNF: "1", //Número sequencial
-              tpNF: "1", // 1-Saída
-              idDest: "1", // 1-Operação interna
-              cMunFG: "3550308", // São Paulo
-              tpImp: "4", // 4-NFCe em papel
-              tpEmis: "1", // 1-Emissão normal
-              tpAmb: "2", // 2-Homologação
-              finNFe: "1", // 1-Normal
-              indFinal: "1", // 1-Consumidor final
-              indPres: "1", // 1-Operação presencial
-              indIntermed: "0", // 0-Sem intermediador
-              procEmi: "0", // 0-Emissão com aplicativo do contribuinte
-              verProc: "1.0" // Versão do sistema
-          },
-          produtos: [
-              {
-                  cProd: "001",
-                  cEAN: "SEM GTIN",
-                  xProd: "PRODUTO EXEMPLO - AMBIENTE DE HOMOLOGACAO",
-                  NCM: "85044010", // NCM para produtos eletrônicos
-                  CFOP: "5102", // Venda de mercadoria adquirida ou recebida de terceiros
-                  uCom: "UNID",
-                  qCom: "1.00",
-                  vUnCom: "10.00", //Valor baixo para teste
-                  vProd: "10.00",
-                  cEANTrib: "SEM GTIN",
-                  uTrib: "UNID",
-                  qTrib: "1.00",
-                  vUnTrib: "10.00",
-                  indTot: "1" // 1-Valor compõe total da NF
-              }
-          ],
-          impostos: {
-              orig: "0", // 0-Nacional
-              CSOSN: "102", // 102-Tributada pelo Simples Nacional sem permissão de crédito
-              CST_PIS: "49", // 49-Outras operações de saída
-              CST_COFINS: "49" // 49-Outras operações de saída
-          },
-          pagamento: {
-              detPag: [
+          
+          dadosNFCe: {
+              emitente: {
+                  CNPJ: "12345678000199", //Mesmo CNPJ do certificado
+                  xNome: "EMPRESA EXEMPLO LTDA",
+                  xFant: "LOJA EXEMPLO",
+                  IE: "123456789",
+                  CRT: "1", // 1-Simples Nacional
+                  endereco: {
+                      xLgr: "RUA EXEMPLO",
+                      nro: "123",
+                      xBairro: "CENTRO",
+                      cMun: "3550308", // São Paulo
+                      xMun: "SÃO PAULO",
+                      UF: "SP", //Mesmo UF do certificado
+                      CEP: "01234567",
+                      cPais: "1058",
+                      xPais: "BRASIL",
+                      fone: "1199999999"
+                  }
+              },
+              destinatario: {
+                  CPF: "12345678901",
+                  xNome: "CONSUMIDOR FINAL",
+                  indIEDest: "9" // 9-Não contribuinte
+              },
+              ide: {
+                  cUF: "35", // São Paulo -Consistente com UF
+                  cNF: "00001234",
+                  natOp: "VENDA",
+                  serie: "1",
+                  nNF: "1",
+                  tpNF: "1", // 1-Saída
+                  idDest: "1", // 1-Operação interna
+                  cMunFG: "3550308", // São Paulo
+                  tpImp: "4", // 4-NFCe em papel
+                  tpEmis: "1", // 1-Emissão normal
+                  tpAmb: "2", //Mesmo ambiente do certificado
+                  finNFe: "1", // 1-Normal
+                  indFinal: "1", // 1-Consumidor final
+                  indPres: "1", // 1-Operação presencial
+                  indIntermed: "0", // 0-Sem intermediador
+                  procEmi: "0", // 0-Emissão com aplicativo do contribuinte
+                  verProc: "1.0"
+              },
+              produtos: [
                   {
-                      indPag: "0", // 0-Pagamento à vista
-                      tPag: "01", // 01-Dinheiro
-                      vPag: "10.00" //Mesmo valor do produto
+                      cProd: "001",
+                      cEAN: "SEM GTIN",
+                      xProd: "PRODUTO EXEMPLO - AMBIENTE DE HOMOLOGACAO",
+                      NCM: "85044010",
+                      CFOP: "5102",
+                      uCom: "UNID",
+                      qCom: "1.00",
+                      vUnCom: "10.00",
+                      vProd: "10.00",
+                      cEANTrib: "SEM GTIN",
+                      uTrib: "UNID",
+                      qTrib: "1.00",
+                      vUnTrib: "10.00",
+                      indTot: "1"
                   }
               ],
-              vTroco: "0.00"
-          },
-          transporte: {
-              modFrete: "9" // 9-Sem ocorrência de transporte
+              impostos: {
+                  orig: "0", // 0-Nacional
+                  CSOSN: "102", // 102-Tributada pelo Simples Nacional sem permissão de crédito
+                  CST_PIS: "49", // 49-Outras operações de saída
+                  CST_COFINS: "49" // 49-Outras operações de saída
+              },
+              pagamento: {
+                  detPag: [
+                      {
+                          indPag: "0", // 0-Pagamento à vista
+                          tPag: "01", // 01-Dinheiro
+                          vPag: "10.00"
+                      }
+                  ],
+                  vTroco: "0.00"
+              },
+              transporte: {
+                  modFrete: "9" // 9-Sem ocorrência de transporte
+              }
           }
       };
 
       res.status(200).json({
           sucesso: true,
-          mensagem: 'Exemplo de dados para emissão de NFCe (dados fictícios para teste)',
+          mensagem: 'Exemplo completo para emissão de NFCe via HUB',
           observacoes: [
-              "Este exemplo contém dados fictícios para ambiente de homologação",
-              "Para produção, substitua pelos dados reais da empresa",
-              "O valor está baixo (R$ 10,00) para facilitar testes",
-              "CNPJ e CPF são fictícios mas com formato válido"
+              "🏢 API HUB: Aceita certificado por requisição",
+              "🔑 Substitua os dados do certificado pelos reais",
+              "📁 Ajuste o caminho do arquivo .pfx",
+              "🌍 tpAmb: 2=Homologação, 1=Produção",
+              "📍 UF deve ser consistente em certificado e emitente",
+              "💰 Valor baixo (R$ 10,00) para facilitar testes",
+              "📋 CNPJ fictício mas com formato válido"
           ],
-          exemplo
+          comoUsar: {
+              endpoint: "POST /api/nfce/emitir",
+              contentType: "application/json",
+              body: "Use o objeto 'exemploCompleto' abaixo"
+          },
+          exemploCompleto
       });
   }
-
 
   async consultarNFCe(req: Request, res: Response): Promise<void> {
     try {
@@ -223,7 +239,6 @@ export class NFCeController {
 
     }
   }
-
 
   async cancelarNFCe(req: Request, res: Response): Promise<void> {
     try {

@@ -12,8 +12,8 @@ export function validarCertificado(certificado: CertificadoConfig, res: Response
       return false;
     }
 
-    // Validação dos campos obrigatórios
-    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfx', 'senha', 'CSC', 'CSCid', 'CNPJ', 'tpAmb', 'UF'];
+    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfx', 'senha', 'CSC', 'CSCid'];
+
     const camposFaltando = camposObrigatorios.filter(campo => !certificado[campo]);
     
     if (camposFaltando.length > 0) {
