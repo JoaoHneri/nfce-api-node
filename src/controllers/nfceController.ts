@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
 import { SefazNfceService } from '../Services/sefazNfceService';
 import { NFCeData, CertificadoConfig, CancelamentoRequest } from '../types';
-import fs from 'fs';
-import path from 'path';
-
+import { validarCertificado } from '../utils/validadorCertificado';
 export class NFCeController {
   private sefazNfceService: SefazNfceService;
 
@@ -12,49 +10,14 @@ export class NFCeController {
     this.sefazNfceService = new SefazNfceService();
   }
 
-  private validarCertificado(certificado: CertificadoConfig, res: Response): boolean {
-    // Validação se certificado existe
-    if (!certificado) {
-      res.status(400).json({
-        sucesso: false,
-        mensagem: 'Dados do certificado são obrigatórios',
-        erro: 'O campo "certificado" deve ser enviado na requisição'
-      });
-      return false;
-    }
 
-    // Validação dos campos obrigatórios
-    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfx', 'senha', 'CSC', 'CSCid', 'CNPJ', 'tpAmb', 'UF'];
-    const camposFaltando = camposObrigatorios.filter(campo => !certificado[campo]);
-    
-    if (camposFaltando.length > 0) {
-      res.status(400).json({
-        sucesso: false,
-        mensagem: 'Campos obrigatórios do certificado não informados',
-        erro: `Campos faltando: ${camposFaltando.join(', ')}`
-      });
-      return false;
-    }
-
-    // Validar se arquivo do certificado existe
-    // if (!fs.existsSync(certificado.pfx)) {
-    //   res.status(400).json({
-    //     sucesso: false,
-    //     mensagem: 'Arquivo de certificado não encontrado',
-    //     erro: `Caminho inválido: ${certificado.pfx}`
-    //   });
-    //   return false;
-    // }
-
-    return true;
-  }
 
   async emitirNFCe(req: Request, res: Response): Promise<void> {
     try {
 
       const { dadosNFCe, certificado } = req.body;
 
-       if (!this.validarCertificado(certificado, res)) {
+       if (!validarCertificado(certificado, res)) {
         return; // Resposta já foi enviada pela função
       }
 
@@ -231,7 +194,7 @@ export class NFCeController {
       const { chave } = req.params;
       const { certificado } = req.body;
 
-       if (!this.validarCertificado(certificado, res)) {
+       if (!validarCertificado(certificado, res)) {
         return; // Resposta já foi enviada pela função
       }
 
@@ -266,7 +229,7 @@ export class NFCeController {
     try {
       const { chaveAcesso, protocolo, justificativa, certificado } = req.body;
 
-       if (!this.validarCertificado(certificado, res)) {
+       if (!validarCertificado(certificado, res)) {
         return; // Resposta já foi enviada pela função
       }
 
