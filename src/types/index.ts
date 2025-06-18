@@ -3,6 +3,9 @@ export interface CertificadoConfig {
   senha: string;
   CSC: string;
   CSCid: string;
+  CNPJ?: string;
+  CPF?: string;
+  tpAmb?: number; // '1' para produção, '2' para homologação
 }
 
 export interface NFCeData {

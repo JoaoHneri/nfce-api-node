@@ -1,5 +1,10 @@
+// src/handlers/cancelamentoHandler.ts
 import { SefazResponseParser } from "../parsers/sefazResponseParsers";
-import { CancelamentoRequest, CancelamentoResponse } from "../types";
+import { CancelamentoRequest, CancelamentoResponse, CertificadoConfig } from "../types";
+import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpoints';
+import { XMLBuilder } from 'fast-xml-parser';
+import https from 'https';
+import fs from 'fs';
 
 export class CancelamentoHandler {
     private parser: SefazResponseParser;
@@ -8,7 +13,8 @@ export class CancelamentoHandler {
         this.parser = new SefazResponseParser();
     }
 
-    async cancelarNFCe(tools: any, dados: CancelamentoRequest): Promise<CancelamentoResponse> {
+
+    async cancelarNFCe(tools: any, certificadoConfig: CertificadoConfig, dados: CancelamentoRequest): Promise<CancelamentoResponse> {
         try {
             // Validações
             const validacao = this.validarDados(dados);
@@ -24,28 +30,253 @@ export class CancelamentoHandler {
                 };
             }
 
-            // Cancelamento via SEFAZ
-            const xmlResponse = await tools.sefazEvento({
-                chNFe: dados.chaveAcesso,
-                tpEvento: "110111", // Tipo de evento: Cancelamento
-                nProt: dados.protocolo,
-                justificativa: dados.justificativa
-            });
+            console.log('🚫 Criando XML de cancelamento usando tools...');
 
-            // Parse da resposta
+            // 1. Criar estrutura do evento
+            const eventoObj = this.criarObjetoEvento(dados, certificadoConfig);
+            console.log('📋 Objeto evento criado');
+
+            // 2. ✅ USAR TOOLS para converter JSON para XML
+            let xmlEvento;
+            if (typeof tools.json2xml === 'function') {
+                xmlEvento = await tools.json2xml(eventoObj);
+                console.log('📄 XML convertido via tools.json2xml');
+            } else {
+                // Fallback: usar XMLBuilder
+                xmlEvento = this.converterParaXML(eventoObj);
+                console.log('📄 XML convertido via XMLBuilder (fallback)');
+            }
+
+            // 3. ✅ USAR TOOLS para assinar XML
+            const xmlAssinado = await tools.xmlSign(xmlEvento, { tag: "infEvento" });
+            console.log('✍️ XML assinado via tools.xmlSign');
+
+            // 4. Criar envelope SOAP
+            const soapEnvelope = this.criarSOAPEnvelope(xmlAssinado);
+            console.log('📦 SOAP envelope criado');
+
+            // 5. ✅ Enviar para SEFAZ usando certificado do config
+            const xmlResponse = await this.enviarParaSefaz(soapEnvelope, dados.chaveAcesso, certificadoConfig);
+            console.log('📡 Enviado para SEFAZ');
+
+            // 6. Parse da resposta
             return this.parser.parseCancelamentoResponse(xmlResponse, dados.chaveAcesso);
 
         } catch (error: any) {
+            console.error('❌ Erro no cancelamento:', error);
             return {
                 sucesso: false,
                 status: "erro_comunicacao",
                 cStat: "999",
-                xMotivo: "Erro de comunicação com SEFAZ",
+                xMotivo: "Erro no processamento do cancelamento",
                 chaveAcesso: dados.chaveAcesso,
                 xmlCompleto: "",
                 erro: error.message
             };
         }
+    }
+
+    private criarObjetoEvento(dados: CancelamentoRequest, certificadoConfig: CertificadoConfig): any {
+        // ✅ CORREÇÃO: Usar horário de Brasília correto
+        const agora = new Date();
+        
+        // Converter para horário de Brasília (UTC-3)
+        const brasiliaTime = new Date(agora.getTime() - (3 * 60 * 60 * 1000));
+        
+        // Subtrair mais alguns minutos para garantir que não seja futuro
+        brasiliaTime.setMinutes(brasiliaTime.getMinutes() - 5);
+        
+        const dhEvento = brasiliaTime.toISOString().replace(/\.\d{3}Z$/, '-03:00');
+        
+        console.log('⏰ Data do evento ajustada:', dhEvento);
+        console.log('⏰ Data atual sistema:', agora.toISOString());
+        
+        const nSeqEvento = 1;
+        const cOrgao = dados.chaveAcesso.substring(0, 2);
+        
+        // Gerar idLote dinâmico
+        const idLote = this.gerarIdLote();
+
+        // Criar detEvento para cancelamento
+        const detEvento = {
+            "@versao": "1.00",
+            "descEvento": "Cancelamento",
+            "nProt": dados.protocolo,
+            "xJust": dados.justificativa
+        };
+
+        return {
+            "envEvento": {
+                "@xmlns": "http://www.portalfiscal.inf.br/nfe",
+                "@versao": "1.00",
+                "idLote": idLote,
+                "evento": {
+                    "@xmlns": "http://www.portalfiscal.inf.br/nfe",
+                    "@versao": "1.00",
+                    "infEvento": {
+                        "@Id": `ID110111${dados.chaveAcesso}${nSeqEvento.toString().padStart(2, '0')}`,
+                        "cOrgao": cOrgao,
+                        "tpAmb": "2",
+                        "CNPJ": certificadoConfig.CNPJ || "",
+                        "chNFe": dados.chaveAcesso,
+                        "dhEvento": dhEvento, // ✅ Data corrigida
+                        "tpEvento": "110111",
+                        "nSeqEvento": nSeqEvento,
+                        "verEvento": "1.00",
+                        "detEvento": detEvento
+                    }
+                }
+            }
+        };
+    }
+
+    private async enviarParaSefaz(soapEnvelope: string, chaveAcesso: string, certificadoConfig: CertificadoConfig): Promise<string> {
+        // Extrair UF e configurar endpoint
+        const cUF = chaveAcesso.substring(0, 2);
+        const ufMap: Record<string, string> = {
+            '35': 'SP', '33': 'RJ', '31': 'MG', '41': 'PR', '42': 'SC', '43': 'RS'
+        };
+        
+        const uf = ufMap[cUF] || 'SP';
+
+        const tpAmb = Number(certificadoConfig?.tpAmb) || 2;
+        const ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
+        const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
+        const url = endpoints[uf]?.nfceCancelamento;
+
+        if (!url) {
+            throw new Error(`Endpoint de cancelamento não configurado para UF: ${uf}`);
+        }
+
+        console.log('🌐 URL de cancelamento:', url);
+
+        // ✅ USAR certificadoConfig diretamente
+        console.log('🔍 Usando certificado do config...');
+        console.log('📋 Certificado:', certificadoConfig.pfx);
+
+        if (!certificadoConfig.pfx || !certificadoConfig.senha) {
+            throw new Error('Certificado não configurado adequadamente');
+        }
+
+        // Verificar se arquivo existe
+        if (!fs.existsSync(certificadoConfig.pfx)) {
+            throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfx}`);
+        }
+
+        const certificado = fs.readFileSync(certificadoConfig.pfx);
+        console.log('✅ Certificado carregado, tamanho:', certificado.length, 'bytes');
+
+        return new Promise((resolve, reject) => {
+            const urlObj = new URL(url);
+            
+            const options = {
+                hostname: urlObj.hostname,
+                port: urlObj.port || 443,
+                path: urlObj.pathname,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/soap+xml; charset=utf-8',
+                    'Content-Length': Buffer.byteLength(soapEnvelope)
+                },
+                pfx: certificado,
+                passphrase: certificadoConfig.senha, // ✅ USAR certificadoConfig
+                rejectUnauthorized: false,
+                secureProtocol: 'TLSv1_2_method'
+            };
+
+            console.log('🌐 Conectando em:', `${urlObj.hostname}${urlObj.pathname}`);
+
+            const req = https.request(options, (res: any) => {
+                let data = '';
+                res.on('data', (chunk: Buffer) => data += chunk);
+                res.on('end', () => {
+                    console.log('📡 Status HTTP:', res.statusCode);
+                    console.log('📡 Resposta recebida, tamanho:', data.length);
+                    
+                    if (data.length > 0) {
+                        console.log('📄 Primeiros 300 chars:', data.substring(0, 300));
+                    }
+                    
+                    try {
+                        const xmlLimpo = this.limparSOAP(data);
+                        resolve(xmlLimpo);
+                    } catch (error) {
+                        resolve(data);
+                    }
+                });
+            });
+
+            req.on('error', (err: any) => {
+                console.error('❌ Erro na requisição:', err);
+                reject(err);
+            });
+
+            req.setTimeout(30000, () => {
+                req.destroy();
+                reject(new Error('Timeout na requisição de cancelamento'));
+            });
+
+            req.write(soapEnvelope);
+            req.end();
+        });
+    }
+
+    private gerarIdLote(): string {
+        const agora = new Date();
+        const ano = agora.getFullYear().toString().slice(2);
+        const mes = String(agora.getMonth() + 1).padStart(2, '0');
+        const dia = String(agora.getDate()).padStart(2, '0');
+        const hora = String(agora.getHours()).padStart(2, '0');
+        const minuto = String(agora.getMinutes()).padStart(2, '0');
+        const segundo = String(agora.getSeconds()).padStart(2, '0');
+
+        let idLote = `${ano}${mes}${dia}${hora}${minuto}${segundo}`;
+
+        // Adicionar dígitos aleatórios se necessário
+        while (idLote.length < 15) {
+            idLote += Math.floor(Math.random() * 10);
+        }
+
+        return idLote;
+    }
+
+    private converterParaXML(objeto: any): string {
+        const { XMLBuilder } = require('fast-xml-parser');
+        const builder = new XMLBuilder({
+            ignoreAttributes: false,
+            attributeNamePrefix: "@",
+            format: true
+        });
+        return builder.build(objeto);
+    }
+
+    private criarSOAPEnvelope(xmlEvento: string): string {
+        // Criar envelope SOAP mais simples (sem conversão xml2json problemática)
+        const xmlLimpo = xmlEvento.replace(/^<\?xml[^>]*\?>\s*/, '');
+
+        return `<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">
+    <soap:Body>
+        <nfe:nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">
+            ${xmlLimpo}
+        </nfe:nfeDadosMsg>
+    </soap:Body>
+</soap:Envelope>`;
+    }
+
+    private limparSOAP(soapResponse: string): string {
+        // Implementar limpeza similar à lib
+        const patterns = [
+            /<!\[CDATA\[(.*?)\]\]>/s,
+            /<retEnvEvento[^>]*>(.*?)<\/retEnvEvento>/s
+        ];
+
+        for (const pattern of patterns) {
+            const match = soapResponse.match(pattern);
+            if (match && match[1]) return match[1].trim();
+        }
+
+        return soapResponse;
     }
 
     private validarDados(dados: CancelamentoRequest): { valido: boolean; erro?: string } {

@@ -313,7 +313,9 @@ export class NFCeController {
       pfx: process.env.CERTIFICADO_PATH || '',
       senha: process.env.CERTIFICADO_SENHA || '',
       CSC: process.env.CSC || '',
-      CSCid: process.env.CSC_ID || ''
+      CSCid: process.env.CSC_ID || '',
+      CNPJ: process.env.CNPJ || '',
+      CPF: process.env.CPF || '',
     };
   }
 }

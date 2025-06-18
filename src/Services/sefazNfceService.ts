@@ -18,7 +18,7 @@ export class SefazNfceService {
         this.certificadoConfig = certificadoConfig;
         this.consultaHandler = new ConsultaHandler();
         this.cancelamentoHandler = new CancelamentoHandler();
-
+        
         this.tools = new Tools(
             {
                 //Configuração de habiente e sistema
@@ -33,7 +33,7 @@ export class SefazNfceService {
                 xmllint: `C:/Users/joaoh/Downloads/windowsLibs/libs/libxml2-2.9.3-win32-x86_64/bin/xmllint.exe`,
                 openssl: "C:/Users/joaoh/Downloads/windowsLibs/libs/openssl-3.5.0.win86/bin/openssl.exe" as any, // ou qualquer string válida
                 CPF: "",
-                CNPJ: "",
+                CNPJ: certificadoConfig.CNPJ || "",
             },
             {
                 //Certificado digital
@@ -346,6 +346,6 @@ ${xmlLimpo}
     }
 
     async cancelarNFCe(dados: CancelamentoRequest) {
-        return await this.cancelamentoHandler.cancelarNFCe(this.tools, dados);
+        return await this.cancelamentoHandler.cancelarNFCe(this.tools, this.certificadoConfig, dados);
     }
 }

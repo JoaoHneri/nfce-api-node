@@ -85,12 +85,51 @@ export class SefazResponseParser {
 
     parseCancelamentoResponse(xmlResponse: string, chave: string): CancelamentoResponse {
         try {
+            console.log('🔍 Iniciando parse do cancelamento...');
+
+            if (!xmlResponse) {
+                return {
+                    sucesso: false,
+                    status: "erro_resposta_vazia",
+                    cStat: "999",
+                    xMotivo: "Resposta vazia da SEFAZ",
+                    chaveAcesso: chave,
+                    xmlCompleto: "",
+                    erro: "XML de resposta está vazio"
+                };
+            }
+
             const dadosXML = this.parser.parse(xmlResponse);
-            const retEvento = dadosXML.retEventoNFe || dadosXML.retEnvEventoNFe;
-            const infEvento = retEvento?.infEvento || retEvento?.retEvento?.infEvento;
+            console.log('🔍 XML parseado:', JSON.stringify(dadosXML, null, 2));
+
+            // ✅ CORREÇÃO: Buscar retEvento corretamente
+            let retEvento = dadosXML.retEvento;
             
-            const cStat = infEvento?.cStat || "999";
-            const xMotivo = infEvento?.xMotivo || "Resposta inválida";
+            if (!retEvento) {
+                // Se não encontrou retEvento, pode estar em outro lugar
+                console.log('🔍 retEvento não encontrado, buscando alternativas...');
+                return {
+                    sucesso: false,
+                    status: "erro_estrutura_resposta",
+                    cStat: "999",
+                    xMotivo: "Estrutura de resposta não reconhecida",
+                    chaveAcesso: chave,
+                    xmlCompleto: xmlResponse,
+                    erro: "Não foi possível localizar retEvento na resposta"
+                };
+            }
+
+            if (Array.isArray(retEvento)) {
+                retEvento = retEvento[0];
+            }
+
+            // Buscar dados no infEvento
+            const infEvento = retEvento.infEvento || retEvento;
+            const cStat = String(infEvento.cStat || "999");
+            const xMotivo = infEvento.xMotivo || "Motivo não informado";
+            const nProt = infEvento.nProt;
+
+            console.log('🔍 Dados extraídos:', { cStat, xMotivo, nProt });
 
             const baseResponse = {
                 cStat,
@@ -99,25 +138,39 @@ export class SefazResponseParser {
                 xmlCompleto: xmlResponse
             };
 
-            // Cancelamento autorizado
+            // ✅ CORREÇÃO: Status 135 = Cancelamento autorizado
             if (cStat === "135") {
+                console.log('✅ Cancelamento autorizado');
                 return {
                     ...baseResponse,
                     sucesso: true,
                     status: "cancelado",
-                    protocolo: infEvento?.nProt || null
+                    protocolo: nProt || null
                 };
             }
-            // Cancelamento rejeitado
+            // Status de erro específico
             else {
+                console.log('❌ Cancelamento rejeitado:', xMotivo);
+                
+                // Identificar tipos específicos de erro
+                let status = "erro_cancelamento";
+                if (xMotivo.includes("data do evento")) {
+                    status = "erro_data_evento";
+                } else if (xMotivo.includes("protocolo")) {
+                    status = "erro_protocolo";
+                } else if (xMotivo.includes("justificativa")) {
+                    status = "erro_justificativa";
+                }
+                
                 return {
                     ...baseResponse,
                     sucesso: false,
-                    status: "erro_cancelamento"
+                    status
                 };
             }
 
         } catch (error: any) {
+            console.error('❌ Erro no parse do cancelamento:', error);
             return {
                 sucesso: false,
                 status: "erro_parser",
