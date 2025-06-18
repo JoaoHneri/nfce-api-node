@@ -13,32 +13,15 @@ export class NFCeController {
     this.sefazNfceService = new SefazNfceService(certificadoConfig, 'homologacao');
   }
 
-  // Emitir NFCe
+
   async emitirNFCe(req: Request, res: Response): Promise<void> {
     try {
       const dadosNFCe: NFCeData = req.body;
 
       console.log('📝 Iniciando emissão de NFCe...');
 
-      // 1. Criar XML da NFCe
-      const xmlNFCe = await this.sefazNfceService.criarNFCe(dadosNFCe);
-      console.log('✅ XML da NFCe criado');
-
-      // 2. Assinar XML
-      const xmlAssinado = await this.sefazNfceService.assinarXML(xmlNFCe);
-      console.log('✅ XML assinado');
-
-      // 3. Salvar XMLs para debug
-      await this.sefazNfceService.salvarArquivo(xmlNFCe, 'nfce_original');
-      await this.sefazNfceService.salvarArquivo(xmlAssinado, 'nfce_assinado');
-
-      // 4. Enviar para SEFAZ
-      const resultado = await this.sefazNfceService.enviarParaSefaz(xmlAssinado);
-      console.log('📡 Enviado para SEFAZ');
-
-      if (resultado.xmlCompleto) {
-        await this.sefazNfceService.salvarArquivo(resultado.xmlCompleto, 'sefaz_resposta');
-      }
+      // ✅ TUDO É FEITO NO HANDLER
+      const resultado = await this.sefazNfceService.emitirNFCe(dadosNFCe);
 
       if (resultado.sucesso) {
         console.log('🎉 NFCe autorizada com sucesso!');
