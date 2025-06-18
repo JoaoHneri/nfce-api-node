@@ -28,17 +28,17 @@ export class SefazNfceService {
 
 
     async emitirNFCe(dados: NFCeData, certificadoConfig: CertificadoConfig): Promise<SefazResponse> {
-        const tools = this.toolsCache.obterTools(certificadoConfig);
+        const tools = await this.toolsCache.obterTools(certificadoConfig);
         return await this.emissaoHandler.emitirNFCe(tools, this.carregarConfigCertificado(certificadoConfig), dados);
     }
 
     async consultarNFCe(chave: string, certificadoConfig: CertificadoConfig) {
-        const tools = this.toolsCache.obterTools(certificadoConfig);
+        const tools = await this.toolsCache.obterTools(certificadoConfig);
         return await this.consultaHandler.consultarNFCe(tools, chave);
     }
 
     async cancelarNFCe(dados: CancelamentoRequest, certificadoConfig: CertificadoConfig) {
-        const tools = this.toolsCache.obterTools(certificadoConfig);
+        const tools = await this.toolsCache.obterTools(certificadoConfig);
         return await this.cancelamentoHandler.cancelarNFCe(tools, this.carregarConfigCertificado(certificadoConfig), dados);
     }
 
