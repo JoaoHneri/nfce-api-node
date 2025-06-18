@@ -58,44 +58,6 @@ export class NFCeController {
     }
   }
 
-  // Consultar status do serviço SEFAZ
-  async consultarStatusSefaz(req: Request, res: Response): Promise<void> {
-    try {
-      const { uf = 'SP' } = req.query;
-
-      console.log(`🔍 Consultando status da SEFAZ ${uf}...`);
-
-      const resultado = await this.sefazNfceService.consultarStatusServico(uf as string);
-
-      if (resultado.sucesso || resultado.cStat === '107') {
-        res.status(200).json({
-          sucesso: true,
-          mensagem: 'Status da SEFAZ consultado com sucesso',
-          dados: {
-            status: resultado.cStat,
-            motivo: resultado.xMotivo,
-            dataHora: resultado.dataHora
-          }
-        });
-      } else {
-        res.status(400).json({
-          sucesso: false,
-          mensagem: 'Erro ao consultar status da SEFAZ',
-          erro: resultado.xMotivo || resultado.erro
-        });
-      }
-
-    } catch (error: any) {
-      console.error('❌ Erro ao consultar status:', error.message);
-
-      res.status(500).json({
-        sucesso: false,
-        mensagem: 'Erro interno do servidor',
-        erro: error.message
-      });
-    }
-  }
-
   // Teste de conectividade
   async testeConectividade(req: Request, res: Response): Promise<void> {
     try {
@@ -123,96 +85,102 @@ export class NFCeController {
     }
   }
 
-  // Obter exemplo de JSON para NFCe
+  // Exemplo de dados para emissão de NFCe
   async obterExemplo(req: Request, res: Response): Promise<void> {
-    const exemplo: NFCeData = {
-      emitente: {
-        CNPJ: "60142655000126",
-        xNome: "YELLOWSTONE MINERACAO CRIATIVA LTDA",
-        xFant: "NOME FANTASIA",
-        IE: "153453205111",
-        CRT: "1",
-        endereco: {
-          xLgr: "AV GUILHERME CAMPOS",
-          nro: "500",
-          xBairro: "JARDIM SANTA GENERRA",
-          cMun: "3550308",
-          xMun: "SÃO PAULO",
-          UF: "SP",
-          CEP: "13087901",
-          cPais: "1058",
-          xPais: "BRASIL",
-          fone: "5481439700"
-        }
-      },
-      destinatario: {
-        CPF: "10426174577",
-        xNome: "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
-        indIEDest: "9"
-      },
-      ide: {
-        cUF: "35",
-        cNF: "00002024",
-        natOp: "VENDA",
-        serie: "0",
-        nNF: "252",
-        tpNF: "1",
-        idDest: "1",
-        cMunFG: "3550308",
-        tpImp: "4",
-        tpEmis: "1",
-        tpAmb: "2",
-        finNFe: "1",
-        indFinal: "1",
-        indPres: "1",
-        indIntermed: "0",
-        procEmi: "0",
-        verProc: "4.13"
-      },
-      produtos: [
-        {
-          cProd: "001",
-          cEAN: "SEM GTIN",
-          xProd: "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
-          NCM: "85044010",
-          CFOP: "5102",
-          uCom: "UNID",
-          qCom: "1.0000",
-          vUnCom: "100.00",
-          vProd: "100.00",
-          cEANTrib: "SEM GTIN",
-          uTrib: "UNID",
-          qTrib: "1.0000",
-          vUnTrib: "100.00",
-          indTot: "1"
-        }
-      ],
-      impostos: {
-        orig: "0",
-        CSOSN: "102",
-        CST_PIS: "49",
-        CST_COFINS: "49"
-      },
-      pagamento: {
-        detPag: [
-          {
-            indPag: "0",
-            tPag: "01",
-            vPag: "100.00"
+      const exemplo: NFCeData = {
+          emitente: {
+              CNPJ: "12345678000199", //CNPJ fictício válido
+              xNome: "EMPRESA EXEMPLO LTDA",
+              xFant: "LOJA EXEMPLO",
+              IE: "123456789", //IE fictícia
+              CRT: "1", // 1-Simples Nacional
+              endereco: {
+                  xLgr: "RUA EXEMPLO",
+                  nro: "123",
+                  xBairro: "CENTRO",
+                  cMun: "3550308", // São Paulo
+                  xMun: "SÃO PAULO",
+                  UF: "SP",
+                  CEP: "01234567", //CEP fictício
+                  cPais: "1058",
+                  xPais: "BRASIL",
+                  fone: "1199999999" //Telefone fictício
+              }
+          },
+          destinatario: {
+              CPF: "12345678901", //CPF fictício
+              xNome: "CONSUMIDOR FINAL",
+              indIEDest: "9" // 9-Não contribuinte
+          },
+          ide: {
+              cUF: "35", // São Paulo
+              cNF: "00001234", //Código numérico sequencial
+              natOp: "VENDA",
+              serie: "1", //Série recomendada (não zero)
+              nNF: "1", //Número sequencial
+              tpNF: "1", // 1-Saída
+              idDest: "1", // 1-Operação interna
+              cMunFG: "3550308", // São Paulo
+              tpImp: "4", // 4-NFCe em papel
+              tpEmis: "1", // 1-Emissão normal
+              tpAmb: "2", // 2-Homologação
+              finNFe: "1", // 1-Normal
+              indFinal: "1", // 1-Consumidor final
+              indPres: "1", // 1-Operação presencial
+              indIntermed: "0", // 0-Sem intermediador
+              procEmi: "0", // 0-Emissão com aplicativo do contribuinte
+              verProc: "1.0" // Versão do sistema
+          },
+          produtos: [
+              {
+                  cProd: "001",
+                  cEAN: "SEM GTIN",
+                  xProd: "PRODUTO EXEMPLO - AMBIENTE DE HOMOLOGACAO",
+                  NCM: "85044010", // NCM para produtos eletrônicos
+                  CFOP: "5102", // Venda de mercadoria adquirida ou recebida de terceiros
+                  uCom: "UNID",
+                  qCom: "1.00",
+                  vUnCom: "10.00", //Valor baixo para teste
+                  vProd: "10.00",
+                  cEANTrib: "SEM GTIN",
+                  uTrib: "UNID",
+                  qTrib: "1.00",
+                  vUnTrib: "10.00",
+                  indTot: "1" // 1-Valor compõe total da NF
+              }
+          ],
+          impostos: {
+              orig: "0", // 0-Nacional
+              CSOSN: "102", // 102-Tributada pelo Simples Nacional sem permissão de crédito
+              CST_PIS: "49", // 49-Outras operações de saída
+              CST_COFINS: "49" // 49-Outras operações de saída
+          },
+          pagamento: {
+              detPag: [
+                  {
+                      indPag: "0", // 0-Pagamento à vista
+                      tPag: "01", // 01-Dinheiro
+                      vPag: "10.00" //Mesmo valor do produto
+                  }
+              ],
+              vTroco: "0.00"
+          },
+          transporte: {
+              modFrete: "9" // 9-Sem ocorrência de transporte
           }
-        ],
-        vTroco: "0.00"
-      },
-      transporte: {
-        modFrete: "9"
-      }
-    };
+      };
 
-    res.status(200).json({
-      sucesso: true,
-      mensagem: 'Exemplo de dados para emissão de NFCe',
-      exemplo
-    });
+      res.status(200).json({
+          sucesso: true,
+          mensagem: 'Exemplo de dados para emissão de NFCe (dados fictícios para teste)',
+          observacoes: [
+              "Este exemplo contém dados fictícios para ambiente de homologação",
+              "Para produção, substitua pelos dados reais da empresa",
+              "O valor está baixo (R$ 10,00) para facilitar testes",
+              "CNPJ e CPF são fictícios mas com formato válido"
+          ],
+          exemplo
+      });
   }
 
 

@@ -38,40 +38,16 @@ export class SefazNfceService {
                 CNPJ: certificadoConfig.CNPJ || "",
             },
             {
-                //Certificado digital
-                pfx: certificadoConfig.pfx, // Buffer | String
+
+                pfx: certificadoConfig.pfx,
                 senha: certificadoConfig.senha,
             }
         );
     }
 
-    // Criar NFCe~
+
     async emitirNFCe(dados: NFCeData): Promise<SefazResponse> {
         return await this.emissaoHandler.emitirNFCe(this.tools, this.certificadoConfig, dados);
-    }
-
-    // Consultar status do serviço
-    async consultarStatusServico(uf: string = 'SP', ambiente: 'homologacao' | 'producao' = 'homologacao'): Promise<SefazResponse> {
-        
-        return await this.emissaoHandler.consultarStatusServico(this.certificadoConfig, uf, ambiente);
-    }
-
-
-    // Salvar arquivos para debug
-    async salvarArquivo(conteudo: string, nome: string): Promise<string> {
-        const pastaDebug = path.join(process.cwd(), 'debug');
-
-        if (!fs.existsSync(pastaDebug)) {
-            fs.mkdirSync(pastaDebug, { recursive: true });
-        }
-
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const nomeArquivo = `${nome}_${timestamp}.xml`;
-        const caminhoCompleto = path.join(pastaDebug, nomeArquivo);
-
-        fs.writeFileSync(caminhoCompleto, conteudo, { encoding: 'utf-8' });
-
-        return caminhoCompleto;
     }
 
     async consultarNFCe(chave: string) {

@@ -31,9 +31,10 @@ app.get('/', (req, res) => {
     versao: '1.0.0',
     endpoints: {
       'POST /api/nfce/emitir': 'Emitir NFCe',
-      'GET /api/nfce/status-sefaz': 'Consultar status da SEFAZ',
       'GET /api/nfce/teste': 'Teste de conectividade',
-      'GET /api/nfce/exemplo': 'Obter exemplo de dados'
+      'GET /api/nfce/exemplo': 'Obter exemplo de dados',
+      'GET /api/nfce/consultar/:chave': 'Consultar NFCe por chave de acesso',
+      'POST /api/nfce/cancelar-nfce': 'Cancelar NFCe'
     }
   });
 });

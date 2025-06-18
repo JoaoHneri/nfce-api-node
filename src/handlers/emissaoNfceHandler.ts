@@ -147,13 +147,11 @@ export class EmissaoNfceHandler {
     }
 
     private async enviarParaSefaz(xmlAssinado: string, certificadoConfig: CertificadoConfig, dados: NFCeData): Promise<string> {
-        // ✅ CORREÇÃO: Extrair UF dos dados da NFCe
-    const uf = dados.emitente.endereco.UF;
-    const cUF = dados.ide.cUF;
-    const tpAmb = dados.ide.tpAmb;
-    const ambiente = tpAmb === '1' ? 'producao' : 'homologacao';
 
-        console.log(`📍 Enviando para UF: ${uf} (${cUF}), Ambiente: ${ambiente}`);
+        const uf = dados.emitente.endereco.UF;
+        const cUF = dados.ide.cUF;
+        const tpAmb = dados.ide.tpAmb;
+        const ambiente = tpAmb === '1' ? 'producao' : 'homologacao';
 
         const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
         const url = endpoints[uf]?.nfceAutorizacao;
@@ -162,15 +160,11 @@ export class EmissaoNfceHandler {
             throw new Error(`Endpoint de autorização não configurado para UF: ${uf}`);
         }
 
-        console.log('🌐 URL de autorização:', url);
 
-        // Criar lote NFCe
         const xmlLote = this.criarLoteNFCe(xmlAssinado);
-        
-        // ✅ CORREÇÃO: Criar envelope SOAP com UF dinâmica
+
         const soapEnvelope = this.criarSOAPEnvelope(xmlLote, cUF);
 
-        // Configurar certificado
         if (!certificadoConfig.pfx || !certificadoConfig.senha) {
             throw new Error('Certificado não configurado adequadamente');
         }
@@ -184,7 +178,7 @@ export class EmissaoNfceHandler {
 
         return new Promise((resolve, reject) => {
             const urlObj = new URL(url);
-            
+
             const options = {
                 hostname: urlObj.hostname,
                 port: urlObj.port || 443,
@@ -210,11 +204,11 @@ export class EmissaoNfceHandler {
                 res.on('end', () => {
                     console.log('📡 Status HTTP:', res.statusCode);
                     console.log('📡 Resposta recebida, tamanho:', data.length);
-                    
+
                     if (data.length > 0) {
                         console.log('📄 Primeiros 300 chars:', data.substring(0, 300));
                     }
-                    
+
                     try {
                         const xmlLimpo = this.extrairXMLdoSOAP(data);
                         resolve(xmlLimpo);
@@ -244,29 +238,28 @@ export class EmissaoNfceHandler {
         const xmlLimpo = this.limparXML(xmlNFCe.replace(/^<\?xml[^>]*\?>\s*/, ''));
 
         return this.limparXML(`<?xml version="1.0" encoding="utf-8"?>
-<enviNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
-<idLote>${idLote}</idLote>
-<indSinc>1</indSinc>
-${xmlLimpo}
-</enviNFe>`);
+        <enviNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+        <idLote>${idLote}</idLote>
+        <indSinc>1</indSinc>
+        ${xmlLimpo}
+        </enviNFe>`);
     }
 
-    // ✅ CORREÇÃO: Receber cUF como parâmetro
     private criarSOAPEnvelope(xmlLote: string, cUF: string): string {
         const namespace = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4';
 
         return this.limparXML(`<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-<soap12:Header>
-<nfeCabecMsg xmlns="${namespace}">
-<versaoDados>4.00</versaoDados>
-<cUF>${cUF}</cUF>
-</nfeCabecMsg>
-</soap12:Header>
-<soap12:Body>
-<nfeDadosMsg xmlns="${namespace}">${xmlLote.replace(/^<\?xml[^>]*\?>\s*/, '')}</nfeDadosMsg>
-</soap12:Body>
-</soap12:Envelope>`);
+        <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+        <soap12:Header>
+        <nfeCabecMsg xmlns="${namespace}">
+        <versaoDados>4.00</versaoDados>
+        <cUF>${cUF}</cUF>
+        </nfeCabecMsg>
+        </soap12:Header>
+        <soap12:Body>
+        <nfeDadosMsg xmlns="${namespace}">${xmlLote.replace(/^<\?xml[^>]*\?>\s*/, '')}</nfeDadosMsg>
+        </soap12:Body>
+        </soap12:Envelope>`);
     }
 
     private processarResposta(xmlResposta: string): SefazResponse {
@@ -331,50 +324,24 @@ ${xmlLimpo}
         }
     }
 
-    // ✅ CORREÇÃO: Consulta de status com UF dinâmica
-    async consultarStatusServico(certificadoConfig: CertificadoConfig, uf: string, ambiente: 'homologacao' | 'producao' = 'homologacao'): Promise<SefazResponse> {
-        try {
-            const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
-            const urlStatus = endpoints[uf]?.nfceStatusServico;
-            
-            if (!urlStatus) {
-                throw new Error(`Endpoint de status não configurado para UF: ${uf}`);
-            }
-
-            const cUF = this.obterCodigoUF(uf);
-            const xmlConsulta = this.criarXMLStatusServico(cUF, ambiente);
-            const resposta = await this.fazerRequisicaoSefaz(urlStatus, xmlConsulta, certificadoConfig);
-
-            return this.processarResposta(resposta);
-
-        } catch (error: any) {
-            return {
-                sucesso: false,
-                erro: error.message
-            };
-        }
-    }
-
-    // ✅ CORREÇÃO: Criar XML de status com parâmetros dinâmicos
     private criarXMLStatusServico(cUF: string, ambiente: 'homologacao' | 'producao'): string {
         const tpAmb = ambiente === 'producao' ? '1' : '2';
 
-        return `<?xml version="1.0" encoding="utf-8"?>
-<consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
-<tpAmb>${tpAmb}</tpAmb>
-<cUF>${cUF}</cUF>
-<xServ>STATUS</xServ>
-</consStatServ>`;
+                return `<?xml version="1.0" encoding="utf-8"?>
+        <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+        <tpAmb>${tpAmb}</tpAmb>
+        <cUF>${cUF}</cUF>
+        <xServ>STATUS</xServ>
+        </consStatServ>`;
     }
 
-    // ✅ CORREÇÃO: Fazer requisição com certificado do config
     private async fazerRequisicaoSefaz(url: string, xmlDados: string, certificadoConfig: CertificadoConfig): Promise<string> {
-        const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-<soap12:Body>
-<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">${xmlDados}</nfeDadosMsg>
-</soap12:Body>
-</soap12:Envelope>`;
+                const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
+        <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+        <soap12:Body>
+        <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">${xmlDados}</nfeDadosMsg>
+        </soap12:Body>
+        </soap12:Envelope>`;
 
         if (!fs.existsSync(certificadoConfig.pfx)) {
             throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfx}`);
@@ -384,7 +351,7 @@ ${xmlLimpo}
 
         return new Promise((resolve, reject) => {
             const urlObj = new URL(url);
-            
+
             const options = {
                 hostname: urlObj.hostname,
                 port: urlObj.port || 443,
@@ -416,7 +383,6 @@ ${xmlLimpo}
         });
     }
 
-    // ✅ CORREÇÃO: Mapeamento completo de UFs
     private obterCodigoUF(uf: string): string {
         const codigos: Record<string, string> = {
             'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29',
@@ -426,12 +392,12 @@ ${xmlLimpo}
             'RS': '43', 'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35',
             'SE': '28', 'TO': '17'
         };
-        
+
         const codigo = codigos[uf.toUpperCase()];
         if (!codigo) {
             throw new Error(`Código UF não encontrado para: ${uf}`);
         }
-        
+
         return codigo;
     }
 }
