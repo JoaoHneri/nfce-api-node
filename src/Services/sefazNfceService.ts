@@ -4,7 +4,7 @@ import https from "https";
 import path from "path";
 import { v4 as uuidv4 } from 'uuid';
 import { NFCeData, CertificadoConfig, SefazResponse, SefazEndpoints } from '../types';
-
+import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO} from '../config/sefaz-endpoints';
 export class SefazNfceService {
     private tools: Tools;
     private certificadoConfig: CertificadoConfig;
@@ -24,12 +24,14 @@ export class SefazNfceService {
                 timeout: 10000, //10 segundos
                 //Optativo: Leia sobre Requisitos.
                 xmllint: `./libs/libxml2-2.9.3-win32-x86_64/bin/xmllint.exe`,
-                openssl: `./libs/openssl-3.5.0.win86/bin/openssl.exe`,
+                openssl: null,
+                CPF: "",
+                CNPJ: "",
             },
             {
                 //Certificado digital
-                pfx: "C:\\Users\\joaoh\\Desktop\\Arquivos PASS\\YELLOWSTONE MINERACAO CRIATIVA LTDA_60142655000126.pfx", // Buffer | String
-                senha: "deport",
+                pfx: certificadoConfig.pfx, // Buffer | String
+                senha: certificadoConfig.senha,
             }
         );
     }
@@ -138,7 +140,7 @@ export class SefazNfceService {
     // Enviar para SEFAZ
     async enviarParaSefaz(xmlAssinado: string, uf: string = 'SP', ambiente: 'homologacao' | 'producao' = 'homologacao'): Promise<SefazResponse> {
         try {
-            const endpoints = ambiente === 'producao' ? this.ENDPOINTS_PRODUCAO : this.ENDPOINTS_HOMOLOGACAO;
+            const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
             const urlSefaz = endpoints[uf].nfceAutorizacao;
 
             const xmlLote = this.criarLoteNFCe(xmlAssinado);
@@ -157,9 +159,8 @@ export class SefazNfceService {
     // Consultar status do serviço
     async consultarStatusServico(uf: string = 'SP', ambiente: 'homologacao' | 'producao' = 'homologacao'): Promise<SefazResponse> {
         try {
-            const endpoints = ambiente === 'producao' ? this.ENDPOINTS_PRODUCAO : this.ENDPOINTS_HOMOLOGACAO;
+            const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
             const urlStatus = endpoints[uf].nfceStatusServico;
-
             const xmlConsulta = this.criarXMLStatusServico(uf);
             const resposta = await this.fazerRequisicaoSefaz(urlStatus, xmlConsulta, 'status');
 

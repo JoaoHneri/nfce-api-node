@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { NFCController } from '../controllers/nfceController';
+import { NFCeController } from '../controllers/nfceController';
 
 const router = Router();
-const nfcController = new NFCController();
+const nfcController = new NFCeController();
 
-// Rotas da API
-router.post('/emitir', (req, res) => nfcController.emitirNFCe(req, res));
-router.get('/status-sefaz', (req, res) => nfcController.consultarStatusSefaz(req, res));
-router.get('/teste', (req, res) => nfcController.testeConectividade(req, res));
-router.get('/exemplo', (req, res) => nfcController.obterExemplo(req, res));
+// Rotas da API com binding correto
+router.post('/emitir', nfcController.emitirNFCe.bind(nfcController));
+router.get('/status-sefaz', nfcController.consultarStatusSefaz.bind(nfcController));
+router.get('/teste', nfcController.testeConectividade.bind(nfcController));
+router.get('/exemplo', nfcController.obterExemplo.bind(nfcController));
 
-export { router as nfcRoutes };
+export default router;

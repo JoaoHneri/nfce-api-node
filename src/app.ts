@@ -1,11 +1,12 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
-import { nfcRoutes } from './routes/nfcRoutes';
+import nfcRoutes from './routes/nfcRoutes';
 
 // Carregar variáveis de ambiente
-dotenv.config();
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -58,6 +59,7 @@ app.use('*', (req, res) => {
     path: req.originalUrl
   });
 });
+
 
 // Iniciar servidor
 app.listen(PORT, () => {

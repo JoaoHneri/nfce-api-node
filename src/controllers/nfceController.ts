@@ -4,7 +4,7 @@ import { NFCeData, CertificadoConfig } from '../types';
 import fs from 'fs';
 import path from 'path';
 
-export class NFCController {
+export class NFCeController {
   private sefazNfceService: SefazNfceService;
 
   constructor() {
@@ -33,32 +33,32 @@ export class NFCController {
       await this.sefazNfceService.salvarArquivo(xmlAssinado, 'nfce_assinado');
 
       // 4. Enviar para SEFAZ
-      const resultado = await this.sefazNfceService.enviarParaSefaz(xmlAssinado);
-      console.log('📡 Enviado para SEFAZ');
+    //   const resultado = await this.sefazNfceService.enviarParaSefaz(xmlAssinado);
+    //   console.log('📡 Enviado para SEFAZ');
 
-      if (resultado.sucesso) {
-        console.log('🎉 NFCe autorizada com sucesso!');
+    //   if (resultado.sucesso) {
+    //     console.log('🎉 NFCe autorizada com sucesso!');
         
-        res.status(200).json({
-          sucesso: true,
-          mensagem: 'NFCe emitida com sucesso',
-          dados: {
-            chaveAcesso: resultado.chaveAcesso,
-            protocolo: resultado.protocolo,
-            dataHora: resultado.dataHora,
-            status: resultado.cStat,
-            motivo: resultado.xMotivo
-          }
-        });
-      } else {
-        console.log('❌ Erro na emissão:', resultado.xMotivo);
+    //     res.status(200).json({
+    //       sucesso: true,
+    //       mensagem: 'NFCe emitida com sucesso',
+    //       dados: {
+    //         chaveAcesso: resultado.chaveAcesso,
+    //         protocolo: resultado.protocolo,
+    //         dataHora: resultado.dataHora,
+    //         status: resultado.cStat,
+    //         motivo: resultado.xMotivo
+    //       }
+    //     });
+    //   } else {
+    //     console.log('❌ Erro na emissão:', resultado.xMotivo);
         
-        res.status(400).json({
-          sucesso: false,
-          mensagem: 'Erro na emissão da NFCe',
-          erro: resultado.xMotivo || resultado.erro
-        });
-      }
+    //     res.status(400).json({
+    //       sucesso: false,
+    //       mensagem: 'Erro na emissão da NFCe',
+    //       erro: resultado.xMotivo || resultado.erro
+    //     });
+    //   }
 
     } catch (error: any) {
       console.error('❌ Erro interno:', error.message);
@@ -229,7 +229,8 @@ export class NFCController {
   }
 
   private carregarConfigCertificado(): CertificadoConfig {
-    
+    console.log('🔑 Carregando configuração do certificado...')
+
     return {
       pfx: process.env.CERTIFICADO_PATH || '',
       senha: process.env.CERTIFICADO_SENHA || '',
