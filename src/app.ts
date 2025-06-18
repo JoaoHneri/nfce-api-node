@@ -11,22 +11,20 @@ import nfcRoutes from './routes/nfcRoutes';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
-app.use(helmet()); // Segurança
-app.use(cors()); // CORS
-app.use(express.json({ limit: '10mb' })); // Parse JSON
+app.use(helmet()); 
+app.use(cors()); 
+app.use(express.json({ limit: '10mb' })); 
 app.use(express.urlencoded({ extended: true }));
 
-// Middleware de log
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
-// Rotas
+
 app.use('/api/nfce', nfcRoutes);
 
-// Rota raiz
+
 app.get('/', (req, res) => {
   res.json({
     mensagem: 'API NFCe - SEFAZ',
@@ -40,7 +38,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Middleware de erro global
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('❌ Erro não tratado:', error);
   
@@ -51,7 +48,7 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
   });
 });
 
-// Middleware 404
+
 app.use('*', (req, res) => {
   res.status(404).json({
     sucesso: false,
@@ -61,7 +58,6 @@ app.use('*', (req, res) => {
 });
 
 
-// Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 API NFCe rodando na porta ${PORT}`);
   console.log(`📡 Ambiente: ${process.env.NODE_ENV || 'development'}`);

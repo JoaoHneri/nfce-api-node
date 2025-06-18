@@ -5,12 +5,15 @@ import path from "path";
 import { v4 as uuidv4 } from 'uuid';
 import { NFCeData, CertificadoConfig, SefazResponse, SefazEndpoints } from '../types';
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO} from '../config/sefaz-endpoints';
+import { ConsultaHandler } from "../handlers/consultaHandlers"; 
 export class SefazNfceService {
     private tools: Tools;
     private certificadoConfig: CertificadoConfig;
+    private consultaHandler: ConsultaHandler;
 
     constructor(certificadoConfig: CertificadoConfig, ambiente: 'homologacao' | 'producao' = 'homologacao') {
         this.certificadoConfig = certificadoConfig;
+         this.consultaHandler = new ConsultaHandler();
 
         this.tools = new Tools(
             {
@@ -332,5 +335,10 @@ ${xmlLimpo}
         fs.writeFileSync(caminhoCompleto, conteudo, { encoding: 'utf-8' });
 
         return caminhoCompleto;
+    }
+
+
+    async consultarNFCe(chave: string) {
+        return await this.consultaHandler.consultarNFCe(this.tools, chave);
     }
 }

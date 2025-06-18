@@ -42,7 +42,7 @@ export class NFCeController {
 
       if (resultado.sucesso) {
         console.log('🎉 NFCe autorizada com sucesso!');
-        
+
         res.status(200).json({
           sucesso: true,
           mensagem: 'NFCe emitida com sucesso',
@@ -56,7 +56,7 @@ export class NFCeController {
         });
       } else {
         console.log('❌ Erro na emissão:', resultado.xMotivo);
-        
+
         res.status(400).json({
           sucesso: false,
           mensagem: 'Erro na emissão da NFCe',
@@ -66,7 +66,7 @@ export class NFCeController {
 
     } catch (error: any) {
       console.error('❌ Erro interno:', error.message);
-      
+
       res.status(500).json({
         sucesso: false,
         mensagem: 'Erro interno do servidor',
@@ -104,7 +104,7 @@ export class NFCeController {
 
     } catch (error: any) {
       console.error('❌ Erro ao consultar status:', error.message);
-      
+
       res.status(500).json({
         sucesso: false,
         mensagem: 'Erro interno do servidor',
@@ -120,7 +120,7 @@ export class NFCeController {
 
       // Teste básico
       const agora = new Date().toISOString();
-      
+
       res.status(200).json({
         sucesso: true,
         mensagem: 'API funcionando corretamente',
@@ -231,6 +231,38 @@ export class NFCeController {
       exemplo
     });
   }
+
+
+  async consultarNFCe(req: Request, res: Response): Promise<void> {
+        try {
+          
+            const { chave } = req.params;
+
+            if (!chave) {
+                res.status(400).json({
+                    erro: 'Chave de acesso é obrigatória',
+                    status: 400
+                });
+                return;
+            }
+
+            const resultado = await this.sefazNfceService.consultarNFCe(chave);
+
+            res.status(200).json({resultado});
+
+        } catch (error: any) {     
+
+            res.status(500).json({
+                erro: 'Erro interno do servidor',
+                mensagem: 'Erro inesperado ao consultar NFCe',
+                detalhes: {
+                    erro: error.message,
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+        }
+    }
 
   private carregarConfigCertificado(): CertificadoConfig {
     console.log('🔑 Carregando configuração do certificado...')
