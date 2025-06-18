@@ -3,17 +3,21 @@ import fs from "fs";
 import https from "https";
 import path from "path";
 import { v4 as uuidv4 } from 'uuid';
-import { NFCeData, CertificadoConfig, SefazResponse, SefazEndpoints } from '../types';
+import { NFCeData, CertificadoConfig, SefazResponse, SefazEndpoints, CancelamentoRequest } from '../types';
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO} from '../config/sefaz-endpoints';
 import { ConsultaHandler } from "../handlers/consultaHandlers"; 
+import { CancelamentoHandler } from "../handlers/cancelamentoHandler";
 export class SefazNfceService {
     private tools: Tools;
     private certificadoConfig: CertificadoConfig;
     private consultaHandler: ConsultaHandler;
+    private cancelamentoHandler: CancelamentoHandler;
 
     constructor(certificadoConfig: CertificadoConfig, ambiente: 'homologacao' | 'producao' = 'homologacao') {
+
         this.certificadoConfig = certificadoConfig;
-         this.consultaHandler = new ConsultaHandler();
+        this.consultaHandler = new ConsultaHandler();
+        this.cancelamentoHandler = new CancelamentoHandler();
 
         this.tools = new Tools(
             {
@@ -337,8 +341,11 @@ ${xmlLimpo}
         return caminhoCompleto;
     }
 
-
     async consultarNFCe(chave: string) {
         return await this.consultaHandler.consultarNFCe(this.tools, chave);
+    }
+
+    async cancelarNFCe(dados: CancelamentoRequest) {
+        return await this.cancelamentoHandler.cancelarNFCe(this.tools, dados);
     }
 }

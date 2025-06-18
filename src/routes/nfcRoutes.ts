@@ -10,5 +10,7 @@ router.get('/status-sefaz', nfcController.consultarStatusSefaz.bind(nfcControlle
 router.get('/teste', nfcController.testeConectividade.bind(nfcController));
 router.get('/exemplo', nfcController.obterExemplo.bind(nfcController));
 router.get('/consultar/:chave', nfcController.consultarNFCe.bind(nfcController));
+router.post('/cancelar-nfce', nfcController.cancelarNFCe.bind(nfcController));
+
 
 export default router;

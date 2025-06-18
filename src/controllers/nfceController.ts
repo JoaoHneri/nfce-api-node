@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { SefazNfceService } from '../Services/sefazNfceService';
-import { NFCeData, CertificadoConfig } from '../types';
+import { NFCeData, CertificadoConfig, CancelamentoRequest } from '../types';
 import fs from 'fs';
 import path from 'path';
 
@@ -234,35 +234,77 @@ export class NFCeController {
 
 
   async consultarNFCe(req: Request, res: Response): Promise<void> {
-        try {
-          
-            const { chave } = req.params;
+    try {
 
-            if (!chave) {
-                res.status(400).json({
-                    erro: 'Chave de acesso é obrigatória',
-                    status: 400
-                });
-                return;
-            }
+      const { chave } = req.params;
 
-            const resultado = await this.sefazNfceService.consultarNFCe(chave);
+      if (!chave) {
+        res.status(400).json({
+          erro: 'Chave de acesso é obrigatória',
+          status: 400
+        });
+        return;
+      }
 
-            res.status(200).json({resultado});
+      const resultado = await this.sefazNfceService.consultarNFCe(chave);
 
-        } catch (error: any) {     
+      res.status(200).json({ resultado });
 
-            res.status(500).json({
-                erro: 'Erro interno do servidor',
-                mensagem: 'Erro inesperado ao consultar NFCe',
-                detalhes: {
-                    erro: error.message,
-                    timestamp: new Date().toISOString()
-                }
-            });
+    } catch (error: any) {
 
+      res.status(500).json({
+        erro: 'Erro interno do servidor',
+        mensagem: 'Erro inesperado ao consultar NFCe',
+        detalhes: {
+          erro: error.message,
+          timestamp: new Date().toISOString()
         }
+      });
+
     }
+  }
+
+
+  async cancelarNFCe(req: Request, res: Response): Promise<void> {
+    try {
+      const { chaveAcesso, protocolo, justificativa } = req.body;
+
+      // Validação básica
+      if (!chaveAcesso || !protocolo || !justificativa) {
+        res.status(400).json({
+          erro: 'Dados obrigatórios',
+          mensagem: 'chaveAcesso, protocolo e justificativa são obrigatórios',
+          status: 400
+        });
+        return;
+      }
+
+      console.log(`🚫 Cancelando NFCe: ${chaveAcesso}`);
+
+      const dadosCancelamento: CancelamentoRequest = {
+        chaveAcesso,
+        protocolo,
+        justificativa
+      };
+
+      // Cancelamento via service
+      const resultado = await this.sefazNfceService.cancelarNFCe(dadosCancelamento);
+      console.log(`🚫 Resultado do cancelamento: ${JSON.stringify(resultado)}`);
+      res.status(200).json(resultado);
+
+    } catch (error: any) {
+      console.error('❌ Erro no cancelamento NFCe:', error);
+
+      res.status(500).json({
+        erro: 'Erro interno do servidor',
+        mensagem: 'Erro inesperado ao cancelar NFCe',
+        detalhes: {
+          erro: error.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+  }
 
   private carregarConfigCertificado(): CertificadoConfig {
     console.log('🔑 Carregando configuração do certificado...')
