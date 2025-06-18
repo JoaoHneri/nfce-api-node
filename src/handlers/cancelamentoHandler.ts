@@ -77,27 +77,19 @@ export class CancelamentoHandler {
     }
 
     private criarObjetoEvento(dados: CancelamentoRequest, certificadoConfig: CertificadoConfig): any {
-        // ✅ CORREÇÃO: Usar horário de Brasília correto
         const agora = new Date();
         
-        // Converter para horário de Brasília (UTC-3)
         const brasiliaTime = new Date(agora.getTime() - (3 * 60 * 60 * 1000));
         
-        // Subtrair mais alguns minutos para garantir que não seja futuro
         brasiliaTime.setMinutes(brasiliaTime.getMinutes() - 5);
         
         const dhEvento = brasiliaTime.toISOString().replace(/\.\d{3}Z$/, '-03:00');
         
-        console.log('⏰ Data do evento ajustada:', dhEvento);
-        console.log('⏰ Data atual sistema:', agora.toISOString());
-        
         const nSeqEvento = 1;
         const cOrgao = dados.chaveAcesso.substring(0, 2);
         
-        // Gerar idLote dinâmico
         const idLote = this.gerarIdLote();
 
-        // Criar detEvento para cancelamento
         const detEvento = {
             "@versao": "1.00",
             "descEvento": "Cancelamento",
@@ -119,7 +111,7 @@ export class CancelamentoHandler {
                         "tpAmb": "2",
                         "CNPJ": certificadoConfig.CNPJ || "",
                         "chNFe": dados.chaveAcesso,
-                        "dhEvento": dhEvento, // ✅ Data corrigida
+                        "dhEvento": dhEvento, 
                         "tpEvento": "110111",
                         "nSeqEvento": nSeqEvento,
                         "verEvento": "1.00",
@@ -131,7 +123,6 @@ export class CancelamentoHandler {
     }
 
     private async enviarParaSefaz(soapEnvelope: string, chaveAcesso: string, certificadoConfig: CertificadoConfig): Promise<string> {
-        // Extrair UF e configurar endpoint
         const cUF = chaveAcesso.substring(0, 2);
         const ufMap: Record<string, string> = {
             '35': 'SP', '33': 'RJ', '31': 'MG', '41': 'PR', '42': 'SC', '43': 'RS'
@@ -150,7 +141,6 @@ export class CancelamentoHandler {
 
         console.log('🌐 URL de cancelamento:', url);
 
-        // ✅ USAR certificadoConfig diretamente
         console.log('🔍 Usando certificado do config...');
         console.log('📋 Certificado:', certificadoConfig.pfx);
 
@@ -158,13 +148,11 @@ export class CancelamentoHandler {
             throw new Error('Certificado não configurado adequadamente');
         }
 
-        // Verificar se arquivo existe
         if (!fs.existsSync(certificadoConfig.pfx)) {
             throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfx}`);
         }
 
         const certificado = fs.readFileSync(certificadoConfig.pfx);
-        console.log('✅ Certificado carregado, tamanho:', certificado.length, 'bytes');
 
         return new Promise((resolve, reject) => {
             const urlObj = new URL(url);
@@ -179,7 +167,7 @@ export class CancelamentoHandler {
                     'Content-Length': Buffer.byteLength(soapEnvelope)
                 },
                 pfx: certificado,
-                passphrase: certificadoConfig.senha, // ✅ USAR certificadoConfig
+                passphrase: certificadoConfig.senha,
                 rejectUnauthorized: false,
                 secureProtocol: 'TLSv1_2_method'
             };
@@ -232,7 +220,6 @@ export class CancelamentoHandler {
 
         let idLote = `${ano}${mes}${dia}${hora}${minuto}${segundo}`;
 
-        // Adicionar dígitos aleatórios se necessário
         while (idLote.length < 15) {
             idLote += Math.floor(Math.random() * 10);
         }
@@ -265,7 +252,6 @@ export class CancelamentoHandler {
     }
 
     private limparSOAP(soapResponse: string): string {
-        // Implementar limpeza similar à lib
         const patterns = [
             /<!\[CDATA\[(.*?)\]\]>/s,
             /<retEnvEvento[^>]*>(.*?)<\/retEnvEvento>/s

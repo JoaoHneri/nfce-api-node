@@ -16,34 +16,23 @@ export class EmissaoNfceHandler {
 
     async emitirNFCe(tools: any, certificadoConfig: CertificadoConfig, dados: NFCeData): Promise<SefazResponse> {
         try {
-            console.log('📝 Iniciando emissão de NFCe via handler...');
 
-            // 1. Criar XML da NFCe usando Make
             const xmlNFCe = await this.criarXMLNFCe(dados);
-            console.log('✅ XML da NFCe criado');
 
-            // 2. Salvar XML original para debug
             await this.salvarArquivoDebug(xmlNFCe, 'nfce_original');
 
-            // 3. Assinar XML usando tools
             const xmlAssinado = await tools.xmlSign(xmlNFCe);
-            console.log('✅ XML assinado via tools.xmlSign');
 
-            // 4. Salvar XML assinado para debug
             await this.salvarArquivoDebug(xmlAssinado, 'nfce_assinado');
 
-            // 5. Enviar para SEFAZ
             const xmlResponse = await this.enviarParaSefaz(xmlAssinado, certificadoConfig, dados);
-            console.log('📡 Enviado para SEFAZ');
 
-            // 6. Salvar resposta para debug
             await this.salvarArquivoDebug(xmlResponse, 'sefaz_resposta');
 
-            // 7. Processar resposta
             return this.processarResposta(xmlResponse);
 
         } catch (error: any) {
-            console.error('❌ Erro na emissão:', error);
+            console.error('Erro na emissão:', error);
             return {
                 sucesso: false,
                 erro: error.message
@@ -54,10 +43,8 @@ export class EmissaoNfceHandler {
     private async criarXMLNFCe(dados: NFCeData): Promise<string> {
         const NFe = new Make();
 
-        // Configurar cabeçalho
         NFe.tagInfNFe({ Id: null, versao: '4.00' });
 
-        // Dados de identificação
         NFe.tagIde({
             cUF: dados.ide.cUF,
             cNF: dados.ide.cNF,
@@ -173,7 +160,7 @@ export class EmissaoNfceHandler {
         }
 
         const certificado = fs.readFileSync(certificadoConfig.pfx);
-        console.log('✅ Certificado carregado, tamanho:', certificado.length, 'bytes');
+       
 
         return new Promise((resolve, reject) => {
             const urlObj = new URL(url);
@@ -195,18 +182,12 @@ export class EmissaoNfceHandler {
                 secureProtocol: 'TLSv1_2_method'
             };
 
-            console.log('🌐 Conectando em:', `${urlObj.hostname}${urlObj.pathname}`);
 
             const req = https.request(options, (res) => {
                 let data = '';
                 res.on('data', (chunk) => data += chunk);
                 res.on('end', () => {
-                    console.log('📡 Status HTTP:', res.statusCode);
-                    console.log('📡 Resposta recebida, tamanho:', data.length);
 
-                    if (data.length > 0) {
-                        console.log('📄 Primeiros 300 chars:', data.substring(0, 300));
-                    }
 
                     try {
                         const xmlLimpo = this.extrairXMLdoSOAP(data);
@@ -218,7 +199,7 @@ export class EmissaoNfceHandler {
             });
 
             req.on('error', (err) => {
-                console.error('❌ Erro na requisição:', err);
+                console.error('Erro na requisição:', err);
                 reject(err);
             });
 
@@ -317,7 +298,6 @@ export class EmissaoNfceHandler {
             const caminhoCompleto = path.join(pastaDebug, nomeArquivo);
 
             fs.writeFileSync(caminhoCompleto, conteudo, { encoding: 'utf-8' });
-            console.log(`💾 Arquivo salvo: ${nomeArquivo}`);
         } catch (error) {
             console.log('⚠️ Erro ao salvar debug:', error);
         }

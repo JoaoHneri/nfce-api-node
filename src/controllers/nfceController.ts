@@ -21,12 +21,9 @@ export class NFCeController {
         return;
       }
 
-      console.log('📝 Iniciando emissão de NFCe...');
-
       const resultado = await this.sefazNfceService.emitirNFCe(dadosNFCe, certificado);
 
       if (resultado.sucesso) {
-        console.log('🎉 NFCe autorizada com sucesso!');
 
         res.status(200).json({
           sucesso: true,
@@ -40,7 +37,6 @@ export class NFCeController {
           }
         });
       } else {
-        console.log('❌ Erro na emissão:', resultado.xMotivo);
 
         res.status(400).json({
           sucesso: false,
@@ -50,7 +46,7 @@ export class NFCeController {
       }
 
     } catch (error: any) {
-      console.error('❌ Erro interno:', error.message);
+      console.error('Erro interno:', error.message);
 
       res.status(500).json({
         sucesso: false,
@@ -63,7 +59,6 @@ export class NFCeController {
 
   async testeConectividade(req: Request, res: Response): Promise<void> {
     try {
-      console.log('🔧 Testando conectividade...');
 
       // Teste básico
       const agora = new Date().toISOString();
@@ -187,13 +182,13 @@ export class NFCeController {
           sucesso: true,
           mensagem: 'Exemplo completo para emissão de NFCe via HUB',
           observacoes: [
-              "🏢 API HUB: Aceita certificado por requisição",
-              "🔑 Substitua os dados do certificado pelos reais",
-              "📁 Ajuste o caminho do arquivo .pfx",
-              "🌍 tpAmb: 2=Homologação, 1=Produção",
-              "📍 UF deve ser consistente em certificado e emitente",
-              "💰 Valor baixo (R$ 10,00) para facilitar testes",
-              "📋 CNPJ fictício mas com formato válido"
+              "API HUB: Aceita certificado por requisição",
+              "Substitua os dados do certificado pelos reais",
+              "Ajuste o caminho do arquivo .pfx",
+              "tpAmb: 2=Homologação, 1=Produção",
+              "UF deve ser consistente em certificado e emitente",
+              "Valor baixo (R$ 10,00) para facilitar testes",
+              "CNPJ fictício mas com formato válido"
           ],
           comoUsar: {
               endpoint: "POST /api/nfce/emitir",
@@ -258,8 +253,6 @@ export class NFCeController {
         return;
       }
 
-      console.log(`🚫 Cancelando NFCe: ${chaveAcesso}`);
-
       const dadosCancelamento: CancelamentoRequest = {
         chaveAcesso,
         protocolo,
@@ -268,11 +261,10 @@ export class NFCeController {
 
       // Cancelamento via service
       const resultado = await this.sefazNfceService.cancelarNFCe(dadosCancelamento, certificado);
-      console.log(`🚫 Resultado do cancelamento: ${JSON.stringify(resultado)}`);
       res.status(200).json(resultado);
 
     } catch (error: any) {
-      console.error('❌ Erro no cancelamento NFCe:', error);
+      console.error('Erro no cancelamento NFCe:', error);
 
       res.status(500).json({
         erro: 'Erro interno do servidor',

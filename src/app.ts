@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
 });
 
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('❌ Erro não tratado:', error);
+  console.error('Erro não tratado:', error);
   
   res.status(500).json({
     sucesso: false,
@@ -60,9 +60,9 @@ app.use('*', (req, res) => {
 
 
 app.listen(PORT, () => {
-  console.log(`🚀 API NFCe rodando na porta ${PORT}`);
-  console.log(`📡 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 URL: http://localhost:${PORT}`);
+  console.log(`API NFCe rodando na porta ${PORT}`);
+  console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`URL: http://localhost:${PORT}`);
 });
 
 export default app;

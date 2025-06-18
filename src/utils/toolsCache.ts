@@ -17,17 +17,11 @@ export class ToolsCache {
         };
 
         this.iniciarLimpezaAutomatica();
-        console.log('🚀 ToolsCache inicializado:', this.config);
     }
 
-    /**
-     * Obtém Tools do cache ou cria novo se necessário
-     */
     async obterTools(certificadoConfig: CertificadoConfig): Promise<Tools> {
         const chaveCache = CacheUtils.gerarChaveCache(certificadoConfig);
         const agora = Date.now();
-
-        console.log(`🔍 Buscando Tools no cache: ${CacheUtils.mascararEmpresa(chaveCache)}`);
 
         // Verificar cache
         const cached = this.cache.get(chaveCache);
@@ -36,18 +30,15 @@ export class ToolsCache {
             // Cache HIT
             cached.hits++;
             const idade = CacheUtils.formatarTempo(agora - cached.timestamp);
-            console.log(`♻️ Cache HIT! Hits: ${cached.hits}, Idade: ${idade}`);
             return cached.tools;
         }
 
         // Cache MISS - remover se expirado
         if (cached) {
-            console.log(`⏰ Cache expirado, removendo...`);
             this.cache.delete(chaveCache);
         }
 
         // Criar novo Tools
-        console.log(`🔧 Cache MISS - criando novo Tools...`);
         const tools = await this.criarTools(certificadoConfig);
 
         // Armazenar no cache
@@ -66,13 +57,9 @@ export class ToolsCache {
         // Controlar tamanho
         this.controlarTamanhoCache();
 
-        console.log(`💾 Tools armazenado no cache. Total: ${this.cache.size}/${this.config.maxSize}`);
         return tools;
     }
 
-    /**
-     * Cria nova instância Tools
-     */
     private async criarTools(certificadoConfig: CertificadoConfig): Promise<Tools> {
         const inicio = Date.now();
         
@@ -98,19 +85,15 @@ export class ToolsCache {
             );
 
             const tempo = Date.now() - inicio;
-            console.log(`⚡ Tools criado em ${tempo}ms`);
             
             return tools;
 
         } catch (error: any) {
-            console.error('❌ Erro ao criar Tools:', error);
+            console.error('Erro ao criar Tools:', error);
             throw new Error(`Falha ao criar Tools: ${error.message}`);
         }
     }
 
-    /**
-     * Remove entradas expiradas do cache
-     */
     private limparCacheExpirado(): void {
         const agora = Date.now();
         let removidos = 0;
@@ -122,14 +105,8 @@ export class ToolsCache {
             }
         }
 
-        if (removidos > 0) {
-            console.log(`🗑️ Cache: ${removidos} entradas expiradas removidas. Restam: ${this.cache.size}`);
-        }
     }
 
-    /**
-     * Controla tamanho máximo do cache
-     */
     private controlarTamanhoCache(): void {
         if (this.cache.size > this.config.maxSize) {
             // Remover a entrada com menos hits e mais antiga
@@ -144,22 +121,15 @@ export class ToolsCache {
             const [chaveRemover] = entradas[0];
             this.cache.delete(chaveRemover);
             
-            console.log(`📏 Cache cheio - entrada menos usada removida. Tamanho: ${this.cache.size}`);
         }
     }
 
-    /**
-     * Inicia limpeza automática periódica
-     */
     private iniciarLimpezaAutomatica(): void {
         this.cleanupTimer = setInterval(() => {
             this.limparCacheExpirado();
         }, this.config.cleanupInterval);
     }
 
-    /**
-     * Obtém estatísticas do cache
-     */
     public obterEstatisticas(): CacheStats {
         const agora = Date.now();
         
@@ -178,37 +148,23 @@ export class ToolsCache {
         };
     }
 
-    /**
-     * Limpa todo o cache manualmente
-     */
     public limparCache(): void {
         const tamanhoAnterior = this.cache.size;
         this.cache.clear();
-        console.log(`🧹 Cache limpo manualmente. ${tamanhoAnterior} entradas removidas.`);
     }
 
-    /**
-     * Remove entrada específica do cache
-     */
     public removerEmpresa(certificadoConfig: CertificadoConfig): boolean {
         const chave = CacheUtils.gerarChaveCache(certificadoConfig);
         const removido = this.cache.delete(chave);
         
-        if (removido) {
-            console.log(`🗑️ Empresa removida do cache: ${CacheUtils.mascararEmpresa(chave)}`);
-        }
-        
+
         return removido;
     }
 
-    /**
-     * Destrói o cache e para a limpeza automática
-     */
     public destruir(): void {
         if (this.cleanupTimer) {
             clearInterval(this.cleanupTimer);
         }
         this.cache.clear();
-        console.log('💥 ToolsCache destruído');
     }
 }

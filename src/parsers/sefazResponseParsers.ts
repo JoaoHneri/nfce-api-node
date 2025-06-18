@@ -85,7 +85,6 @@ export class SefazResponseParser {
 
     parseCancelamentoResponse(xmlResponse: string, chave: string): CancelamentoResponse {
         try {
-            console.log('🔍 Iniciando parse do cancelamento...');
 
             if (!xmlResponse) {
                 return {
@@ -100,14 +99,11 @@ export class SefazResponseParser {
             }
 
             const dadosXML = this.parser.parse(xmlResponse);
-            console.log('🔍 XML parseado:', JSON.stringify(dadosXML, null, 2));
 
-            // ✅ CORREÇÃO: Buscar retEvento corretamente
             let retEvento = dadosXML.retEvento;
             
             if (!retEvento) {
                 // Se não encontrou retEvento, pode estar em outro lugar
-                console.log('🔍 retEvento não encontrado, buscando alternativas...');
                 return {
                     sucesso: false,
                     status: "erro_estrutura_resposta",
@@ -129,7 +125,6 @@ export class SefazResponseParser {
             const xMotivo = infEvento.xMotivo || "Motivo não informado";
             const nProt = infEvento.nProt;
 
-            console.log('🔍 Dados extraídos:', { cStat, xMotivo, nProt });
 
             const baseResponse = {
                 cStat,
@@ -138,9 +133,8 @@ export class SefazResponseParser {
                 xmlCompleto: xmlResponse
             };
 
-            // ✅ CORREÇÃO: Status 135 = Cancelamento autorizado
             if (cStat === "135") {
-                console.log('✅ Cancelamento autorizado');
+                console.log('Cancelamento autorizado');
                 return {
                     ...baseResponse,
                     sucesso: true,
@@ -150,7 +144,7 @@ export class SefazResponseParser {
             }
             // Status de erro específico
             else {
-                console.log('❌ Cancelamento rejeitado:', xMotivo);
+                console.log('Cancelamento rejeitado:', xMotivo);
                 
                 // Identificar tipos específicos de erro
                 let status = "erro_cancelamento";
@@ -170,7 +164,7 @@ export class SefazResponseParser {
             }
 
         } catch (error: any) {
-            console.error('❌ Erro no parse do cancelamento:', error);
+            console.error('Erro no parse do cancelamento:', error);
             return {
                 sucesso: false,
                 status: "erro_parser",
