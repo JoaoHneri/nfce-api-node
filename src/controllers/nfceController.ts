@@ -56,7 +56,6 @@ export class NFCeController {
     }
   }
 
-
   async testeConectividade(req: Request, res: Response): Promise<void> {
     try {
 

@@ -81,7 +81,7 @@ export class CancelamentoHandler {
         
         const brasiliaTime = new Date(agora.getTime() - (3 * 60 * 60 * 1000));
         
-        brasiliaTime.setMinutes(brasiliaTime.getMinutes() - 5);
+        brasiliaTime.setMinutes(brasiliaTime.getMinutes());
         
         const dhEvento = brasiliaTime.toISOString().replace(/\.\d{3}Z$/, '-03:00');
         
