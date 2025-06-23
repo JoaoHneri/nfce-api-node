@@ -2,6 +2,7 @@
 import { SefazResponseParser } from "../parsers/sefazResponseParsers";
 import { CancelamentoRequest, CancelamentoResponse, CertificadoConfig } from "../types";
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpoints';
+import { obterConfigSOAP, obterNamespaceSOAP } from '../config/soap-config';
 import { XMLBuilder } from 'fast-xml-parser';
 import https from 'https';
 import fs from 'fs';
@@ -52,7 +53,7 @@ export class CancelamentoHandler {
             console.log('✍️ XML assinado via tools.xmlSign');
 
             // 4. Criar envelope SOAP
-            const soapEnvelope = this.criarSOAPEnvelope(xmlAssinado);
+            const soapEnvelope = this.criarSOAPEnvelope(xmlAssinado, dados.chaveAcesso.substring(0, 2));
             console.log('📦 SOAP envelope criado');
 
             // 5. ✅ Enviar para SEFAZ usando certificado do config
@@ -139,11 +140,6 @@ export class CancelamentoHandler {
             throw new Error(`Endpoint de cancelamento não configurado para UF: ${uf}`);
         }
 
-        console.log('🌐 URL de cancelamento:', url);
-
-        console.log('🔍 Usando certificado do config...');
-        console.log('📋 Certificado:', certificadoConfig.pfx);
-
         if (!certificadoConfig.pfx || !certificadoConfig.senha) {
             throw new Error('Certificado não configurado adequadamente');
         }
@@ -178,12 +174,6 @@ export class CancelamentoHandler {
                 let data = '';
                 res.on('data', (chunk: Buffer) => data += chunk);
                 res.on('end', () => {
-                    console.log('📡 Status HTTP:', res.statusCode);
-                    console.log('📡 Resposta recebida, tamanho:', data.length);
-                    
-                    if (data.length > 0) {
-                        console.log('📄 Primeiros 300 chars:', data.substring(0, 300));
-                    }
                     
                     try {
                         const xmlLimpo = this.limparSOAP(data);
@@ -195,7 +185,7 @@ export class CancelamentoHandler {
             });
 
             req.on('error', (err: any) => {
-                console.error('❌ Erro na requisição:', err);
+                console.error('Erro na requisição:', err);
                 reject(err);
             });
 
@@ -237,19 +227,35 @@ export class CancelamentoHandler {
         return builder.build(objeto);
     }
 
-    private criarSOAPEnvelope(xmlEvento: string): string {
-        // Criar envelope SOAP mais simples (sem conversão xml2json problemática)
+    private criarSOAPEnvelope(xmlEvento: string, cUF: string): string {
+        const config = obterConfigSOAP(cUF, 'cancelamento');
+        const soapNamespace = obterNamespaceSOAP(config.protocoloSOAP);
+
         const xmlLimpo = xmlEvento.replace(/^<\?xml[^>]*\?>\s*/, '');
 
+        // Detecta se tagMsg tem prefixo nfe:
+        const usaPrefixoNfe = config.tagMsg.includes('nfe:');
+
+        // Extrai namespace nfe do xmlnsTagMsg (se tiver)
+        const matchNsNfe = config.xmlnsTagMsg.match(/xmlns(:nfe)?="([^"]+)"/);
+        const nsNfe = matchNsNfe ? matchNsNfe[2] : null;
+
+        // Monta atributo para declarar xmlns:nfe no Envelope (só se usar prefixo nfe)
+        const xmlnsNfeNoEnvelope = usaPrefixoNfe && nsNfe
+            ? `xmlns:nfe="${nsNfe}"`
+            : '';
+
         return `<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:nfe="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">
-    <soap:Body>
-        <nfe:nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">
-            ${xmlLimpo}
-        </nfe:nfeDadosMsg>
-    </soap:Body>
-</soap:Envelope>`;
+    <${config.envelopePrefixo}:Envelope xmlns:${config.envelopePrefixo}="${soapNamespace}" ${xmlnsNfeNoEnvelope}>
+    <${config.envelopePrefixo}:Body>
+        <${config.tagMsg} ${config.xmlnsTagMsg}>
+        ${xmlLimpo}
+        </${config.tagMsg}>
+    </${config.envelopePrefixo}:Body>
+    </${config.envelopePrefixo}:Envelope>`;
     }
+
+
 
     private limparSOAP(soapResponse: string): string {
         const patterns = [

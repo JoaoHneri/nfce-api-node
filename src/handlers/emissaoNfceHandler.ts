@@ -2,6 +2,7 @@
 import { SefazResponseParser } from "../parsers/sefazResponseParsers";
 import { NFCeData, CertificadoConfig, SefazResponse } from "../types";
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpoints';
+import { obterConfigSOAP, obterNamespaceSOAP } from '../config/soap-config';
 import { Make } from "node-sped-nfe";
 import https from 'https';
 import fs from 'fs';
@@ -52,7 +53,7 @@ export class EmissaoNfceHandler {
             mod: "65",
             serie: dados.ide.serie,
             nNF: dados.ide.nNF,
-            dhEmi: dados.ide.dhEmi || NFe.formatData(),
+            dhEmi: NFe.formatData(),
             tpNF: dados.ide.tpNF,
             idDest: dados.ide.idDest,
             cMunFG: dados.ide.cMunFG,
@@ -223,24 +224,30 @@ export class EmissaoNfceHandler {
         <indSinc>1</indSinc>
         ${xmlLimpo}
         </enviNFe>`);
-    }
-
+    }    
+    
     private criarSOAPEnvelope(xmlLote: string, cUF: string): string {
-        const namespace = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4';
+        const config = obterConfigSOAP(cUF, 'autorizacao');
+        const soapNamespace = obterNamespaceSOAP(config.protocoloSOAP);
 
-        return this.limparXML(`<?xml version="1.0" encoding="utf-8"?>
-        <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-        <soap12:Header>
-        <nfeCabecMsg xmlns="${namespace}">
-        <versaoDados>4.00</versaoDados>
-        <cUF>${cUF}</cUF>
-        </nfeCabecMsg>
-        </soap12:Header>
-        <soap12:Body>
-        <nfeDadosMsg xmlns="${namespace}">${xmlLote.replace(/^<\?xml[^>]*\?>\s*/, '')}</nfeDadosMsg>
-        </soap12:Body>
-        </soap12:Envelope>`);
+        const xmlSemDeclaracao = xmlLote.replace(/^<\?xml[^>]*\?>\s*/, '');
+
+            return this.limparXML(`<?xml version="1.0" encoding="utf-8"?>
+        <${config.envelopePrefixo}:Envelope xmlns:${config.envelopePrefixo}="${soapNamespace}">
+        <${config.envelopePrefixo}:Header>
+            <nfeCabecMsg xmlns="${config.namespaceCabecalho}">
+            <versaoDados>4.00</versaoDados>
+            <cUF>${cUF}</cUF>
+            </nfeCabecMsg>
+        </${config.envelopePrefixo}:Header>
+        <${config.envelopePrefixo}:Body>
+            <${config.tagMsg} ${config.xmlnsTagMsg}>
+            ${xmlSemDeclaracao}
+            </${config.tagMsg}>
+        </${config.envelopePrefixo}:Body>
+        </${config.envelopePrefixo}:Envelope>`);
     }
+
 
     private processarResposta(xmlResposta: string): SefazResponse {
         const xmlLimpo = this.extrairXMLdoSOAP(xmlResposta);
