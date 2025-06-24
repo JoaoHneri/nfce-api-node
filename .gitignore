@@ -1,137 +1,56 @@
-# ===== NODE.JS =====
-node_modules/
+# compiled output
+/dist
+/node_modules
+/build
+
+# Logs
+logs
+*.log
 npm-debug.log*
+pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
-.pnpm-debug.log*
 
-# ===== TYPESCRIPT =====
-dist/
-build/
-*.tsbuildinfo
+# OS
+.DS_Store
 
-# ===== VARIÁVEIS DE AMBIENTE =====
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Tests
+/coverage
+/.nyc_output
 
-# ===== CERTIFICADOS DIGITAIS (MUITO IMPORTANTE!) =====
-*.pfx
-*.p12
-*.pem
-*.key
-*.crt
-*.cer
-certificados/
-certs/
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
-# ===== ARQUIVOS NFCe/XML =====
-debug/
-exemplos/
-xmls/
-nfce_*.xml
-lote_*.xml
-resposta_*.xml
-*.xml
-nfce_*.json
-
-# ===== LOGS =====
-logs/
-*.log
-log/
-
-# ===== DEPENDÊNCIAS =====
-.npm
-.yarn/cache
-.yarn/unplugged
-.yarn/build-state.yml
-.yarn/install-state.gz
-.pnp.*
-
-# ===== CACHE =====
-.cache/
-.parcel-cache/
-.nyc_output/
-
-# ===== TESTES =====
-coverage/
-.nyc_output/
-junit.xml
-
-# ===== IDEs/EDITORES =====
-.vscode/
+# IDE - VSCode
+.vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-.idea/
-*.swp
-*.swo
-*~
 
-# ===== SISTEMA OPERACIONAL =====
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
 
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-Icon
-._*
+# temp directory
+.temp
+.tmp
 
-# Linux
-*~
-.fuse_hidden*
-.directory
-.Trash-*
-
-# ===== TEMPORÁRIOS =====
-*.tmp
-*.temp
-temp/
-tmp/
-
-# ===== BACKUPS =====
-*.bak
-*.backup
-backup/
-
-# ===== ARQUIVOS ESPECÍFICOS NFCe =====
-# Arquivos de resposta da SEFAZ
-resposta_sefaz_*.xml
-resposta_soap_*.xml
-nfce_autorizada_*.json
-envelope_*.xml
-lote_limpo_*.xml
-
-# CSC e configurações sensíveis
-csc.txt
-config_prod.json
-
-# ===== UPLOADS =====
-uploads/
-files/
-
-# ===== DOCUMENTAÇÃO GERADA =====
-docs/
-documentation/
-
-# ===== OUTROS =====
-.eslintcache
-.stylelintcache
+# Runtime data
+pids
 *.pid
 *.seed
 *.pid.lock
-.grunt
-.lock-wscript
-.wafpickle-*
-.node_repl_history
-.yarn-integrity
-.npm-cache
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
