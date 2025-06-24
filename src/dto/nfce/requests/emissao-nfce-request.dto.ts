@@ -1,7 +1,7 @@
 import { ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { NFCeDataDto } from './nfce-data.dto';
-import { CertificadoConfigDto } from './certificado-config.dto';
+import { NFCeDataDto } from '../core/nfce-data.dto';
+import { CertificadoConfigDto } from '../../auth/certificado-config.dto';
 
 export class EmissaoNFCeRequestDto {
   @ValidateNested()

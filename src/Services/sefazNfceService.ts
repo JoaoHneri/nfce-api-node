@@ -61,7 +61,6 @@ export class SefazNfceService {
   private carregarConfigCertificado(
     certificadoConfig: CertificadoConfigDto,
   ): CertificadoConfigDto {
-    console.log('🔑 Carregando configuração do certificado...');
 
     return {
       pfx: certificadoConfig.pfx || '',

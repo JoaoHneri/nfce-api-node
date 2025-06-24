@@ -10,7 +10,6 @@ async function bootstrap() {
   const PORT = process.env.PORT || 3000;
   await app.listen(PORT);
 
-  console.log(`🚀 NFCe NestJS API rodando na porta ${PORT}`);
-  console.log(`📖 Documentação: http://localhost:${PORT}/api`);
+  console.log(`API rodando na porta ${PORT}`);
 }
 void bootstrap();

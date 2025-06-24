@@ -1,26 +1,13 @@
-// DTOs para configuração
-export * from './certificado-config.dto';
+// Exports organizados por contexto
 
-// DTOs para dados básicos
-export * from './emitente.dto';
-export * from './ide.dto';
-export * from './produto.dto';
-export * from './impostos.dto';
-export * from './pagamento.dto';
-export * from './transporte.dto';
+// DTOs comuns
+export * from './common';
 
-// DTO principal
-export * from './nfce-data.dto';
+// Autenticação
+export * from './auth';
 
-// DTOs para requests
-export * from './emissao-nfce-request.dto';
-export * from './cancelamento-request.dto';
+// NFCe (core, requests, responses)
+export * from './nfce';
 
-// DTOs para respostas
-export * from './sefaz-response.dto';
-export * from './consulta-response.dto';
-export * from './cancelamento-response.dto';
-
-// DTOs para cache e sistema
-export * from './cache-stats.dto';
-export * from './api-response.dto';
+// Cache
+export * from './cache';

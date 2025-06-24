@@ -13,8 +13,8 @@ import {
   EmissaoNFCeRequestDto,
   CancelamentoRequestDto,
   CertificadoConfigDto,
+  CacheStatsResponseDto,
 } from '../../dto';
-import { CacheStatsResponseDto } from '../../dto/api-response.dto';
 
 @Controller('nfce')
 export class NfceController {
@@ -60,16 +60,17 @@ export class NfceController {
           HttpStatus.BAD_REQUEST,
         );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
       }
 
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       throw new HttpException(
         {
           sucesso: false,
           mensagem: 'Erro interno do servidor',
-          erro: error.message,
+          erro: errorMessage,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
@@ -103,17 +104,18 @@ export class NfceController {
         certificado,
       );
       return { resultado };
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
       }
 
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       throw new HttpException(
         {
           erro: 'Erro interno do servidor',
           mensagem: 'Erro inesperado ao consultar NFCe',
           detalhes: {
-            erro: error.message,
+            erro: errorMessage,
             timestamp: new Date().toISOString(),
           },
         },
@@ -171,17 +173,18 @@ export class NfceController {
         certificado,
       );
       return resultado;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
       }
 
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       throw new HttpException(
         {
           erro: 'Erro interno do servidor',
           mensagem: 'Erro inesperado ao cancelar NFCe',
           detalhes: {
-            erro: error.message,
+            erro: errorMessage,
             timestamp: new Date().toISOString(),
           },
         },
@@ -204,11 +207,12 @@ export class NfceController {
         mensagem: 'Estatísticas do cache de Tools',
         dados: stats,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       throw new HttpException(
         {
           sucesso: false,
-          erro: error.message,
+          erro: errorMessage,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
@@ -224,11 +228,12 @@ export class NfceController {
         sucesso: true,
         mensagem: 'Cache limpo com sucesso',
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       throw new HttpException(
         {
           sucesso: false,
-          erro: error.message,
+          erro: errorMessage,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );

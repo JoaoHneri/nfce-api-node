@@ -1,5 +1,5 @@
-// src/dto/api-response.dto.ts
-import { CacheStatsDto } from './cache-stats.dto';
+// src/dto/common/api-response.dto.ts
+import { CacheStatsDto } from '../cache/cache-stats.dto';
 
 export interface ApiResponseDto<T = any> {
   sucesso: boolean;
