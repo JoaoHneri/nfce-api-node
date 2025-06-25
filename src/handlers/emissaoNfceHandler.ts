@@ -131,6 +131,13 @@ export class EmissaoNfceHandler {
             NFe.tagTroco(dados.pagamento.vTroco);
         }
 
+        if (dados.responsavelTecnico) {
+            NFe.tagInfRespTec({
+                CNPJ: dados.responsavelTecnico.CNPJ, xContato: dados.responsavelTecnico.xContato, email: dados.responsavelTecnico.email, fone: dados.responsavelTecnico.fone,
+            });
+        }
+
+
         return NFe.xml();
     }
 
@@ -152,6 +159,8 @@ export class EmissaoNfceHandler {
 
         const soapEnvelope = this.criarSOAPEnvelope(xmlLote, cUF);
 
+        await this.salvarArquivoDebug(soapEnvelope, 'soap_envelope');
+
         if (!certificadoConfig.pfx || !certificadoConfig.senha) {
             throw new Error('Certificado não configurado adequadamente');
         }
@@ -161,7 +170,7 @@ export class EmissaoNfceHandler {
         }
 
         const certificado = fs.readFileSync(certificadoConfig.pfx);
-       
+
 
         return new Promise((resolve, reject) => {
             const urlObj = new URL(url);
@@ -224,15 +233,15 @@ export class EmissaoNfceHandler {
         <indSinc>1</indSinc>
         ${xmlLimpo}
         </enviNFe>`);
-    }    
-    
+    }
+
     private criarSOAPEnvelope(xmlLote: string, cUF: string): string {
         const config = obterConfigSOAP(cUF, 'autorizacao');
         const soapNamespace = obterNamespaceSOAP(config.protocoloSOAP);
 
         const xmlSemDeclaracao = xmlLote.replace(/^<\?xml[^>]*\?>\s*/, '');
 
-            return this.limparXML(`<?xml version="1.0" encoding="utf-8"?>
+        return this.limparXML(`<?xml version="1.0" encoding="utf-8"?>
         <${config.envelopePrefixo}:Envelope xmlns:${config.envelopePrefixo}="${soapNamespace}">
         <${config.envelopePrefixo}:Header>
             <nfeCabecMsg xmlns="${config.namespaceCabecalho}">
@@ -308,82 +317,5 @@ export class EmissaoNfceHandler {
         } catch (error) {
             console.log('⚠️ Erro ao salvar debug:', error);
         }
-    }
-
-    private criarXMLStatusServico(cUF: string, ambiente: 'homologacao' | 'producao'): string {
-        const tpAmb = ambiente === 'producao' ? '1' : '2';
-
-                return `<?xml version="1.0" encoding="utf-8"?>
-        <consStatServ xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
-        <tpAmb>${tpAmb}</tpAmb>
-        <cUF>${cUF}</cUF>
-        <xServ>STATUS</xServ>
-        </consStatServ>`;
-    }
-
-    private async fazerRequisicaoSefaz(url: string, xmlDados: string, certificadoConfig: CertificadoConfig): Promise<string> {
-                const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-        <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-        <soap12:Body>
-        <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">${xmlDados}</nfeDadosMsg>
-        </soap12:Body>
-        </soap12:Envelope>`;
-
-        if (!fs.existsSync(certificadoConfig.pfx)) {
-            throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfx}`);
-        }
-
-        const certificado = fs.readFileSync(certificadoConfig.pfx);
-
-        return new Promise((resolve, reject) => {
-            const urlObj = new URL(url);
-
-            const options = {
-                hostname: urlObj.hostname,
-                port: urlObj.port || 443,
-                path: urlObj.pathname,
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/soap+xml; charset=utf-8',
-                    'Content-Length': Buffer.byteLength(soapEnvelope)
-                },
-                pfx: certificado,
-                passphrase: certificadoConfig.senha,
-                rejectUnauthorized: false
-            };
-
-            const req = https.request(options, (res) => {
-                let data = '';
-                res.on('data', (chunk) => data += chunk);
-                res.on('end', () => resolve(data));
-            });
-
-            req.on('error', reject);
-            req.setTimeout(30000, () => {
-                req.destroy();
-                reject(new Error('Timeout'));
-            });
-
-            req.write(soapEnvelope);
-            req.end();
-        });
-    }
-
-    private obterCodigoUF(uf: string): string {
-        const codigos: Record<string, string> = {
-            'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29',
-            'CE': '23', 'DF': '53', 'ES': '32', 'GO': '52', 'MA': '21',
-            'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15', 'PB': '25',
-            'PR': '41', 'PE': '26', 'PI': '22', 'RJ': '33', 'RN': '24',
-            'RS': '43', 'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35',
-            'SE': '28', 'TO': '17'
-        };
-
-        const codigo = codigos[uf.toUpperCase()];
-        if (!codigo) {
-            throw new Error(`Código UF não encontrado para: ${uf}`);
-        }
-
-        return codigo;
     }
 }

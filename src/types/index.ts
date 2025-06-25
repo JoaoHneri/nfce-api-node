@@ -88,6 +88,15 @@ export interface NFCeData {
     CST_COFINS: string;
   };
 
+  responsavelTecnico?: {
+    CNPJ: string;
+    xContato: string;
+    email: string;
+    fone: string;
+    idCSRT?: string;
+    hashCSRT?: string;
+  };
+  
   // Pagamento
   pagamento: {
     detPag: Array<{
