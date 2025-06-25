@@ -141,86 +141,323 @@ export class EmissaoNfceHandler {
         return NFe.xml();
     }
 
+    // private async enviarParaSefaz(xmlAssinado: string, certificadoConfig: CertificadoConfig, dados: NFCeData): Promise<string> {
+
+    //     const uf = dados.emitente.endereco.UF;
+    //     const cUF = dados.ide.cUF;
+    //     const tpAmb = certificadoConfig.tpAmb || 2; // 1 - Produção, 2 - Homologação
+    //     const ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
+    //     const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
+    //     const url = endpoints[uf]?.nfceAutorizacao;
+
+    //     if (!url) {
+    //         throw new Error(`Endpoint de autorização não configurado para UF: ${uf}`);
+    //     }
+
+
+    //     const xmlLote = this.criarLoteNFCe(xmlAssinado);
+
+    //     const soapEnvelope = this.criarSOAPEnvelope(xmlLote, cUF);
+
+    //     await this.salvarArquivoDebug(soapEnvelope, 'soap_envelope');
+
+    //     if (!certificadoConfig.pfx || !certificadoConfig.senha) {
+    //         throw new Error('Certificado não configurado adequadamente');
+    //     }
+
+    //     if (!fs.existsSync(certificadoConfig.pfx)) {
+    //         throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfx}`);
+    //     }
+
+    //     const certificado = fs.readFileSync(certificadoConfig.pfx);
+
+
+    //     return new Promise((resolve, reject) => {
+    //         const urlObj = new URL(url);
+
+    //         const options = {
+    //             hostname: urlObj.hostname,
+    //             port: urlObj.port || 443,
+    //             path: urlObj.pathname,
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/soap+xml; charset=utf-8',
+    //                 'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote',
+    //                 'Content-Length': Buffer.byteLength(soapEnvelope),
+    //                 'User-Agent': 'NFCe-API/1.0'
+    //             },
+    //             pfx: certificado,
+    //             passphrase: certificadoConfig.senha,
+    //             rejectUnauthorized: false,
+    //             secureProtocol: 'TLSv1_2_method'
+    //         };
+
+
+    //         const req = https.request(options, (res) => {
+    //             let data = '';
+    //             res.on('data', (chunk) => data += chunk);
+    //             res.on('end', () => {
+
+
+    //                 try {
+    //                     const xmlLimpo = this.extrairXMLdoSOAP(data);
+    //                     resolve(xmlLimpo);
+    //                 } catch (error) {
+    //                     resolve(data);
+    //                 }
+    //             });
+    //         });
+
+    //         req.on('error', (err) => {
+    //             console.error('Erro na requisição:', err);
+    //             reject(err);
+    //         });
+
+    //         req.setTimeout(30000, () => {
+    //             req.destroy();
+    //             reject(new Error('Timeout na requisição de autorização'));
+    //         });
+
+    //         req.write(soapEnvelope);
+    //         req.end();
+    //     });
+    // }
+
+
     private async enviarParaSefaz(xmlAssinado: string, certificadoConfig: CertificadoConfig, dados: NFCeData): Promise<string> {
+        try {
+            const uf = dados.emitente.endereco.UF;
+            const cUF = dados.ide.cUF;
+            const tpAmb = certificadoConfig.tpAmb || 2; // 1 - Produção, 2 - Homologação
+            const ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
+            const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
+            const url = endpoints[uf]?.nfceAutorizacao;
 
-        const uf = dados.emitente.endereco.UF;
-        const cUF = dados.ide.cUF;
-        const tpAmb = certificadoConfig.tpAmb || 2; // 1 - Produção, 2 - Homologação
-        const ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
-        const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
-        const url = endpoints[uf]?.nfceAutorizacao;
+            if (!url) {
+                throw new Error(`Endpoint de autorização não configurado para UF: ${uf}`);
+            }
 
-        if (!url) {
-            throw new Error(`Endpoint de autorização não configurado para UF: ${uf}`);
+            console.log(`🌐 Enviando para SEFAZ: ${uf} - ${ambiente.toUpperCase()}`);
+            console.log(`🔗 URL: ${url}`);
+
+            const xmlLote = this.criarLoteNFCe(xmlAssinado);
+            const soapEnvelope = this.criarSOAPEnvelope(xmlLote, cUF);
+
+            await this.salvarArquivoDebug(soapEnvelope, 'soap_envelope');
+
+            if (!certificadoConfig.pfx || !certificadoConfig.senha) {
+                throw new Error('Certificado não configurado adequadamente');
+            }
+
+            if (!fs.existsSync(certificadoConfig.pfx)) {
+                throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfx}`);
+            }
+
+            const certificado = fs.readFileSync(certificadoConfig.pfx);
+
+            return new Promise((resolve, reject) => {
+                try {
+                    const urlObj = new URL(url);
+
+                    // 🚀 Headers específicos por estado
+                    const headers = this.obterCabecalhosPorEstado(uf, soapEnvelope);
+
+                    const options = {
+                        hostname: urlObj.hostname,
+                        port: urlObj.port || 443,
+                        path: urlObj.pathname,
+                        method: 'POST',
+                        headers,
+                        pfx: certificado,
+                        passphrase: certificadoConfig.senha,
+                        rejectUnauthorized: false,
+                        secureProtocol: 'TLSv1_2_method'
+                    };
+
+                    console.log(`📋 Headers enviados:`, JSON.stringify(headers, null, 2));
+                    console.log(`⚙️ Options de requisição:`, {
+                        hostname: options.hostname,
+                        port: options.port,
+                        path: options.path,
+                        method: options.method
+                    });
+
+                    const req = https.request(options, (res) => {
+                        try {
+                            console.log(`📡 Status HTTP recebido: ${res.statusCode}`);
+                            console.log(`📄 Headers de resposta:`, JSON.stringify(res.headers, null, 2));
+
+                            let data = '';
+                            res.on('data', (chunk) => {
+                                data += chunk.toString();
+                            });
+
+                            res.on('end', () => {
+                                try {
+                                    console.log(`📥 Tamanho da resposta: ${data.length} bytes`);
+                                    console.log(`📝 Primeiros 500 caracteres da resposta:`);
+                                    console.log(data.substring(0, 500));
+
+                                    // 🚨 Verificar se é erro HTTP
+                                    if (res.statusCode && res.statusCode >= 400) {
+                                        console.error(`❌ Erro HTTP ${res.statusCode}:`);
+                                        console.error(`📄 Resposta completa:`, data);
+                                        
+                                        // Salvar resposta de erro para debug
+                                        this.salvarArquivoDebug(data, `erro_http_${res.statusCode}`);
+                                        
+                                        reject(new Error(`Erro HTTP ${res.statusCode}: ${data}`));
+                                        return;
+                                    }
+
+                                    // 🚨 Verificar se contém erro de media type
+                                    if (data.includes('media type is unsupported') || 
+                                        data.includes('Content-Type') || 
+                                        data.includes('unsupported')) {
+                                        console.error(`❌ Erro de Content-Type detectado:`);
+                                        console.error(`📄 Resposta completa:`, data);
+                                        
+                                        this.salvarArquivoDebug(data, 'erro_content_type');
+                                        reject(new Error(`Erro de Content-Type: ${data}`));
+                                        return;
+                                    }
+
+                                    try {
+                                        const xmlLimpo = this.extrairXMLdoSOAP(data);
+                                        console.log(`✅ XML extraído com sucesso`);
+                                        console.log(`📝 Primeiros 300 caracteres do XML limpo:`);
+                                        console.log(xmlLimpo.substring(0, 300));
+                                        
+                                        resolve(xmlLimpo);
+                                    } catch (xmlError) {
+                                        console.error(`❌ Erro ao extrair XML:`, xmlError);
+                                        console.log(`📄 Retornando resposta original`);
+                                        resolve(data);
+                                    }
+                                } catch (endError) {
+                                    console.error(`❌ Erro no processamento final:`, endError);
+                                    reject(endError);
+                                }
+                            });
+
+                            res.on('error', (resError) => {
+                                console.error(`❌ Erro na resposta:`, resError);
+                                reject(resError);
+                            });
+
+                        } catch (responseError) {
+                            console.error(`❌ Erro ao processar resposta:`, responseError);
+                            reject(responseError);
+                        }
+                    });
+
+                    req.on('error', (err) => {
+                        console.error(`❌ Erro na requisição HTTPS:`, err);
+                        console.error(`🔍 Detalhes do erro:`, {
+                            code: (err as any).code,
+                            message: err.message,
+                            stack: err.stack
+                        });
+                        reject(err);
+                    });
+
+                    req.on('timeout', () => {
+                        console.error(`⏰ Timeout na requisição após 30 segundos`);
+                        req.destroy();
+                        reject(new Error('Timeout na requisição de autorização (30s)'));
+                    });
+
+                    req.setTimeout(30000);
+
+                    console.log(`📤 Enviando SOAP Envelope...`);
+                    console.log(`📏 Tamanho do envelope: ${Buffer.byteLength(soapEnvelope)} bytes`);
+                    
+                    req.write(soapEnvelope);
+                    req.end();
+
+                } catch (promiseError) {
+                    console.error(`❌ Erro na Promise:`, promiseError);
+                    reject(promiseError);
+                }
+            });
+
+        } catch (methodError) {
+            console.error(`❌ Erro geral no método enviarParaSefaz:`, methodError);
+            console.error(`🔍 Stack trace:`, methodError instanceof Error ? methodError.stack : 'Stack trace not available');
+            throw methodError;
         }
+    }
 
+    // 🚀 Método para obter cabeçalhos específicos por estado
+    private obterCabecalhosPorEstado(uf: string, soapEnvelope: string): Record<string, string> {
+        const contentLength = Buffer.byteLength(soapEnvelope, 'utf8');
+        
+        const baseHeaders = {
+            'Content-Length': contentLength.toString(),
+            'User-Agent': 'NFCe-API/1.0',
+            'Accept': '*/*',
+            'Connection': 'close'
+        };
 
-        const xmlLote = this.criarLoteNFCe(xmlAssinado);
+        console.log(`🎯 Configurando headers para UF: ${uf}`);
 
-        const soapEnvelope = this.criarSOAPEnvelope(xmlLote, cUF);
-
-        await this.salvarArquivoDebug(soapEnvelope, 'soap_envelope');
-
-        if (!certificadoConfig.pfx || !certificadoConfig.senha) {
-            throw new Error('Certificado não configurado adequadamente');
-        }
-
-        if (!fs.existsSync(certificadoConfig.pfx)) {
-            throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfx}`);
-        }
-
-        const certificado = fs.readFileSync(certificadoConfig.pfx);
-
-
-        return new Promise((resolve, reject) => {
-            const urlObj = new URL(url);
-
-            const options = {
-                hostname: urlObj.hostname,
-                port: urlObj.port || 443,
-                path: urlObj.pathname,
-                method: 'POST',
-                headers: {
+        switch (uf) {
+            case 'SP': // São Paulo
+                console.log(`📋 Usando headers SOAP 1.2 para SP`);
+                return {
+                    ...baseHeaders,
                     'Content-Type': 'application/soap+xml; charset=utf-8',
-                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote',
-                    'Content-Length': Buffer.byteLength(soapEnvelope),
-                    'User-Agent': 'NFCe-API/1.0'
-                },
-                pfx: certificado,
-                passphrase: certificadoConfig.senha,
-                rejectUnauthorized: false,
-                secureProtocol: 'TLSv1_2_method'
-            };
+                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote'
+                };
 
+            case 'PR': // Paraná
+                console.log(`📋 Usando headers SOAP 1.1 para PR`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"'
+                };
 
-            const req = https.request(options, (res) => {
-                let data = '';
-                res.on('data', (chunk) => data += chunk);
-                res.on('end', () => {
+            case 'RS': // Rio Grande do Sul
+                console.log(`📋 Usando headers SOAP 1.1 para RS`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"'
+                };
 
+            case 'SC': // Santa Catarina
+                console.log(`📋 Usando headers SOAP 1.1 para SC`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"'
+                };
 
-                    try {
-                        const xmlLimpo = this.extrairXMLdoSOAP(data);
-                        resolve(xmlLimpo);
-                    } catch (error) {
-                        resolve(data);
-                    }
-                });
-            });
+            case 'MG': // Minas Gerais
+                console.log(`📋 Usando headers SOAP 1.2 para MG`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'application/soap+xml; charset=utf-8',
+                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote'
+                };
 
-            req.on('error', (err) => {
-                console.error('Erro na requisição:', err);
-                reject(err);
-            });
+            case 'RJ': // Rio de Janeiro
+                console.log(`📋 Usando headers SOAP 1.1 para RJ`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"'
+                };
 
-            req.setTimeout(30000, () => {
-                req.destroy();
-                reject(new Error('Timeout na requisição de autorização'));
-            });
-
-            req.write(soapEnvelope);
-            req.end();
-        });
+            default: // Fallback para outros estados
+                console.log(`📋 Usando headers SOAP 1.1 padrão para ${uf}`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"'
+                };
+        }
     }
 
     private criarLoteNFCe(xmlNFCe: string): string {
