@@ -123,7 +123,84 @@ export class CancelamentoHandler {
         };
     }
 
+    // private async enviarParaSefaz(soapEnvelope: string, chaveAcesso: string, certificadoConfig: CertificadoConfig): Promise<string> {
+    //     const cUF = chaveAcesso.substring(0, 2);
+    //     const ufMap: Record<string, string> = {
+    //         '35': 'SP', '33': 'RJ', '31': 'MG', '41': 'PR', '42': 'SC', '43': 'RS'
+    //     };
+        
+    //     const uf = ufMap[cUF] || 'SP';
+
+    //     const tpAmb = Number(certificadoConfig?.tpAmb) || 2;
+    //     const ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
+    //     const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
+    //     const url = endpoints[uf]?.nfceCancelamento;
+
+    //     if (!url) {
+    //         throw new Error(`Endpoint de cancelamento não configurado para UF: ${uf}`);
+    //     }
+
+    //     if (!certificadoConfig.pfx || !certificadoConfig.senha) {
+    //         throw new Error('Certificado não configurado adequadamente');
+    //     }
+
+    //     if (!fs.existsSync(certificadoConfig.pfx)) {
+    //         throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfx}`);
+    //     }
+
+    //     const certificado = fs.readFileSync(certificadoConfig.pfx);
+
+    //     return new Promise((resolve, reject) => {
+    //         const urlObj = new URL(url);
+            
+    //         const options = {
+    //             hostname: urlObj.hostname,
+    //             port: urlObj.port || 443,
+    //             path: urlObj.pathname,
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/soap+xml; charset=utf-8',
+    //                 'Content-Length': Buffer.byteLength(soapEnvelope)
+    //             },
+    //             pfx: certificado,
+    //             passphrase: certificadoConfig.senha,
+    //             rejectUnauthorized: false,
+    //             secureProtocol: 'TLSv1_2_method'
+    //         };
+
+    //         console.log('🌐 Conectando em:', `${urlObj.hostname}${urlObj.pathname}`);
+
+    //         const req = https.request(options, (res: any) => {
+    //             let data = '';
+    //             res.on('data', (chunk: Buffer) => data += chunk);
+    //             res.on('end', () => {
+                    
+    //                 try {
+    //                     const xmlLimpo = this.limparSOAP(data);
+    //                     resolve(xmlLimpo);
+    //                 } catch (error) {
+    //                     resolve(data);
+    //                 }
+    //             });
+    //         });
+
+    //         req.on('error', (err: any) => {
+    //             console.error('Erro na requisição:', err);
+    //             reject(err);
+    //         });
+
+    //         req.setTimeout(30000, () => {
+    //             req.destroy();
+    //             reject(new Error('Timeout na requisição de cancelamento'));
+    //         });
+
+    //         req.write(soapEnvelope);
+    //         req.end();
+    //     });
+    // }
+
     private async enviarParaSefaz(soapEnvelope: string, chaveAcesso: string, certificadoConfig: CertificadoConfig): Promise<string> {
+    try {
         const cUF = chaveAcesso.substring(0, 2);
         const ufMap: Record<string, string> = {
             '35': 'SP', '33': 'RJ', '31': 'MG', '41': 'PR', '42': 'SC', '43': 'RS'
@@ -140,6 +217,9 @@ export class CancelamentoHandler {
             throw new Error(`Endpoint de cancelamento não configurado para UF: ${uf}`);
         }
 
+        console.log(`🌐 Enviando cancelamento para SEFAZ: ${uf} - ${ambiente.toUpperCase()}`);
+        console.log(`🔗 URL: ${url}`);
+
         if (!certificadoConfig.pfx || !certificadoConfig.senha) {
             throw new Error('Certificado não configurado adequadamente');
         }
@@ -151,52 +231,200 @@ export class CancelamentoHandler {
         const certificado = fs.readFileSync(certificadoConfig.pfx);
 
         return new Promise((resolve, reject) => {
-            const urlObj = new URL(url);
-            
-            const options = {
-                hostname: urlObj.hostname,
-                port: urlObj.port || 443,
-                path: urlObj.pathname,
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/soap+xml; charset=utf-8',
-                    'Content-Length': Buffer.byteLength(soapEnvelope)
-                },
-                pfx: certificado,
-                passphrase: certificadoConfig.senha,
-                rejectUnauthorized: false,
-                secureProtocol: 'TLSv1_2_method'
-            };
+            try {
+                const urlObj = new URL(url);
+                
+                // 🚀 Headers específicos por estado para CANCELAMENTO
+                const headers = this.obterCabecalhosCancelamentoPorEstado(uf, soapEnvelope);
 
-            console.log('🌐 Conectando em:', `${urlObj.hostname}${urlObj.pathname}`);
+                const options = {
+                    hostname: urlObj.hostname,
+                    port: urlObj.port || 443,
+                    path: urlObj.pathname,
+                    method: 'POST',
+                    headers,
+                    pfx: certificado,
+                    passphrase: certificadoConfig.senha,
+                    rejectUnauthorized: false,
+                    secureProtocol: 'TLSv1_2_method'
+                };
 
-            const req = https.request(options, (res: any) => {
-                let data = '';
-                res.on('data', (chunk: Buffer) => data += chunk);
-                res.on('end', () => {
-                    
+                console.log(`📋 Headers de cancelamento enviados:`, JSON.stringify(headers, null, 2));
+                console.log(`⚙️ Options de requisição:`, {
+                    hostname: options.hostname,
+                    port: options.port,
+                    path: options.path,
+                    method: options.method
+                });
+
+                const req = https.request(options, (res) => {
                     try {
-                        const xmlLimpo = this.limparSOAP(data);
-                        resolve(xmlLimpo);
-                    } catch (error) {
-                        resolve(data);
+                        console.log(`📡 Status HTTP recebido: ${res.statusCode}`);
+                        console.log(`📄 Headers de resposta:`, JSON.stringify(res.headers, null, 2));
+
+                        let data = '';
+                        res.on('data', (chunk) => {
+                            data += chunk.toString();
+                        });
+
+                        res.on('end', () => {
+                            try {
+                                console.log(`📥 Tamanho da resposta: ${data.length} bytes`);
+                                console.log(`📝 Primeiros 500 caracteres da resposta:`);
+                                console.log(data.substring(0, 500));
+
+                                // 🚨 Verificar se é erro HTTP
+                                if (res.statusCode && res.statusCode >= 400) {
+                                    console.error(`❌ Erro HTTP ${res.statusCode}:`);
+                                    console.error(`📄 Resposta completa:`, data);
+                                    reject(new Error(`Erro HTTP ${res.statusCode}: ${data}`));
+                                    return;
+                                }
+
+                                // 🚨 Verificar se contém erro SOAP
+                                if (data.includes('soap:Fault') || data.includes('faultstring')) {
+                                    console.error(`❌ Erro SOAP detectado:`);
+                                    console.error(`📄 Resposta completa:`, data);
+                                    reject(new Error(`Erro SOAP: ${data}`));
+                                    return;
+                                }
+
+                                try {
+                                    const xmlLimpo = this.limparSOAP(data);
+                                    console.log(`✅ XML extraído com sucesso`);
+                                    console.log(`📝 Primeiros 300 caracteres do XML limpo:`);
+                                    console.log(xmlLimpo.substring(0, 300));
+                                    
+                                    resolve(xmlLimpo);
+                                } catch (xmlError) {
+                                    console.error(`❌ Erro ao extrair XML:`, xmlError);
+                                    console.log(`📄 Retornando resposta original`);
+                                    resolve(data);
+                                }
+                            } catch (endError) {
+                                console.error(`❌ Erro no processamento final:`, endError);
+                                reject(endError);
+                            }
+                        });
+
+                        res.on('error', (resError) => {
+                            console.error(`❌ Erro na resposta:`, resError);
+                            reject(resError);
+                        });
+
+                    } catch (responseError) {
+                        console.error(`❌ Erro ao processar resposta:`, responseError);
+                        reject(responseError);
                     }
                 });
-            });
 
-            req.on('error', (err: any) => {
-                console.error('Erro na requisição:', err);
-                reject(err);
-            });
+                req.on('error', (err) => {
+                    console.error(`❌ Erro na requisição HTTPS:`, err);
+                    console.error(`🔍 Detalhes do erro:`, {
+                        code: (err as any).code,
+                        message: err.message,
+                        stack: err.stack
+                    });
+                    reject(err);
+                });
 
-            req.setTimeout(30000, () => {
-                req.destroy();
-                reject(new Error('Timeout na requisição de cancelamento'));
-            });
+                req.on('timeout', () => {
+                    console.error(`⏰ Timeout na requisição após 30 segundos`);
+                    req.destroy();
+                    reject(new Error('Timeout na requisição de cancelamento (30s)'));
+                });
 
-            req.write(soapEnvelope);
-            req.end();
+                req.setTimeout(30000);
+
+                console.log(`📤 Enviando SOAP Envelope de cancelamento...`);
+                console.log(`📏 Tamanho do envelope: ${Buffer.byteLength(soapEnvelope)} bytes`);
+                
+                req.write(soapEnvelope);
+                req.end();
+
+            } catch (promiseError) {
+                console.error(`❌ Erro na Promise:`, promiseError);
+                reject(promiseError);
+            }
         });
+
+    } catch (methodError) {
+        console.error(`❌ Erro geral no método enviarParaSefaz:`, methodError);
+        console.error(`🔍 Stack trace:`, methodError instanceof Error ? methodError.stack : 'Stack trace not available');
+        throw methodError;
+    }
+    }
+
+    // 🚀 Corrigindo o método obterCabecalhosCancelamentoPorEstado
+    private obterCabecalhosCancelamentoPorEstado(uf: string, soapEnvelope: string): Record<string, string> {
+        const contentLength = Buffer.byteLength(soapEnvelope, 'utf8');
+        
+        const baseHeaders = {
+            'Content-Length': contentLength.toString(),
+            'User-Agent': 'NFCe-API/1.0',
+            'Accept': '*/*',
+            'Connection': 'close'
+        };
+
+        console.log(`🎯 Configurando headers de cancelamento para UF: ${uf}`);
+
+        switch (uf) {
+            case 'SP': // São Paulo
+                console.log(`📋 Usando headers SOAP 1.2 para cancelamento SP`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'application/soap+xml; charset=utf-8',
+                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento'
+                };
+
+            case 'PR': // Paraná
+                console.log(`📋 Usando headers SOAP 1.1 para cancelamento PR`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento"'
+                };
+
+            case 'RS': // Rio Grande do Sul - ✅ CORRIGIDO
+                console.log(`📋 Usando headers SOAP 1.1 específicos para cancelamento RS`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento"'
+                };
+                
+            case 'SC': // Santa Catarina
+                console.log(`📋 Usando headers SOAP 1.1 para cancelamento SC`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento'
+                };
+
+            case 'MG': // Minas Gerais
+                console.log(`📋 Usando headers SOAP 1.2 para cancelamento MG`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'application/soap+xml; charset=utf-8',
+                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento'
+                };
+
+            case 'RJ': // Rio de Janeiro
+                console.log(`📋 Usando headers SOAP 1.1 para cancelamento RJ`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento"'
+                };
+
+            default: // Fallback para outros estados
+                console.log(`📋 Usando headers SOAP 1.1 padrão para cancelamento ${uf}`);
+                return {
+                    ...baseHeaders,
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento"'
+                };
+        }
     }
 
     private gerarIdLote(): string {
@@ -228,10 +456,11 @@ export class CancelamentoHandler {
     }
 
     private criarSOAPEnvelope(xmlEvento: string, cUF: string): string {
+        const xmlLimpo = xmlEvento.replace(/^<\?xml[^>]*\?>\s*/, '');
+
+        // Para todos os estados, usar configuração padrão (incluindo RS)
         const config = obterConfigSOAP(cUF, 'cancelamento');
         const soapNamespace = obterNamespaceSOAP(config.protocoloSOAP);
-
-        const xmlLimpo = xmlEvento.replace(/^<\?xml[^>]*\?>\s*/, '');
 
         // Detecta se tagMsg tem prefixo nfe:
         const usaPrefixoNfe = config.tagMsg.includes('nfe:');
@@ -254,8 +483,6 @@ export class CancelamentoHandler {
     </${config.envelopePrefixo}:Body>
     </${config.envelopePrefixo}:Envelope>`;
     }
-
-
 
     private limparSOAP(soapResponse: string): string {
         const patterns = [

@@ -57,7 +57,8 @@ export const CONFIG_SOAP_POR_UF: Record<string, SOAPConfigPorOperacao> = {
             protocoloSOAP: 'soap',
             envelopePrefixo: 'soap',
             tagMsg: 'nfeDadosMsg',
-            xmlnsTagMsg: 'xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/RecepcaoEvento4"',
+            xmlnsTagMsg: 'xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4"',
+            namespaceCabecalho: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4',
         }
     }
 };
