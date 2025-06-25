@@ -150,6 +150,13 @@ export class NFCeController {
                       indTot: "1"
                   }
               ],
+              responsavelTecnico: {
+                CNPJ: "11222333000181", // CNPJ do desenvolvedor/empresa responsável
+                xContato: "João Silva - Desenvolvedor",
+                email: "joao.silva@empresa.com.br",
+                fone: "11999887766"
+                // idCSRT e hashCSRT são calculados automaticamente
+            },
               impostos: {
                   orig: "0", // 0-Nacional
                   CSOSN: "102", // 102-Tributada pelo Simples Nacional sem permissão de crédito
