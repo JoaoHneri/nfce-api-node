@@ -1,49 +1,39 @@
-import { CertificadoConfigDto } from '../dto';
-import { Request, Response } from 'express';
+import { CertificadoConfig } from "../types";
+import { FastifyReply } from 'fastify';
 
-export function validarCertificado(
-  certificado: CertificadoConfigDto,
-  res: Response,
-): boolean {
-  // Validação se certificado existe
-  if (!certificado) {
-    res.status(400).json({
-      sucesso: false,
-      mensagem: 'Dados do certificado são obrigatórios',
-      erro: 'O campo "certificado" deve ser enviado na requisição',
-    });
-    return false;
+export function validarCertificado(certificado: CertificadoConfig, reply: FastifyReply): boolean {
+    // Validação se certificado existe
+    if (!certificado) {
+      reply.status(400).send({
+        sucesso: false,
+        mensagem: 'Dados do certificado são obrigatórios',
+        erro: 'O campo "certificado" deve ser enviado na requisição'
+      });
+      return false;
+    }
+
+    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfx', 'senha', 'CSC', 'CSCid'];
+
+    const camposFaltando = camposObrigatorios.filter(campo => !certificado[campo]);
+    
+    if (camposFaltando.length > 0) {
+      reply.status(400).send({
+        sucesso: false,
+        mensagem: 'Campos obrigatórios do certificado não informados',
+        erro: `Campos faltando: ${camposFaltando.join(', ')}`
+      });
+      return false;
+    }
+
+    // Validar se arquivo do certificado existe
+    // if (!fs.existsSync(certificado.pfx)) {
+    //   reply.status(400).send({
+    //     sucesso: false,
+    //     mensagem: 'Arquivo de certificado não encontrado',
+    //     erro: `Caminho inválido: ${certificado.pfx}`
+    //   });
+    //   return false;
+    // }
+
+    return true;
   }
-
-  const camposObrigatorios: (keyof CertificadoConfigDto)[] = [
-    'pfx',
-    'senha',
-    'CSC',
-    'CSCid',
-  ];
-
-  const camposFaltando = camposObrigatorios.filter(
-    (campo) => !certificado[campo],
-  );
-
-  if (camposFaltando.length > 0) {
-    res.status(400).json({
-      sucesso: false,
-      mensagem: 'Campos obrigatórios do certificado não informados',
-      erro: `Campos faltando: ${camposFaltando.join(', ')}`,
-    });
-    return false;
-  }
-
-  // Validar se arquivo do certificado existe
-  // if (!fs.existsSync(certificado.pfx)) {
-  //   res.status(400).json({
-  //     sucesso: false,
-  //     mensagem: 'Arquivo de certificado não encontrado',
-  //     erro: `Caminho inválido: ${certificado.pfx}`
-  //   });
-  //   return false;
-  // }
-
-  return true;
-}
