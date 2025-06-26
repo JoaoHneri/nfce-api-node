@@ -118,7 +118,7 @@ export class EmissaoNfceHandler {
             // ICMS (sempre igual - não mudou)
             NFe.tagProdICMSSN(index, { 
                 orig: impostos.orig, 
-                CSOSN: impostos.CSOSN || 400
+                CSOSN: impostos.CSOSN
             });
 
             // Obter alíquotas baseado no regime da empresa e CST
