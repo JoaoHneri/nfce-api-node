@@ -3,6 +3,7 @@ import { SefazResponseParser } from "../parsers/sefazResponseParsers";
 import { NFCeData, CertificadoConfig, SefazResponse } from "../types";
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpoints';
 import { obterConfigSOAP, obterNamespaceSOAP } from '../config/soap-config';
+import { SoapHeadersUtil } from "../utils/soapHeadersUtil";
 import { Make } from "node-sped-nfe";
 import https from 'https';
 import fs from 'fs';
@@ -174,7 +175,7 @@ export class EmissaoNfceHandler {
                     const urlObj = new URL(url);
 
                     // 🚀 Headers específicos por estado
-                    const headers = this.obterCabecalhosPorEstado(uf, soapEnvelope);
+                    const headers = SoapHeadersUtil.obterCabecalhosEmissaoPorEstado(uf, soapEnvelope);
 
                     const options = {
                         hostname: urlObj.hostname,
@@ -270,68 +271,6 @@ export class EmissaoNfceHandler {
 
         } catch (methodError) {
             throw methodError;
-        }
-    }
-
-    private obterCabecalhosPorEstado(uf: string, soapEnvelope: string): Record<string, string> {
-        const contentLength = Buffer.byteLength(soapEnvelope, 'utf8');
-        
-        const baseHeaders = {
-            'Content-Length': contentLength.toString(),
-            'User-Agent': 'NFCe-API/1.0',
-            'Accept': '*/*',
-            'Connection': 'close'
-        };
-
-        switch (uf) {
-            case 'SP': // São Paulo
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'application/soap+xml; charset=utf-8',
-                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote'
-                };
-
-            case 'PR': // Paraná
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"'
-                };
-
-            case 'RS': // Rio Grande do Sul
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"'
-                };
-
-            case 'SC': // Santa Catarina
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"'
-                };
-
-            case 'MG': // Minas Gerais
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'application/soap+xml; charset=utf-8',
-                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote'
-                };
-
-            case 'RJ': // Rio de Janeiro
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"'
-                };
-
-            default: // Fallback para outros estados
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"'
-                };
         }
     }
 

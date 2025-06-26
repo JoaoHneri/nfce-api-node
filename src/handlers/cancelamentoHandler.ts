@@ -3,7 +3,7 @@ import { SefazResponseParser } from "../parsers/sefazResponseParsers";
 import { CancelamentoRequest, CancelamentoResponse, CertificadoConfig } from "../types";
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpoints';
 import { obterConfigSOAP, obterNamespaceSOAP } from '../config/soap-config';
-import { XMLBuilder } from 'fast-xml-parser';
+import { SoapHeadersUtil } from "../utils/soapHeadersUtil";
 import https from 'https';
 import fs from 'fs';
 
@@ -159,7 +159,7 @@ export class CancelamentoHandler {
                 const urlObj = new URL(url);
                 
                 // 🚀 Headers específicos por estado para CANCELAMENTO
-                const headers = this.obterCabecalhosCancelamentoPorEstado(uf, soapEnvelope);
+                const headers = SoapHeadersUtil.obterCabecalhosCancelamentoPorEstado(uf, soapEnvelope);
 
                 const options = {
                     hostname: urlObj.hostname,
@@ -278,79 +278,7 @@ export class CancelamentoHandler {
         throw methodError;
     }
     }
-
-    // 🚀 Corrigindo o método obterCabecalhosCancelamentoPorEstado
-    private obterCabecalhosCancelamentoPorEstado(uf: string, soapEnvelope: string): Record<string, string> {
-        const contentLength = Buffer.byteLength(soapEnvelope, 'utf8');
-        
-        const baseHeaders = {
-            'Content-Length': contentLength.toString(),
-            'User-Agent': 'NFCe-API/1.0',
-            'Accept': '*/*',
-            'Connection': 'close'
-        };
-
-        console.log(`🎯 Configurando headers de cancelamento para UF: ${uf}`);
-
-        switch (uf) {
-            case 'SP': // São Paulo
-                console.log(`📋 Usando headers SOAP 1.2 para cancelamento SP`);
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'application/soap+xml; charset=utf-8',
-                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento'
-                };
-
-            case 'PR': // Paraná
-                console.log(`📋 Usando headers SOAP 1.1 para cancelamento PR`);
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento"'
-                };
-
-            case 'RS': // Rio Grande do Sul - ✅ CORRIGIDO
-                console.log(`📋 Usando headers SOAP 1.1 específicos para cancelamento RS`);
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento"'
-                };
-                
-            case 'SC': // Santa Catarina
-                console.log(`📋 Usando headers SOAP 1.1 para cancelamento SC`);
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento'
-                };
-
-            case 'MG': // Minas Gerais
-                console.log(`📋 Usando headers SOAP 1.2 para cancelamento MG`);
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'application/soap+xml; charset=utf-8',
-                    'SOAPAction': 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento'
-                };
-
-            case 'RJ': // Rio de Janeiro
-                console.log(`📋 Usando headers SOAP 1.1 para cancelamento RJ`);
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento"'
-                };
-
-            default: // Fallback para outros estados
-                console.log(`📋 Usando headers SOAP 1.1 padrão para cancelamento ${uf}`);
-                return {
-                    ...baseHeaders,
-                    'Content-Type': 'text/xml; charset=utf-8',
-                    'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento"'
-                };
-        }
-    }
-
+    
     private gerarIdLote(): string {
         const agora = new Date();
         const ano = agora.getFullYear().toString().slice(2);
