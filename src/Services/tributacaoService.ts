@@ -55,8 +55,7 @@ export class TributacaoService {
      * @returns Objeto com alíquotas e configurações
      */
     static obterAliquotas(crt: string, cst: string): AliquotasResult {
-        console.log(`🔍 Consultando tributação: CRT=${crt}, CST=${cst}`);
-        
+    
         // 🏪 SIMPLES NACIONAL (99% dos casos de suvenirs/vestuários)
         if (crt === "1") {
             return {
@@ -101,7 +100,6 @@ export class TributacaoService {
      * 🧮 CALCULAR VALORES DE PIS (versão simplificada)
      */
     static calcularPIS(valor: number, aliquotas: AliquotasResult, cst: string): ImpostoCalculado {
-        console.log(`💰 Calculando PIS: valor=R$${valor}, regime=${aliquotas.regime}`);
         
         if (aliquotas.zerado) {
             return {
@@ -116,8 +114,6 @@ export class TributacaoService {
         const pPIS = parseFloat(aliquotas.pPIS || "0");
         const vPIS = (valor * pPIS / 100).toFixed(2);
         
-        console.log(`📊 PIS: R$${valor} × ${pPIS}% = R$${vPIS}`);
-        
         return {
             CST: cst,
             vBC: valor.toFixed(2),
@@ -130,7 +126,6 @@ export class TributacaoService {
      * 🧮 CALCULAR VALORES DE COFINS (versão simplificada)
      */
     static calcularCOFINS(valor: number, aliquotas: AliquotasResult, cst: string): ImpostoCalculado {
-        console.log(`💰 Calculando COFINS: valor=R$${valor}, regime=${aliquotas.regime}`);
         
         if (aliquotas.zerado) {
             return {
@@ -144,8 +139,6 @@ export class TributacaoService {
         // Tributação percentual normal
         const pCOFINS = parseFloat(aliquotas.pCOFINS || "0");
         const vCOFINS = (valor * pCOFINS / 100).toFixed(2);
-        
-        console.log(`📊 COFINS: R$${valor} × ${pCOFINS}% = R$${vCOFINS}`);
         
         return {
             CST: cst,
@@ -230,7 +223,6 @@ export class TributacaoService {
                 totalCOFINS += (valor * pCOFINS / 100);
             }
             
-            console.log(`📊 Produto ${index}: R$${valor} | PIS: R$${(valor * parseFloat(aliquotas.pPIS || "0") / 100).toFixed(2)} | COFINS: R$${(valor * parseFloat(aliquotas.pCOFINS || "0") / 100).toFixed(2)}`);
         });
         
         return {
@@ -338,13 +330,9 @@ export class TributacaoService {
      * 🎯 SIMULAR CÁLCULO COMPLETO (para testes)
      */
     static simularCalculoCompleto(crt: string, cstPIS: string, cstCOFINS: string, valorProduto: number): any {
-        console.log(`\n🧮 === SIMULAÇÃO DE CÁLCULO TRIBUTÁRIO ===`);
-        console.log(`📋 Dados: CRT=${crt}, CST_PIS=${cstPIS}, CST_COFINS=${cstCOFINS}, Valor=R$${valorProduto}`);
-        
         // Validar dados
         const validacao = this.validarDadosTributacao(crt, cstPIS, valorProduto);
         if (!validacao.valido) {
-            console.error(`❌ Dados inválidos:`, validacao.erros);
             return { erro: validacao.erros };
         }
         
@@ -374,10 +362,7 @@ export class TributacaoService {
                 observacao: info.tributacao.observacao
             }
         };
-        
-        console.log(`✅ Resultado:`, resultado.resumo);
-        console.log(`🔚 === FIM DA SIMULAÇÃO ===\n`);
-        
+    
         return resultado;
     }
 

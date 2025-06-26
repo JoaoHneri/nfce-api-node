@@ -31,40 +31,31 @@ export class CancelamentoHandler {
                 };
             }
 
-            console.log('🚫 Criando XML de cancelamento usando tools...');
-
             // 1. Criar estrutura do evento
             const eventoObj = this.criarObjetoEvento(dados, certificadoConfig);
-            console.log('📋 Objeto evento criado');
 
             // 2. ✅ USAR TOOLS para converter JSON para XML
             let xmlEvento;
             if (typeof tools.json2xml === 'function') {
                 xmlEvento = await tools.json2xml(eventoObj);
-                console.log('📄 XML convertido via tools.json2xml');
             } else {
                 // Fallback: usar XMLBuilder
                 xmlEvento = this.converterParaXML(eventoObj);
-                console.log('📄 XML convertido via XMLBuilder (fallback)');
             }
 
             // 3. ✅ USAR TOOLS para assinar XML
             const xmlAssinado = await tools.xmlSign(xmlEvento, { tag: "infEvento" });
-            console.log('✍️ XML assinado via tools.xmlSign');
 
             // 4. Criar envelope SOAP
             const soapEnvelope = this.criarSOAPEnvelope(xmlAssinado, dados.chaveAcesso.substring(0, 2));
-            console.log('📦 SOAP envelope criado');
 
             // 5. ✅ Enviar para SEFAZ usando certificado do config
             const xmlResponse = await this.enviarParaSefaz(soapEnvelope, dados.chaveAcesso, certificadoConfig);
-            console.log('📡 Enviado para SEFAZ');
 
             // 6. Parse da resposta
             return this.parser.parseCancelamentoResponse(xmlResponse, dados.chaveAcesso);
 
         } catch (error: any) {
-            console.error('❌ Erro no cancelamento:', error);
             return {
                 sucesso: false,
                 status: "erro_comunicacao",
@@ -141,9 +132,6 @@ export class CancelamentoHandler {
             throw new Error(`Endpoint de cancelamento não configurado para UF: ${uf}`);
         }
 
-        console.log(`🌐 Enviando cancelamento para SEFAZ: ${uf} - ${ambiente.toUpperCase()}`);
-        console.log(`🔗 URL: ${url}`);
-
         if (!certificadoConfig.pfx || !certificadoConfig.senha) {
             throw new Error('Certificado não configurado adequadamente');
         }
@@ -173,18 +161,8 @@ export class CancelamentoHandler {
                     secureProtocol: 'TLSv1_2_method'
                 };
 
-                console.log(`📋 Headers de cancelamento enviados:`, JSON.stringify(headers, null, 2));
-                console.log(`⚙️ Options de requisição:`, {
-                    hostname: options.hostname,
-                    port: options.port,
-                    path: options.path,
-                    method: options.method
-                });
-
                 const req = https.request(options, (res) => {
                     try {
-                        console.log(`📡 Status HTTP recebido: ${res.statusCode}`);
-                        console.log(`📄 Headers de resposta:`, JSON.stringify(res.headers, null, 2));
 
                         let data = '';
                         res.on('data', (chunk) => {
@@ -193,36 +171,22 @@ export class CancelamentoHandler {
 
                         res.on('end', () => {
                             try {
-                                console.log(`📥 Tamanho da resposta: ${data.length} bytes`);
-                                console.log(`📝 Primeiros 500 caracteres da resposta:`);
-                                console.log(data.substring(0, 500));
-
                                 // 🚨 Verificar se é erro HTTP
                                 if (res.statusCode && res.statusCode >= 400) {
-                                    console.error(`❌ Erro HTTP ${res.statusCode}:`);
-                                    console.error(`📄 Resposta completa:`, data);
                                     reject(new Error(`Erro HTTP ${res.statusCode}: ${data}`));
                                     return;
                                 }
 
                                 // 🚨 Verificar se contém erro SOAP
                                 if (data.includes('soap:Fault') || data.includes('faultstring')) {
-                                    console.error(`❌ Erro SOAP detectado:`);
-                                    console.error(`📄 Resposta completa:`, data);
                                     reject(new Error(`Erro SOAP: ${data}`));
                                     return;
                                 }
 
                                 try {
                                     const xmlLimpo = this.limparSOAP(data);
-                                    console.log(`✅ XML extraído com sucesso`);
-                                    console.log(`📝 Primeiros 300 caracteres do XML limpo:`);
-                                    console.log(xmlLimpo.substring(0, 300));
-                                    
                                     resolve(xmlLimpo);
                                 } catch (xmlError) {
-                                    console.error(`❌ Erro ao extrair XML:`, xmlError);
-                                    console.log(`📄 Retornando resposta original`);
                                     resolve(data);
                                 }
                             } catch (endError) {
@@ -243,25 +207,15 @@ export class CancelamentoHandler {
                 });
 
                 req.on('error', (err) => {
-                    console.error(`❌ Erro na requisição HTTPS:`, err);
-                    console.error(`🔍 Detalhes do erro:`, {
-                        code: (err as any).code,
-                        message: err.message,
-                        stack: err.stack
-                    });
                     reject(err);
                 });
 
                 req.on('timeout', () => {
-                    console.error(`⏰ Timeout na requisição após 30 segundos`);
                     req.destroy();
                     reject(new Error('Timeout na requisição de cancelamento (30s)'));
                 });
 
                 req.setTimeout(30000);
-
-                console.log(`📤 Enviando SOAP Envelope de cancelamento...`);
-                console.log(`📏 Tamanho do envelope: ${Buffer.byteLength(soapEnvelope)} bytes`);
                 
                 req.write(soapEnvelope);
                 req.end();
@@ -273,12 +227,10 @@ export class CancelamentoHandler {
         });
 
     } catch (methodError) {
-        console.error(`❌ Erro geral no método enviarParaSefaz:`, methodError);
-        console.error(`🔍 Stack trace:`, methodError instanceof Error ? methodError.stack : 'Stack trace not available');
         throw methodError;
     }
     }
-    
+
     private gerarIdLote(): string {
         const agora = new Date();
         const ano = agora.getFullYear().toString().slice(2);
