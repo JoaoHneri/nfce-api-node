@@ -38,8 +38,22 @@ async function nfcRoutes(fastify: FastifyInstance) {
     handler: nfcController.consultarTributacao.bind(nfcController)
   });
 
-  fastify.get('/regimes', {
+  fastify.get('/tributacao/regimes', {
     handler: nfcController.listarRegimes.bind(nfcController)
+  });
+
+  // 🎯 ROTAS AVANÇADAS DE TRIBUTAÇÃO
+  
+  fastify.get('/tributacao/simular/:crt/:cstpis/:cstcofins/:valor', {
+    handler: nfcController.simularCalculoTributario.bind(nfcController)
+  });
+
+  fastify.get('/tributacao/relatorio', {
+    handler: nfcController.obterRelatorioAliquotas.bind(nfcController)
+  });
+
+  fastify.get('/tributacao/validar-cst/:cst', {
+    handler: nfcController.validarCST.bind(nfcController)
   });
 }
 

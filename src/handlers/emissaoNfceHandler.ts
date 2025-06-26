@@ -107,7 +107,6 @@ export class EmissaoNfceHandler {
         // Produtos
         NFe.tagProd(dados.produtos);
 
-        // 🎯 IMPOSTOS - VERSÃO AUTOMÁTICA SIMPLIFICADA
         dados.produtos.forEach((produto, index) => {
             const impostos = dados.impostos || { 
                 orig: "0", 
@@ -119,19 +118,14 @@ export class EmissaoNfceHandler {
             // ICMS (sempre igual - não mudou)
             NFe.tagProdICMSSN(index, { 
                 orig: impostos.orig, 
-                CSOSN: impostos.CSOSN 
+                CSOSN: impostos.CSOSN || 400
             });
 
-            // 🎯 TRIBUTAÇÃO AUTOMÁTICA DE PIS/COFINS
-            console.log(`📊 Calculando impostos produto ${index}: ${produto.xProd}`);
-            
             // Obter alíquotas baseado no regime da empresa e CST
             const aliquotas = TributacaoService.obterAliquotas(
-                dados.emitente.CRT,         // "1" = Simples Nacional
-                impostos.CST_PIS            // "49" = Outras operações
+                dados.emitente.CRT,         // "1" = Simples Nacional ou outro CRT
+                impostos.CST_PIS            // "49" = Outras operações ou outro CST
             );
-
-            console.log(`📋 ${aliquotas.observacao}`);
 
             // Calcular PIS automaticamente
             const dadosPIS = TributacaoService.calcularPIS(
@@ -150,9 +144,6 @@ export class EmissaoNfceHandler {
             );
             
             NFe.tagProdCOFINS(index, dadosCOFINS);
-
-            // Log do resultado
-            console.log(`💰 Produto ${index}: PIS=R$${dadosPIS.vPIS}, COFINS=R$${dadosCOFINS.vCOFINS}`);
         });
 
         // Calcular totais

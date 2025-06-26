@@ -398,4 +398,72 @@ export class NFCeController {
       });
     }
   }
+
+  // 🎯 NOVAS FUNCIONALIDADES AVANÇADAS DE TRIBUTAÇÃO
+  
+  async simularCalculoTributario(request: FastifyRequest<{
+    Params: { crt: string; cstpis: string; cstcofins: string; valor: string }
+  }>, reply: FastifyReply): Promise<void> {
+    try {
+      const { crt, cstpis, cstcofins, valor } = request.params;
+      const valorNumerico = parseFloat(valor);
+      
+      const simulacao = TributacaoService.simularCalculoCompleto(crt, cstpis, cstcofins, valorNumerico);
+      
+      reply.send({
+        sucesso: true,
+        dados: simulacao
+      });
+      
+    } catch (error: any) {
+      reply.code(400).send({
+        sucesso: false,
+        mensagem: 'Erro ao simular cálculo tributário',
+        erro: error.message
+      });
+    }
+  }
+
+  async obterRelatorioAliquotas(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const relatorio = TributacaoService.obterRelatorioAliquotas();
+      
+      reply.send({
+        sucesso: true,
+        dados: relatorio
+      });
+      
+    } catch (error: any) {
+      reply.code(500).send({
+        sucesso: false,
+        mensagem: 'Erro ao obter relatório de alíquotas',
+        erro: error.message
+      });
+    }
+  }
+
+  async validarCST(request: FastifyRequest<{
+    Params: { cst: string }
+  }>, reply: FastifyReply): Promise<void> {
+    try {
+      const { cst } = request.params;
+      
+      const validacao = TributacaoService.validarCST(cst);
+      
+      reply.send({
+        sucesso: true,
+        dados: {
+          cst: cst,
+          validacao: validacao
+        }
+      });
+      
+    } catch (error: any) {
+      reply.code(400).send({
+        sucesso: false,
+        mensagem: 'Erro ao validar CST',
+        erro: error.message
+      });
+    }
+  }
 }
