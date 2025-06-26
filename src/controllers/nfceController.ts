@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SefazNfceService } from '../Services/sefazNfceService';
+import { TributacaoService } from '../Services/tributacaoService';
 import { NFCeData, CertificadoConfig, CancelamentoRequest } from '../types';
 import { validarCertificado } from '../utils/validadorCertificado';
 
@@ -160,8 +161,12 @@ export class NFCeController {
               impostos: {
                   orig: "0", // 0-Nacional
                   CSOSN: "102", // 102-Tributada pelo Simples Nacional sem permissão de crédito
-                  CST_PIS: "49", // 49-Outras operações de saída
-                  CST_COFINS: "49" // 49-Outras operações de saída
+                  CST_PIS: "49", // 49-Outras operações (BACKEND CALCULA AUTOMATICAMENTE)
+                  CST_COFINS: "49" // 49-Outras operações (BACKEND CALCULA AUTOMATICAMENTE)
+                  // ⚡ NOVO: PIS/COFINS são calculados automaticamente pelo backend!
+                  // ✅ Simples Nacional: Sempre R$ 0,00 (recolhido via DAS)
+                  // ✅ Lucro Real: 1,65% PIS + 7,60% COFINS
+                  // ✅ Produtos isentos: R$ 0,00 conforme CST
               },
               pagamento: {
                   detPag: [
@@ -311,5 +316,86 @@ export class NFCeController {
               erro: error.message
           });
       }
+  }
+
+  // 🎯 NOVAS FUNCIONALIDADES: Consultar tributação automática
+  
+  async consultarTributacao(request: FastifyRequest<{
+    Params: { crt: string; cst: string }
+  }>, reply: FastifyReply): Promise<void> {
+    try {
+      const { crt, cst } = request.params;
+      
+      const aliquotas = TributacaoService.obterAliquotas(crt, cst);
+      const regime = TributacaoService.consultarRegime(crt);
+      
+      reply.status(200).send({
+        sucesso: true,
+        dados: {
+          entrada: { crt, cst },
+          resultado: aliquotas,
+          regime: regime,
+          explicacao: {
+            crt: crt === "1" ? "Simples Nacional" : "Regime Normal",
+            automatico: true,
+            observacao: "Valores calculados automaticamente pelo backend"
+          }
+        }
+      });
+      
+    } catch (error: any) {
+      reply.status(400).send({
+        sucesso: false,
+        mensagem: 'Erro ao consultar tributação',
+        erro: error.message
+      });
+    }
+  }
+
+  async listarRegimes(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      reply.status(200).send({
+        sucesso: true,
+        dados: {
+          regimes: [
+            {
+              crt: "1",
+              nome: "Simples Nacional",
+              pis: "0.00%",
+              cofins: "0.00%",
+              observacao: "Recolhido via DAS"
+            },
+            {
+              crt: "3", 
+              nome: "Lucro Real",
+              pis: "1.65%",
+              cofins: "7.60%",
+              observacao: "Para empresas normais - calculado automaticamente"
+            }
+          ],
+          exemplos: {
+            simples_nacional: {
+              crt: "1",
+              cst_pis: "49",
+              cst_cofins: "49",
+              resultado: "PIS e COFINS = R$ 0,00"
+            },
+            lucro_real: {
+              crt: "3",
+              cst_pis: "01", 
+              cst_cofins: "01",
+              resultado: "PIS = 1,65% e COFINS = 7,60% do valor"
+            }
+          }
+        }
+      });
+      
+    } catch (error: any) {
+      reply.status(500).send({
+        sucesso: false,
+        mensagem: 'Erro ao listar regimes',
+        erro: error.message
+      });
+    }
   }
 }

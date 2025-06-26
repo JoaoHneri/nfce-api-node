@@ -4,6 +4,7 @@ import { NFCeData, CertificadoConfig, SefazResponse } from "../types";
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpoints';
 import { obterConfigSOAP, obterNamespaceSOAP } from '../config/soap-config';
 import { SoapHeadersUtil } from "../utils/soapHeadersUtil";
+import { TributacaoService } from "../Services/tributacaoService";
 import { Make } from "node-sped-nfe";
 import https from 'https';
 import fs from 'fs';
@@ -106,13 +107,52 @@ export class EmissaoNfceHandler {
         // Produtos
         NFe.tagProd(dados.produtos);
 
-        // Impostos
-        dados.produtos.forEach((_, index) => {
-            const impostos = dados.impostos || { orig: "0", CSOSN: "400", CST_PIS: "49", CST_COFINS: "49" };
+        // 🎯 IMPOSTOS - VERSÃO AUTOMÁTICA SIMPLIFICADA
+        dados.produtos.forEach((produto, index) => {
+            const impostos = dados.impostos || { 
+                orig: "0", 
+                CSOSN: "400", 
+                CST_PIS: "49", 
+                CST_COFINS: "49" 
+            };
 
-            NFe.tagProdICMSSN(index, { orig: impostos.orig, CSOSN: impostos.CSOSN });
-            NFe.tagProdPIS(index, { CST: impostos.CST_PIS, qBCProd: "0.0000", vAliqProd: "0.0000", vPIS: "0.00" });
-            NFe.tagProdCOFINS(index, { CST: impostos.CST_COFINS, qBCProd: "0.0000", vAliqProd: "0.0000", vCOFINS: "0.00" });
+            // ICMS (sempre igual - não mudou)
+            NFe.tagProdICMSSN(index, { 
+                orig: impostos.orig, 
+                CSOSN: impostos.CSOSN 
+            });
+
+            // 🎯 TRIBUTAÇÃO AUTOMÁTICA DE PIS/COFINS
+            console.log(`📊 Calculando impostos produto ${index}: ${produto.xProd}`);
+            
+            // Obter alíquotas baseado no regime da empresa e CST
+            const aliquotas = TributacaoService.obterAliquotas(
+                dados.emitente.CRT,         // "1" = Simples Nacional
+                impostos.CST_PIS            // "49" = Outras operações
+            );
+
+            console.log(`📋 ${aliquotas.observacao}`);
+
+            // Calcular PIS automaticamente
+            const dadosPIS = TributacaoService.calcularPIS(
+                parseFloat(produto.vProd),  // Valor do produto
+                aliquotas,                  // Alíquotas determinadas
+                impostos.CST_PIS           // CST informado
+            );
+            
+            NFe.tagProdPIS(index, dadosPIS);
+
+            // Calcular COFINS automaticamente
+            const dadosCOFINS = TributacaoService.calcularCOFINS(
+                parseFloat(produto.vProd),  // Valor do produto
+                aliquotas,                  // Alíquotas determinadas
+                impostos.CST_COFINS        // CST informado
+            );
+            
+            NFe.tagProdCOFINS(index, dadosCOFINS);
+
+            // Log do resultado
+            console.log(`💰 Produto ${index}: PIS=R$${dadosPIS.vPIS}, COFINS=R$${dadosCOFINS.vCOFINS}`);
         });
 
         // Calcular totais

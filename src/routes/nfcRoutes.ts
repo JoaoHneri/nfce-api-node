@@ -32,6 +32,15 @@ async function nfcRoutes(fastify: FastifyInstance) {
   fastify.post('/cache/limpar', {
     handler: nfcController.limparCacheManual.bind(nfcController)
   });
+
+  // 🎯 NOVAS ROTAS: Consultar tributação automática
+  fastify.get('/tributacao/:crt/:cst', {
+    handler: nfcController.consultarTributacao.bind(nfcController)
+  });
+
+  fastify.get('/regimes', {
+    handler: nfcController.listarRegimes.bind(nfcController)
+  });
 }
 
 export default nfcRoutes;
