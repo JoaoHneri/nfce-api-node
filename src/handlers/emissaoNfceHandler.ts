@@ -35,10 +35,10 @@ export class EmissaoNfceHandler {
             return this.processarResposta(xmlResponse);
 
         } catch (error: any) {
-            console.error('Erro na emissão:', error);
+            console.error('Error in issuance:', error);
             return {
-                sucesso: false,
-                erro: error.message
+                success: false,
+                error: error.message
             };
         }
     }
@@ -352,16 +352,16 @@ export class EmissaoNfceHandler {
         const statusNFCe = cStat?.[1]?.match(/\d+/)?.[0];
         const motivoNFCe = xMotivo?.[1]?.match(/>([^<]+)</)?.[1];
 
-        const sucesso = statusNFCe === '100';
+        const success = statusNFCe === '100';
 
         return {
-            sucesso,
+            success,
             cStat: statusNFCe || cStat?.[0]?.match(/\d+/)?.[0],
-            xMotivo: motivoNFCe || xMotivo?.[0]?.match(/>([^<]+)</)?.[1],
-            chaveAcesso,
-            protocolo,
-            dataHora: dhRecbto,
-            xmlCompleto: xmlLimpo
+            reason: motivoNFCe || xMotivo?.[0]?.match(/>([^<]+)</)?.[1],
+            accessKey: chaveAcesso,
+            protocol: protocolo,
+            dateTime: dhRecbto,
+            xmlComplete: xmlLimpo
         };
     }
 

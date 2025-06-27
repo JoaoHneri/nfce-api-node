@@ -13,13 +13,13 @@ export class ConsultaHandler {
             // Validação da chave
             if (!chave || chave.length !== 44) {
                 return {
-                    sucesso: false,
-                    status: "erro_validacao",
+                    success: false,
+                    status: "validation_error",
                     cStat: "999",
-                    xMotivo: "Chave de acesso inválida - deve ter 44 dígitos",
-                    chaveAcesso: chave,
-                    xmlCompleto: "",
-                    erro: "Chave inválida"
+                    reason: "Invalid access key - must have 44 digits",
+                    accessKey: chave,
+                    xmlComplete: "",
+                    error: "Invalid key"
                 };
             }
 
@@ -31,13 +31,13 @@ export class ConsultaHandler {
 
         } catch (error: any) {
             return {
-                sucesso: false,
-                status: "erro_comunicacao",
+                success: false,
+                status: "communication_error",
                 cStat: "999",
-                xMotivo: "Erro de comunicação com SEFAZ",
-                chaveAcesso: chave,
-                xmlCompleto: "",
-                erro: error.message
+                reason: "SEFAZ communication error",
+                accessKey: chave,
+                xmlComplete: "",
+                error: error.message
             };
         }
     }

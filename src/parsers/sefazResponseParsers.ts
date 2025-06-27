@@ -18,80 +18,80 @@ export class SefazResponseParser {
             let retConsSit = this.encontrarRetConsSitNFe(dadosXML);
             
             if (!retConsSit) {
-                throw new Error('Estrutura retConsSitNFe não encontrada no XML');
+                throw new Error('Structure retConsSitNFe not found in XML');
             }
 
             const cStat = this.extrairValor(retConsSit, 'cStat');
             const xMotivo = this.extrairValor(retConsSit, 'xMotivo');
 
             if (!cStat) {
-                throw new Error('Campo cStat não encontrado na resposta');
+                throw new Error('Field cStat not found in response');
             }
 
             const baseResponse = {
                 cStat,
-                xMotivo: xMotivo || 'Motivo não informado',
-                chaveAcesso: chave,
-                xmlCompleto: xmlResponse
+                reason: xMotivo || 'Reason not informed',
+                accessKey: chave,
+                xmlComplete: xmlResponse
             };
 
             switch (cStat) {
                 case "100": // Autorizada
                     return {
                         ...baseResponse,
-                        sucesso: true,
-                        status: "autorizada",
-                        protocolo: this.extrairProtocolo(retConsSit) || undefined,
-                        dataAutorizacao: this.extrairDataAutorizacao(retConsSit) || undefined
+                        success: true,
+                        status: "authorized",
+                        protocol: this.extrairProtocolo(retConsSit) || undefined,
+                        authorizationDate: this.extrairDataAutorizacao(retConsSit) || undefined
                     };
 
                 case "101": // Cancelada
                     return {
                         ...baseResponse,
-                        sucesso: true,
-                        status: "cancelada",
-                        protocolo: this.extrairProtocolo(retConsSit) || undefined
+                        success: true,
+                        status: "canceled",
+                        protocol: this.extrairProtocolo(retConsSit) || undefined
                     };
 
                 case "110": // Denegada
                     return {
                         ...baseResponse,
-                        sucesso: true,
-                        status: "denegada",
-                        protocolo: this.extrairProtocolo(retConsSit) || undefined
+                        success: true,
+                        status: "denied",
+                        protocol: this.extrairProtocolo(retConsSit) || undefined
                     };
 
                 case "656": // Processando
                     return {
                         ...baseResponse,
-                        sucesso: false,
-                        status: "processando",
-                        aguardar: true
+                        success: false,
+                        status: "processing",
+                        waitRequired: true
                     };
 
                 case "217": // Não encontrada
                     return {
                         ...baseResponse,
-                        sucesso: false,
-                        status: "nao_encontrada"
+                        success: false,
+                        status: "not_found"
                     };
 
                 default: // Outros erros
                     return {
                         ...baseResponse,
-                        sucesso: false,
-                        status: "erro"
+                        success: false,
+                        status: "error"
                     };
             }
         } catch (error: any) {
             return {
-                sucesso: false,
-                status: "erro_parser",
+                success: false,
+                status: "parser_error",
                 cStat: "999",
-                xMotivo: "Erro ao processar resposta XML",
-                chaveAcesso: chave,
-                xmlCompleto: xmlResponse,
-                erro: error.message
+                reason: "Error processing XML response",
+                accessKey: chave,
+                xmlComplete: xmlResponse,
+                error: error.message
             };
         }
     }
@@ -100,13 +100,13 @@ export class SefazResponseParser {
         try {
             if (!xmlResponse) {
                 return {
-                    sucesso: false,
-                    status: "erro_resposta_vazia",
+                    success: false,
+                    status: "empty_response_error",
                     cStat: "999",
-                    xMotivo: "Resposta vazia da SEFAZ",
-                    chaveAcesso: chave,
-                    xmlCompleto: "",
-                    erro: "XML de resposta está vazio"
+                    reason: "Empty SEFAZ response",
+                    accessKey: chave,
+                    xmlComplete: "",
+                    error: "Response XML is empty"
                 };
             }
 
@@ -119,13 +119,13 @@ export class SefazResponseParser {
             
             if (!retEvento) {
                 return {
-                    sucesso: false,
-                    status: "erro_estrutura",
+                    success: false,
+                    status: "structure_error",
                     cStat: "999",
-                    xMotivo: "Estrutura retEvento não encontrada",
-                    chaveAcesso: chave,
-                    xmlCompleto: xmlResponse,
-                    erro: "Resposta não contém estrutura retEvento válida"
+                    reason: "Structure retEvento not found",
+                    accessKey: chave,
+                    xmlComplete: xmlResponse,
+                    error: "Response does not contain valid retEvento structure"
                 };
             }
 
@@ -145,46 +145,47 @@ export class SefazResponseParser {
 
             const baseResponse = {
                 cStat: cStatFinal,
-                xMotivo: xMotivoFinal,
-                chaveAcesso: chave,
-                xmlCompleto: xmlResponse
+                reason: xMotivoFinal,
+                accessKey: chave,
+                xmlComplete: xmlResponse
             };
 
             if (cStatFinal === "135") { // Cancelamento homologado
                 return {
                     ...baseResponse,
-                    sucesso: true,
-                    status: "cancelada",
-                    protocolo: nProt || undefined
+                    success: true,
+                    status: "canceled",
+                    protocol: nProt || undefined
                 };
             } else {
                 // Tentar identificar tipo específico de erro
-                let status = "erro_cancelamento";
+                let status = "cancellation_error";
                 if (xMotivoFinal.includes("data do evento")) {
-                    status = "erro_data_evento";
+                    status = "invalid_date";
                 } else if (xMotivoFinal.includes("protocolo")) {
-                    status = "erro_protocolo";
+                    status = "invalid_protocol";
                 } else if (xMotivoFinal.includes("justificativa")) {
-                    status = "erro_justificativa";
+                    status = "invalid_justification";
                 }
                 
                 return {
                     ...baseResponse,
-                    sucesso: false,
-                    status
+                    success: false,
+                    status,
+                    error: `Cancellation error: ${xMotivoFinal}`
                 };
             }
 
         } catch (error: any) {
-            console.error('Erro no parse do cancelamento:', error);
+            console.error('Error parsing cancellation:', error);
             return {
-                sucesso: false,
-                status: "erro_parser",
+                success: false,
+                status: "parser_error",
                 cStat: "999",
-                xMotivo: "Erro ao processar resposta de cancelamento",
-                chaveAcesso: chave,
-                xmlCompleto: xmlResponse,
-                erro: error.message
+                reason: "Error processing cancellation response",
+                accessKey: chave,
+                xmlComplete: xmlResponse,
+                error: error.message
             };
         }
     }
@@ -213,7 +214,7 @@ export class SefazResponseParser {
             // Se não tem envelope SOAP, retornar como está
             return xmlResponse;
         } catch (error) {
-            console.warn('Erro ao extrair XML do SOAP, usando XML original:', error);
+            console.warn('Error extracting XML from SOAP, using original XML:', error);
             return xmlResponse;
         }
     }
@@ -385,7 +386,7 @@ export class SefazResponseParser {
             return;
         }
 
-        console.log(`${prefixo}Estrutura do objeto:`);
+        console.log(`${prefixo}Object structure:`);
         for (const key in obj) {
             if (obj.hasOwnProperty(key)) {
                 const tipo = typeof obj[key];

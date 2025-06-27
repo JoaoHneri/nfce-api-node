@@ -21,13 +21,13 @@ export class CancelamentoHandler {
             const validacao = this.validarDados(dados);
             if (!validacao.valido) {
                 return {
-                    sucesso: false,
-                    status: "erro_validacao",
+                    success: false,
+                    status: "validation_error",
                     cStat: "999",
-                    xMotivo: validacao.erro!,
-                    chaveAcesso: dados.chaveAcesso,
-                    xmlCompleto: "",
-                    erro: validacao.erro
+                    reason: validacao.erro!,
+                    accessKey: dados.accessKey,
+                    xmlComplete: "",
+                    error: validacao.erro
                 };
             }
 
@@ -47,23 +47,23 @@ export class CancelamentoHandler {
             const xmlAssinado = await tools.xmlSign(xmlEvento, { tag: "infEvento" });
 
             // 4. Criar envelope SOAP
-            const soapEnvelope = this.criarSOAPEnvelope(xmlAssinado, dados.chaveAcesso.substring(0, 2));
+            const soapEnvelope = this.criarSOAPEnvelope(xmlAssinado, dados.accessKey.substring(0, 2));
 
             // 5. ✅ Enviar para SEFAZ usando certificado do config
-            const xmlResponse = await this.enviarParaSefaz(soapEnvelope, dados.chaveAcesso, certificadoConfig);
+            const xmlResponse = await this.enviarParaSefaz(soapEnvelope, dados.accessKey, certificadoConfig);
 
             // 6. Parse da resposta
-            return this.parser.parseCancelamentoResponse(xmlResponse, dados.chaveAcesso);
+            return this.parser.parseCancelamentoResponse(xmlResponse, dados.accessKey);
 
         } catch (error: any) {
             return {
-                sucesso: false,
-                status: "erro_comunicacao",
+                success: false,
+                status: "communication_error",
                 cStat: "999",
-                xMotivo: "Erro no processamento do cancelamento",
-                chaveAcesso: dados.chaveAcesso,
-                xmlCompleto: "",
-                erro: error.message
+                reason: "Error processing cancellation",
+                accessKey: dados.accessKey,
+                xmlComplete: "",
+                error: error.message
             };
         }
     }
@@ -78,15 +78,15 @@ export class CancelamentoHandler {
         const dhEvento = brasiliaTime.toISOString().replace(/\.\d{3}Z$/, '-03:00');
         
         const nSeqEvento = 1;
-        const cOrgao = dados.chaveAcesso.substring(0, 2);
+        const cOrgao = dados.accessKey.substring(0, 2);
         
         const idLote = this.gerarIdLote();
 
         const detEvento = {
             "@versao": "1.00",
             "descEvento": "Cancelamento",
-            "nProt": dados.protocolo,
-            "xJust": dados.justificativa
+            "nProt": dados.protocol,
+            "xJust": dados.justification
         };
 
         return {
@@ -98,11 +98,11 @@ export class CancelamentoHandler {
                     "@xmlns": "http://www.portalfiscal.inf.br/nfe",
                     "@versao": "1.00",
                     "infEvento": {
-                        "@Id": `ID110111${dados.chaveAcesso}${nSeqEvento.toString().padStart(2, '0')}`,
+                        "@Id": `ID110111${dados.accessKey}${nSeqEvento.toString().padStart(2, '0')}`,
                         "cOrgao": cOrgao,
                         "tpAmb": "2",
                         "CNPJ": certificadoConfig.CNPJ || "",
-                        "chNFe": dados.chaveAcesso,
+                        "chNFe": dados.accessKey,
                         "dhEvento": dhEvento, 
                         "tpEvento": "110111",
                         "nSeqEvento": nSeqEvento,
@@ -303,20 +303,20 @@ export class CancelamentoHandler {
     }
 
     private validarDados(dados: CancelamentoRequest): { valido: boolean; erro?: string } {
-        if (!dados.chaveAcesso || dados.chaveAcesso.length !== 44) {
-            return { valido: false, erro: "Chave de acesso inválida - deve ter 44 dígitos" };
+        if (!dados.accessKey || dados.accessKey.length !== 44) {
+            return { valido: false, erro: "Invalid access key - must have 44 digits" };
         }
 
-        if (!dados.protocolo) {
-            return { valido: false, erro: "Protocolo de autorização é obrigatório" };
+        if (!dados.protocol) {
+            return { valido: false, erro: "Authorization protocol is required" };
         }
 
-        if (!dados.justificativa || dados.justificativa.length < 15) {
-            return { valido: false, erro: "Justificativa deve ter pelo menos 15 caracteres" };
+        if (!dados.justification || dados.justification.length < 15) {
+            return { valido: false, erro: "Justification must have at least 15 characters" };
         }
 
-        if (dados.justificativa.length > 255) {
-            return { valido: false, erro: "Justificativa deve ter no máximo 255 caracteres" };
+        if (dados.justification.length > 255) {
+            return { valido: false, erro: "Justification must have at most 255 characters" };
         }
 
         return { valido: true };

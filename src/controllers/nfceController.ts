@@ -22,33 +22,33 @@ export class NFCeController {
 
       const resultado = await this.sefazNfceService.emitirNFCe(dadosNFCe, certificado);
 
-      if (resultado.sucesso) {
+      if (resultado.success) {
         reply.status(200).send({
-          sucesso: true,
-          mensagem: 'NFCe emitida com sucesso',
-          dados: {
-            chaveAcesso: resultado.chaveAcesso,
-            protocolo: resultado.protocolo,
-            dataHora: resultado.dataHora,
+          success: true,
+          message: 'NFCe issued successfully',
+          data: {
+            accessKey: resultado.accessKey,
+            protocol: resultado.protocol,
+            dateTime: resultado.dateTime,
             status: resultado.cStat,
-            motivo: resultado.xMotivo
+            reason: resultado.reason
           }
         });
       } else {
         reply.status(400).send({
-          sucesso: false,
-          mensagem: 'Erro na emissão da NFCe',
-          erro: resultado.xMotivo || resultado.erro
+          success: false,
+          message: 'Error issuing NFCe',
+          error: resultado.reason || resultado.error
         });
       }
 
     } catch (error: any) {
-      console.error('Erro interno:', error.message);
+      console.error('Internal error:', error.message);
 
       reply.status(500).send({
-        sucesso: false,
-        mensagem: 'Erro interno do servidor',
-        erro: error.message
+        success: false,
+        message: 'Internal server error',
+        error: error.message
       });
     }
   }
@@ -59,20 +59,20 @@ export class NFCeController {
       const agora = new Date().toISOString();
 
       reply.status(200).send({
-        sucesso: true,
-        mensagem: 'API funcionando corretamente',
-        dados: {
+        success: true,
+        message: 'API working correctly',
+        data: {
           timestamp: agora,
-          versao: '1.0.0',
-          ambiente: process.env.NODE_ENV || 'development'
+          version: '1.0.0',
+          environment: process.env.NODE_ENV || 'development'
         }
       });
 
     } catch (error: any) {
       reply.status(500).send({
-        sucesso: false,
-        mensagem: 'Erro no teste de conectividade',
-        erro: error.message
+        success: false,
+        message: 'Error in connectivity test',
+        error: error.message
       });
     }
   }
@@ -185,23 +185,23 @@ export class NFCeController {
       };
 
       reply.status(200).send({
-          sucesso: true,
-          mensagem: 'Exemplo completo para emissão de NFCe via HUB',
-          observacoes: [
-              "API HUB: Aceita certificado por requisição",
-              "Substitua os dados do certificado pelos reais",
-              "Ajuste o caminho do arquivo .pfx",
-              "tpAmb: 2=Homologação, 1=Produção",
-              "UF deve ser consistente em certificado e emitente",
-              "Valor baixo (R$ 10,00) para facilitar testes",
-              "CNPJ fictício mas com formato válido"
+          success: true,
+          message: 'Complete example for NFCe issuance via HUB',
+          notes: [
+              "HUB API: Accepts certificate per request",
+              "Replace certificate data with real ones",
+              "Adjust .pfx file path",
+              "tpAmb: 2=Homologation, 1=Production",
+              "UF must be consistent in certificate and issuer",
+              "Low value (R$ 10.00) to facilitate testing",
+              "Fictitious CNPJ but with valid format"
           ],
-          comoUsar: {
+          howToUse: {
               endpoint: "POST /api/nfce/emitir",
               contentType: "application/json",
-              body: "Use o objeto 'exemploCompleto' abaixo"
+              body: "Use the 'completeExample' object below"
           },
-          exemploCompleto
+          completeExample: exemploCompleto
       });
   }
 
@@ -216,7 +216,7 @@ export class NFCeController {
 
       if (!chave) {
         reply.status(400).send({
-          erro: 'Chave de acesso é obrigatória',
+          error: 'Access key is required',
           status: 400
         });
         return;
@@ -224,14 +224,14 @@ export class NFCeController {
 
       const resultado = await this.sefazNfceService.consultarNFCe(chave, certificado);
 
-      reply.status(200).send({ resultado });
+      reply.status(200).send({ result: resultado });
 
     } catch (error: any) {
       reply.status(500).send({
-        erro: 'Erro interno do servidor',
-        mensagem: 'Erro inesperado ao consultar NFCe',
-        detalhes: {
-          erro: error.message,
+        error: 'Internal server error',
+        message: 'Unexpected error when consulting NFCe',
+        details: {
+          error: error.message,
           timestamp: new Date().toISOString()
         }
       });
@@ -254,17 +254,17 @@ export class NFCeController {
       // Validação básica
       if (!chaveAcesso || !protocolo || !justificativa) {
         reply.status(400).send({
-          erro: 'Dados obrigatórios',
-          mensagem: 'chaveAcesso, protocolo e justificativa são obrigatórios',
+          error: 'Required data',
+          message: 'accessKey, protocol and justification are required',
           status: 400
         });
         return;
       }
 
       const dadosCancelamento: CancelamentoRequest = {
-        chaveAcesso,
-        protocolo,
-        justificativa
+        accessKey: chaveAcesso,
+        protocol: protocolo,
+        justification: justificativa
       };
 
       // Cancelamento via service
@@ -272,13 +272,13 @@ export class NFCeController {
       reply.status(200).send(resultado);
 
     } catch (error: any) {
-      console.error('Erro no cancelamento NFCe:', error);
+      console.error('Error canceling NFCe:', error);
 
       reply.status(500).send({
-        erro: 'Erro interno do servidor',
-        mensagem: 'Erro inesperado ao cancelar NFCe',
-        detalhes: {
-          erro: error.message,
+        error: 'Internal server error',
+        message: 'Unexpected error when canceling NFCe',
+        details: {
+          error: error.message,
           timestamp: new Date().toISOString()
         }
       });
@@ -290,14 +290,14 @@ export class NFCeController {
           const stats = this.sefazNfceService.obterEstatisticasCache();
           
           reply.status(200).send({
-              sucesso: true,
-              mensagem: 'Estatísticas do cache de Tools',
-              dados: stats
+              success: true,
+              message: 'Tools cache statistics',
+              data: stats
           });
       } catch (error: any) {
           reply.status(500).send({
-              sucesso: false,
-              erro: error.message
+              success: false,
+              error: error.message
           });
       }
   }
@@ -307,13 +307,13 @@ export class NFCeController {
           this.sefazNfceService.limparCache();
           
           reply.status(200).send({
-              sucesso: true,
-              mensagem: 'Cache limpo com sucesso'
+              success: true,
+              message: 'Cache cleared successfully'
           });
       } catch (error: any) {
           reply.status(500).send({
-              sucesso: false,
-              erro: error.message
+              success: false,
+              error: error.message
           });
       }
   }
@@ -330,24 +330,24 @@ export class NFCeController {
       const regime = TributacaoService.consultarRegime(crt);
       
       reply.status(200).send({
-        sucesso: true,
-        dados: {
-          entrada: { crt, cst },
-          resultado: aliquotas,
+        success: true,
+        data: {
+          input: { crt, cst },
+          result: aliquotas,
           regime: regime,
-          explicacao: {
-            crt: crt === "1" ? "Simples Nacional" : "Regime Normal",
-            automatico: true,
-            observacao: "Valores calculados automaticamente pelo backend"
+          explanation: {
+            crt: crt === "1" ? "Simples Nacional" : "Normal Regime",
+            automatic: true,
+            note: "Values calculated automatically by backend"
           }
         }
       });
       
     } catch (error: any) {
       reply.status(400).send({
-        sucesso: false,
-        mensagem: 'Erro ao consultar tributação',
-        erro: error.message
+        success: false,
+        message: 'Error consulting taxation',
+        error: error.message
       });
     }
   }
@@ -355,36 +355,36 @@ export class NFCeController {
   async listarRegimes(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       reply.status(200).send({
-        sucesso: true,
-        dados: {
+        success: true,
+        data: {
           regimes: [
             {
               crt: "1",
-              nome: "Simples Nacional",
+              name: "Simples Nacional",
               pis: "0.00%",
               cofins: "0.00%",
-              observacao: "Recolhido via DAS"
+              note: "Collected via DAS"
             },
             {
               crt: "3", 
-              nome: "Lucro Real",
+              name: "Lucro Real",
               pis: "1.65%",
               cofins: "7.60%",
-              observacao: "Para empresas normais - calculado automaticamente"
+              note: "For normal companies - calculated automatically"
             }
           ],
-          exemplos: {
+          examples: {
             simples_nacional: {
               crt: "1",
               cst_pis: "49",
               cst_cofins: "49",
-              resultado: "PIS e COFINS = R$ 0,00"
+              result: "PIS and COFINS = R$ 0.00"
             },
             lucro_real: {
               crt: "3",
               cst_pis: "01", 
               cst_cofins: "01",
-              resultado: "PIS = 1,65% e COFINS = 7,60% do valor"
+              result: "PIS = 1.65% and COFINS = 7.60% of value"
             }
           }
         }
@@ -392,9 +392,9 @@ export class NFCeController {
       
     } catch (error: any) {
       reply.status(500).send({
-        sucesso: false,
-        mensagem: 'Erro ao listar regimes',
-        erro: error.message
+        success: false,
+        message: 'Error listing regimes',
+        error: error.message
       });
     }
   }
@@ -411,15 +411,15 @@ export class NFCeController {
       const simulacao = TributacaoService.simularCalculoCompleto(crt, cstpis, cstcofins, valorNumerico);
       
       reply.send({
-        sucesso: true,
-        dados: simulacao
+        success: true,
+        data: simulacao
       });
       
     } catch (error: any) {
       reply.code(400).send({
-        sucesso: false,
-        mensagem: 'Erro ao simular cálculo tributário',
-        erro: error.message
+        success: false,
+        message: 'Error simulating tax calculation',
+        error: error.message
       });
     }
   }
@@ -429,15 +429,15 @@ export class NFCeController {
       const relatorio = TributacaoService.obterRelatorioAliquotas();
       
       reply.send({
-        sucesso: true,
-        dados: relatorio
+        success: true,
+        data: relatorio
       });
       
     } catch (error: any) {
       reply.code(500).send({
-        sucesso: false,
-        mensagem: 'Erro ao obter relatório de alíquotas',
-        erro: error.message
+        success: false,
+        message: 'Error getting tax rates report',
+        error: error.message
       });
     }
   }
@@ -451,18 +451,18 @@ export class NFCeController {
       const validacao = TributacaoService.validarCST(cst);
       
       reply.send({
-        sucesso: true,
-        dados: {
+        success: true,
+        data: {
           cst: cst,
-          validacao: validacao
+          validation: validacao
         }
       });
       
     } catch (error: any) {
       reply.code(400).send({
-        sucesso: false,
-        mensagem: 'Erro ao validar CST',
-        erro: error.message
+        success: false,
+        message: 'Error validating CST',
+        error: error.message
       });
     }
   }

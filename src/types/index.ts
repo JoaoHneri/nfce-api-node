@@ -114,15 +114,15 @@ export interface NFCeData {
 }
 
 export interface SefazResponse {
-  sucesso: boolean;
+  success: boolean;
   cStat?: string;
-  xMotivo?: string;
-  chaveAcesso?: string;
-  protocolo?: string;
-  dataHora?: string;
+  reason?: string;
+  accessKey?: string;
+  protocol?: string;
+  dateTime?: string;
   qrCode?: string;
-  xmlCompleto?: string;
-  erro?: string;
+  xmlComplete?: string;
+  error?: string;
 }
 
 export interface SefazEndpoints {
@@ -133,30 +133,30 @@ export interface SefazEndpoints {
 }
 
 export interface ConsultaResponse {
-    sucesso: boolean;
+    success: boolean;
     status: string;
     cStat: string;
-    xMotivo: string;
-    chaveAcesso: string;
-    protocolo?: string;
-    dataAutorizacao?: string;
-    xmlCompleto: string;
-    aguardar?: boolean;
-    erro?: string;
+    reason: string;
+    accessKey: string;
+    protocol?: string;
+    authorizationDate?: string;
+    xmlComplete: string;
+    waitRequired?: boolean;
+    error?: string;
 }
 export interface CancelamentoRequest {
-    chaveAcesso: string;
-    protocolo: string;
-    justificativa: string;
+    accessKey: string;
+    protocol: string;
+    justification: string;
 }
 
 export interface CancelamentoResponse {
-    sucesso: boolean;
+    success: boolean;
     status: string;
     cStat: string;
-    xMotivo: string;
-    chaveAcesso: string;
-    protocolo?: string;
-    xmlCompleto: string;
-    erro?: string;
+    reason: string;
+    accessKey: string;
+    protocol?: string;
+    xmlComplete: string;
+    error?: string;
 }
