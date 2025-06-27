@@ -321,7 +321,7 @@ export class NFCeController {
       }
   }
 
-  // 🎯 NOVAS FUNCIONALIDADES: Consultar tributação automática
+  //NOVAS FUNCIONALIDADES: Consultar tributação automática
   
   async consultarTributacao(request: FastifyRequest<{
     Params: { crt: string; cst: string }
@@ -402,7 +402,7 @@ export class NFCeController {
     }
   }
 
-  // 🎯 NOVAS FUNCIONALIDADES AVANÇADAS DE TRIBUTAÇÃO
+  //NOVAS FUNCIONALIDADES AVANÇADAS DE TRIBUTAÇÃO
   
   async simularCalculoTributario(request: FastifyRequest<{
     Params: { crt: string; cstpis: string; cstcofins: string; valor: string }
