@@ -29,7 +29,7 @@ async function nfcRoutes(fastify: FastifyInstance) {
     handler: nfcController.obterEstatisticasCache.bind(nfcController)
   });
 
-  fastify.post('/cache/clear', {
+  fastify.delete('/cache/clear', {
     handler: nfcController.limparCacheManual.bind(nfcController)
   });
 

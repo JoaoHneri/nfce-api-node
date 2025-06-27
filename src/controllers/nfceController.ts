@@ -186,20 +186,20 @@ export class NFCeController {
 
       reply.status(200).send({
           success: true,
-          message: 'Exemplo completo para emissão de NFCe via HUB',
+          message: 'Complete example for NFCe issuance via HUB',
           notes: [
-              "API HUB: Aceita certificado por requisição",
-              "Substitua os dados do certificado pelos reais",
-              "Ajuste o caminho do arquivo .pfx",
-              "tpAmb: 2=Homologação, 1=Produção",
-              "UF deve ser consistente no certificado e emitente",
-              "Valor baixo (R$ 10,00) para facilitar teste",
-              "CNPJ fictício mas com formato válido"
+              "HUB API: Accepts certificate per request",
+              "Replace certificate data with real ones",
+              "Adjust the .pfx file path",
+              "tpAmb: 2=Homologation, 1=Production",
+              "UF must be consistent in certificate and issuer",
+              "Low value (R$ 10.00) to facilitate testing",
+              "Fictional CNPJ but with valid format"
           ],
           howToUse: {
-              endpoint: "POST /api/nfce/emitir",
+              endpoint: "POST /api/nfce/create-nfc",
               contentType: "application/json",
-              body: "Use o objeto 'completeExample' abaixo"
+              body: "Use the 'completeExample' object below"
           },
           completeExample: exemploCompleto
       });
@@ -300,6 +300,7 @@ export class NFCeController {
       } catch (error: any) {
           reply.status(500).send({
               success: false,
+              message: 'Error getting cache statistics',
               error: error.message
           });
       }
@@ -316,6 +317,7 @@ export class NFCeController {
       } catch (error: any) {
           reply.status(500).send({
               success: false,
+              message: 'Error clearing cache',
               error: error.message
           });
       }
@@ -334,6 +336,7 @@ export class NFCeController {
       
       reply.status(200).send({
         success: true,
+        message: 'Tax consultation completed successfully',
         data: {
           input: { crt, cst },
           result: aliquotas,
@@ -359,6 +362,7 @@ export class NFCeController {
     try {
       reply.status(200).send({
         success: true,
+        message: 'Tax regimes listed successfully',
         data: {
           regimes: [
             {
@@ -413,13 +417,14 @@ export class NFCeController {
       
       const simulacao = TributacaoService.simularCalculoCompleto(crt, cstpis, cstcofins, valorNumerico);
       
-      reply.send({
+      reply.status(200).send({
         success: true,
+        message: 'Tax calculation simulation completed successfully',
         data: simulacao
       });
       
     } catch (error: any) {
-      reply.code(400).send({
+      reply.status(400).send({
         success: false,
         message: 'Error simulating tax calculation',
         error: error.message
@@ -431,13 +436,14 @@ export class NFCeController {
     try {
       const relatorio = TributacaoService.obterRelatorioAliquotas();
       
-      reply.send({
+      reply.status(200).send({
         success: true,
+        message: 'Tax rates report generated successfully',
         data: relatorio
       });
       
     } catch (error: any) {
-      reply.code(500).send({
+      reply.status(500).send({
         success: false,
         message: 'Error getting tax rates report',
         error: error.message
@@ -453,8 +459,9 @@ export class NFCeController {
       
       const validacao = TributacaoService.validarCST(cst);
       
-      reply.send({
+      reply.status(200).send({
         success: true,
+        message: 'CST validation completed successfully',
         data: {
           cst: cst,
           validation: validacao
@@ -462,7 +469,7 @@ export class NFCeController {
       });
       
     } catch (error: any) {
-      reply.code(400).send({
+      reply.status(400).send({
         success: false,
         message: 'Error validating CST',
         error: error.message
