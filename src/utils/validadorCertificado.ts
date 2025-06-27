@@ -5,9 +5,9 @@ export function validarCertificado(certificado: CertificadoConfig, reply: Fastif
     // Validação se certificado existe
     if (!certificado) {
       reply.status(400).send({
-        sucesso: false,
-        mensagem: 'Dados do certificado são obrigatórios',
-        erro: 'O campo "certificado" deve ser enviado na requisição'
+        success: false,
+        message: 'Certificate data is required',
+        error: 'The "certificate" field must be sent in the request'
       });
       return false;
     }
@@ -18,9 +18,9 @@ export function validarCertificado(certificado: CertificadoConfig, reply: Fastif
     
     if (camposFaltando.length > 0) {
       reply.status(400).send({
-        sucesso: false,
-        mensagem: 'Campos obrigatórios do certificado não informados',
-        erro: `Campos faltando: ${camposFaltando.join(', ')}`
+        success: false,
+        message: 'Required certificate fields not provided',
+        error: `Missing fields: ${camposFaltando.join(', ')}`
       });
       return false;
     }
@@ -28,9 +28,9 @@ export function validarCertificado(certificado: CertificadoConfig, reply: Fastif
     // Validar se arquivo do certificado existe
     // if (!fs.existsSync(certificado.pfx)) {
     //   reply.status(400).send({
-    //     sucesso: false,
-    //     mensagem: 'Arquivo de certificado não encontrado',
-    //     erro: `Caminho inválido: ${certificado.pfx}`
+    //     success: false,
+    //     message: 'Certificate file not found',
+    //     error: `Invalid path: ${certificado.pfx}`
     //   });
     //   return false;
     // }
