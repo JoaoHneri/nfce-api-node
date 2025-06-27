@@ -17,13 +17,18 @@ app.get('/', async (request: any, reply: any) => {
     version: '1.0.0',
     framework: 'Fastify',
     endpoints: {
-      'POST /api/nfce/emitir': 'Issue NFCe',
-      'GET /api/nfce/teste': 'Connectivity test',
-      'GET /api/nfce/exemplo': 'Get data example',
-      'POST /api/nfce/consultar/:chave': 'Query NFCe by access key',
-      'POST /api/nfce/cancelar-nfce': 'Cancel NFCe',
+      'POST /api/nfce/create-nfc': 'Issue NFCe',
+      'GET /api/nfce/test': 'Connectivity test',
+      'GET /api/nfce/example': 'Get data example',
+      'POST /api/nfce/consult/:accessKey': 'Query NFCe by access key',
+      'POST /api/nfce/cancel-nfc': 'Cancel NFCe',
       'GET /api/nfce/cache/stats': 'Cache statistics',
-      'POST /api/nfce/cache/limpar': 'Clear cache'
+      'DELETE /api/nfce/cache/clear': 'Clear cache',
+      'GET /api/nfce/tax/:crt/:cst': 'Tax consultation',
+      'GET /api/nfce/tax/regimes': 'List tax regimes',
+      'GET /api/nfce/tax/simulate/:crt/:cstpis/:cstcofins/:valor': 'Tax simulation',
+      'GET /api/nfce/tax/report': 'Tax report',
+      'GET /api/nfce/tax/validate-cst/:cst': 'Validate CST'
     }
   };
 });

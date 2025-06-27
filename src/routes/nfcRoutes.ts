@@ -4,24 +4,24 @@ import { NFCeController } from '../controllers/nfceController';
 async function nfcRoutes(fastify: FastifyInstance) {
   const nfcController = new NFCeController();
 
-  // Rotas da API
-  fastify.post('/emitir', {
+  // API Routes
+  fastify.post('/create-nfc', {
     handler: nfcController.emitirNFCe.bind(nfcController)
   });
 
-  fastify.get('/teste', {
+  fastify.get('/test', {
     handler: nfcController.testeConectividade.bind(nfcController)
   });
 
-  fastify.get('/exemplo', {
+  fastify.get('/example', {
     handler: nfcController.obterExemplo.bind(nfcController)
   });
 
-  fastify.post('/consultar/:accessKey', {
+  fastify.post('/consult/:accessKey', {
     handler: nfcController.consultarNFCe.bind(nfcController)
   });
 
-  fastify.post('/cancelar-nfce', {
+  fastify.post('/cancel-nfc', {
     handler: nfcController.cancelarNFCe.bind(nfcController)
   });
 
@@ -29,30 +29,30 @@ async function nfcRoutes(fastify: FastifyInstance) {
     handler: nfcController.obterEstatisticasCache.bind(nfcController)
   });
 
-  fastify.post('/cache/limpar', {
+  fastify.post('/cache/clear', {
     handler: nfcController.limparCacheManual.bind(nfcController)
   });
 
-  // 🎯 NOVAS ROTAS: Consultar tributação automática
-  fastify.get('/tributacao/:crt/:cst', {
+  // TAX ROUTES: Tax consultation and calculation
+  fastify.get('/tax/:crt/:cst', {
     handler: nfcController.consultarTributacao.bind(nfcController)
   });
 
-  fastify.get('/tributacao/regimes', {
+  fastify.get('/tax/regimes', {
     handler: nfcController.listarRegimes.bind(nfcController)
   });
 
-  // 🎯 ROTAS AVANÇADAS DE TRIBUTAÇÃO
+  // ADVANCED TAX ROUTES
   
-  fastify.get('/tributacao/simular/:crt/:cstpis/:cstcofins/:valor', {
+  fastify.get('/tax/simulate/:crt/:cstpis/:cstcofins/:valor', {
     handler: nfcController.simularCalculoTributario.bind(nfcController)
   });
 
-  fastify.get('/tributacao/relatorio', {
+  fastify.get('/tax/report', {
     handler: nfcController.obterRelatorioAliquotas.bind(nfcController)
   });
 
-  fastify.get('/tributacao/validar-cst/:cst', {
+  fastify.get('/tax/validate-cst/:cst', {
     handler: nfcController.validarCST.bind(nfcController)
   });
 }
