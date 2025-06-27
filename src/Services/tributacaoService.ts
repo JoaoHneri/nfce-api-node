@@ -1,5 +1,5 @@
 /**
- * 🎯 Serviço de Tributação Simplificado
+ * Serviço de Tributação Simplificado
  * 
  * Para empresas de suvenirs e vestuários.
  * Centraliza o cálculo automático de PIS/COFINS
@@ -27,77 +27,122 @@ export interface ImpostoCalculado {
 
 export class TributacaoService {
     
-    // 📋 ALÍQUOTAS PADRÃO (suficiente para suvenirs e vestuários)
-    private static readonly ALIQUOTAS = {
-        LUCRO_REAL: {
-            PIS: 1.65,      // %
-            COFINS: 7.60    // %
+    // 🎯 CONFIGURAÇÕES CENTRALIZADAS
+    private static readonly CONFIG = {
+        // Alíquotas por regime
+        ALIQUOTAS: {
+            SIMPLES_NACIONAL: {
+                PIS: 0.00,
+                COFINS: 0.00
+            },
+            LUCRO_REAL: {
+                PIS: 1.65,
+                COFINS: 7.60
+            },
+            LUCRO_PRESUMIDO: {
+                PIS: 0.65,
+                COFINS: 3.00
+            }
         },
         
-        // Lucro Presumido (cumulativo) - Lei 10.637/2002
-        LUCRO_PRESUMIDO: {
-            PIS: 0.65,      // %
-            COFINS: 3.00    // %
+        // Códigos de Regime Tributário
+        CRT: {
+            SIMPLES_NACIONAL: "1",
+            SIMPLES_EXCESSO: "2", 
+            REGIME_NORMAL: "3"
         },
         
-        // Simples Nacional - Lei Complementar 123/2006
-        SIMPLES_NACIONAL: {
-            PIS: 0.00,      // % (recolhido via DAS)
-            COFINS: 0.00    // % (recolhido via DAS)
+        // CSTs válidos e suas configurações
+        CST: {
+            "01": { descricao: "Operação tributável (base = valor da operação)", tributado: true },
+            "02": { descricao: "Operação tributável (base = valor da operação, alíquota diferenciada)", tributado: true },
+            "03": { descricao: "Operação tributável (base = quantidade vendida × alíquota por unidade)", tributado: true },
+            "04": { descricao: "Operação tributável (tributação monofásica)", tributado: false },
+            "05": { descricao: "Operação tributável (substituição tributária)", tributado: false },
+            "06": { descricao: "Operação tributável (alíquota zero)", tributado: false },
+            "07": { descricao: "Operação isenta da contribuição", tributado: false },
+            "08": { descricao: "Operação sem incidência da contribuição", tributado: false },
+            "09": { descricao: "Operação com suspensão da contribuição", tributado: false },
+            "49": { descricao: "Outras operações de saída", tributado: false },
+            "50": { descricao: "Operação com direito a crédito - vinculada exclusivamente a receita tributada no mercado interno", tributado: true },
+            "99": { descricao: "Outras operações", tributado: false }
+        },
+        
+        // Observações padrão
+        OBSERVACOES: {
+            SIMPLES_NACIONAL: "Simples Nacional: PIS/COFINS recolhidos via DAS",
+            LUCRO_REAL: "Lucro Real - Regime não-cumulativo",
+            LUCRO_PRESUMIDO: "Lucro Presumido - Regime cumulativo",
+            SEM_TRIBUTACAO: "Sem incidência de PIS/COFINS"
         }
     };
 
+    // Casos de uso dinâmicos (apenas para demonstração e relatórios)
+    private static get CASOS_USO() {
+        return {
+            loja_suvenirs_sn: {
+                cenario: "Loja de suvenirs (Simples Nacional)",
+                crt: this.CONFIG.CRT.SIMPLES_NACIONAL,
+                cst: "49"
+            },
+            empresa_grande_lr: {
+                cenario: "Empresa grande (Lucro Real)",
+                crt: this.CONFIG.CRT.REGIME_NORMAL,
+                cst: "01"
+            },
+            produto_isento: {
+                cenario: "Produto isento",
+                crt: this.CONFIG.CRT.REGIME_NORMAL,
+                cst: "07"
+            }
+        };
+    }
+
     /**
-     * 🎯 DETERMINA ALÍQUOTAS (versão simples para suvenirs/vestuários)
+     * DETERMINA ALÍQUOTAS (versão simples para suvenirs/vestuários)
      * 
      * @param crt Código de Regime Tributário (1=Simples, 3=Normal)
      * @param cst Código de Situação Tributária do PIS/COFINS
      * @returns Objeto com alíquotas e configurações
      */
     static obterAliquotas(crt: string, cst: string): AliquotasResult {
-    
-        // 🏪 SIMPLES NACIONAL (99% dos casos de suvenirs/vestuários)
-        if (crt === "1") {
+        
+        // SIMPLES NACIONAL
+        if (crt === this.CONFIG.CRT.SIMPLES_NACIONAL) {
             return {
                 regime: "SIMPLES_NACIONAL",
-                pPIS: "0.00",
-                pCOFINS: "0.00",
+                pPIS: this.CONFIG.ALIQUOTAS.SIMPLES_NACIONAL.PIS.toFixed(2),
+                pCOFINS: this.CONFIG.ALIQUOTAS.SIMPLES_NACIONAL.COFINS.toFixed(2),
                 zerado: true,
-                observacao: "Simples Nacional: PIS/COFINS recolhidos via DAS"
+                observacao: this.CONFIG.OBSERVACOES.SIMPLES_NACIONAL
             };
         }
         
-        // 🏢 EMPRESA NORMAL (Lucro Real/Presumido)
-        switch (cst) {
-            case "01":
-            case "02":
-                // Operação tributável - usar alíquotas padrão
-                return {
-                    regime: "LUCRO_REAL",
-                    pPIS: "1.65",
-                    pCOFINS: "7.60",
-                    zerado: false,
-                    observacao: "Lucro Real - Alíquotas padrão para suvenirs/vestuários"
-                };
-                
-            case "07": // Operação isenta
-            case "08": // Operação sem incidência
-            case "49": // Outras operações de saída
-            case "99": // Outras operações
-            default:
-                // Sem tributação
-                return {
-                    regime: "SEM_TRIBUTACAO",
-                    pPIS: "0.00",
-                    pCOFINS: "0.00",
-                    zerado: true,
-                    observacao: `CST ${cst} - Sem incidência de PIS/COFINS`
-                };
+        // EMPRESA NORMAL (Lucro Real/Presumido)
+        const cstInfo = this.CONFIG.CST[cst as keyof typeof this.CONFIG.CST];
+        
+        if (cstInfo?.tributado) {
+            return {
+                regime: "LUCRO_REAL",
+                pPIS: this.CONFIG.ALIQUOTAS.LUCRO_REAL.PIS.toFixed(2),
+                pCOFINS: this.CONFIG.ALIQUOTAS.LUCRO_REAL.COFINS.toFixed(2),
+                zerado: false,
+                observacao: this.CONFIG.OBSERVACOES.LUCRO_REAL
+            };
         }
+        
+        // Sem tributação
+        return {
+            regime: "SEM_TRIBUTACAO",
+            pPIS: "0.00",
+            pCOFINS: "0.00",
+            zerado: true,
+            observacao: `${this.CONFIG.OBSERVACOES.SEM_TRIBUTACAO} (CST ${cst})`
+        };
     }
     
     /**
-     * 🧮 CALCULAR VALORES DE PIS (versão simplificada)
+     * CALCULAR VALORES DE PIS (versão simplificada)
      */
     static calcularPIS(valor: number, aliquotas: AliquotasResult, cst: string): ImpostoCalculado {
         
@@ -123,7 +168,7 @@ export class TributacaoService {
     }
     
     /**
-     * 🧮 CALCULAR VALORES DE COFINS (versão simplificada)
+     * CALCULAR VALORES DE COFINS (versão simplificada)
      */
     static calcularCOFINS(valor: number, aliquotas: AliquotasResult, cst: string): ImpostoCalculado {
         
@@ -149,15 +194,15 @@ export class TributacaoService {
     }
     
     /**
-     * 📋 CONSULTAR REGIME TRIBUTÁRIO (versão completa)
+     * CONSULTAR REGIME TRIBUTÁRIO (versão completa)
      */
     static consultarRegime(crt: string): string {
         switch (crt) {
-            case "1":
+            case this.CONFIG.CRT.SIMPLES_NACIONAL:
                 return "Simples Nacional";
-            case "2": 
+            case this.CONFIG.CRT.SIMPLES_EXCESSO:
                 return "Simples Nacional - Excesso de Receita";
-            case "3":
+            case this.CONFIG.CRT.REGIME_NORMAL:
                 return "Regime Normal (Lucro Real/Presumido)";
             default:
                 return `Regime não identificado (CRT: ${crt})`;
@@ -165,44 +210,44 @@ export class TributacaoService {
     }
     
     /**
-     * 🎯 DETECTAR REGIME ESPECÍFICO (Lucro Real vs Presumido)
+     * DETECTAR REGIME ESPECÍFICO (Lucro Real vs Presumido)
      * Para empresas CRT=3, detecta se é Real ou Presumido baseado no CST
      */
     static detectarRegimeEspecifico(crt: string, cst: string): AliquotasResult {
-        if (crt === "1") {
-            // Simples Nacional
+        if (crt === this.CONFIG.CRT.SIMPLES_NACIONAL) {
             return this.obterAliquotas(crt, cst);
         }
         
         // Para CRT=3, decidir entre Lucro Real e Presumido
-        switch (cst) {
-            case "01":
-            case "02":
-                // Operação tributável - assumir Lucro Real (mais comum)
-                return {
-                    regime: "LUCRO_REAL",
-                    pPIS: "1.65",
-                    pCOFINS: "7.60", 
-                    zerado: false,
-                    observacao: "Lucro Real - Regime não-cumulativo"
-                };
-                
-            case "50": // CST específico para Lucro Presumido (se existir)
+        const cstInfo = this.CONFIG.CST[cst as keyof typeof this.CONFIG.CST];
+        
+        if (cstInfo?.tributado) {
+            // CST específico para Lucro Presumido
+            if (cst === "50") {
                 return {
                     regime: "LUCRO_PRESUMIDO",
-                    pPIS: "0.65",
-                    pCOFINS: "3.00",
+                    pPIS: this.CONFIG.ALIQUOTAS.LUCRO_PRESUMIDO.PIS.toFixed(2),
+                    pCOFINS: this.CONFIG.ALIQUOTAS.LUCRO_PRESUMIDO.COFINS.toFixed(2),
                     zerado: false,
-                    observacao: "Lucro Presumido - Regime cumulativo"
+                    observacao: this.CONFIG.OBSERVACOES.LUCRO_PRESUMIDO
                 };
-                
-            default:
-                return this.obterAliquotas(crt, cst);
+            }
+            
+            // Padrão: Lucro Real
+            return {
+                regime: "LUCRO_REAL",
+                pPIS: this.CONFIG.ALIQUOTAS.LUCRO_REAL.PIS.toFixed(2),
+                pCOFINS: this.CONFIG.ALIQUOTAS.LUCRO_REAL.COFINS.toFixed(2),
+                zerado: false,
+                observacao: this.CONFIG.OBSERVACOES.LUCRO_REAL
+            };
         }
+        
+        return this.obterAliquotas(crt, cst);
     }
 
     /**
-     * 🧮 CALCULAR TOTAIS DA NOTA (útil para validação)
+     * CALCULAR TOTAIS DA NOTA (útil para validação)
      */
     static calcularTotaisNota(produtos: any[], crt: string, impostos: any): any {
         let totalProdutos = 0;
@@ -234,25 +279,10 @@ export class TributacaoService {
     }
 
     /**
-     * 🔍 VALIDAR CST (verificar se é válido)
+     * VALIDAR CST (verificar se é válido)
      */
     static validarCST(cst: string): { valido: boolean; descricao?: string; observacao?: string } {
-        const cstsValidos = {
-            "01": { descricao: "Operação tributável (base = valor da operação)", tributado: true },
-            "02": { descricao: "Operação tributável (base = valor da operação, alíquota diferenciada)", tributado: true },
-            "03": { descricao: "Operação tributável (base = quantidade vendida × alíquota por unidade)", tributado: true },
-            "04": { descricao: "Operação tributável (tributação monofásica)", tributado: false },
-            "05": { descricao: "Operação tributável (substituição tributária)", tributado: false },
-            "06": { descricao: "Operação tributável (alíquota zero)", tributado: false },
-            "07": { descricao: "Operação isenta da contribuição", tributado: false },
-            "08": { descricao: "Operação sem incidência da contribuição", tributado: false },
-            "09": { descricao: "Operação com suspensão da contribuição", tributado: false },
-            "49": { descricao: "Outras operações de saída", tributado: false },
-            "50": { descricao: "Operação com direito a crédito - vinculada exclusivamente a receita tributada no mercado interno", tributado: true },
-            "99": { descricao: "Outras operações", tributado: false }
-        };
-        
-        const cstInfo = cstsValidos[cst as keyof typeof cstsValidos];
+        const cstInfo = this.CONFIG.CST[cst as keyof typeof this.CONFIG.CST];
         
         if (!cstInfo) {
             return {
@@ -269,14 +299,15 @@ export class TributacaoService {
     }
 
     /**
-     * ✅ VALIDAR DADOS ANTES DO CÁLCULO
+     * VALIDAR DADOS ANTES DO CÁLCULO
      */
     static validarDadosTributacao(crt: string, cst: string, valor?: number): { valido: boolean; erros: string[] } {
         const erros: string[] = [];
         
-        // Validar CRT
-        if (!["1", "2", "3"].includes(crt)) {
-            erros.push(`CRT inválido: ${crt}. Deve ser 1, 2 ou 3`);
+        // Validar CRT usando constantes
+        const crtsValidos = Object.values(this.CONFIG.CRT);
+        if (!crtsValidos.includes(crt)) {
+            erros.push(`CRT inválido: ${crt}. Deve ser ${crtsValidos.join(', ')}`);
         }
         
         // Validar CST
@@ -297,7 +328,7 @@ export class TributacaoService {
     }
 
     /**
-     * 📋 OBTER INFORMAÇÕES COMPLETAS (para debugging/logs)
+     * OBTER INFORMAÇÕES COMPLETAS (para debugging/logs)
      */
     static obterInformacoesCompletas(crt: string, cst: string): any {
         const aliquotas = this.obterAliquotas(crt, cst);
@@ -326,8 +357,8 @@ export class TributacaoService {
         };
     }
 
-    /**
-     * 🎯 SIMULAR CÁLCULO COMPLETO (para testes)
+    /*
+     * SIMULAR CÁLCULO COMPLETO (para testes)
      */
     static simularCalculoCompleto(crt: string, cstPIS: string, cstCOFINS: string, valorProduto: number): any {
         // Validar dados
@@ -367,7 +398,7 @@ export class TributacaoService {
     }
 
     /**
-     * 📊 RELATÓRIO DE ALÍQUOTAS (para consulta rápida)
+     * RELATÓRIO DE ALÍQUOTAS (para consulta rápida)
      */
     static obterRelatorioAliquotas(): any {
         return {
@@ -375,55 +406,47 @@ export class TributacaoService {
             data_atualizacao: new Date().toISOString(),
             regimes: {
                 simples_nacional: {
-                    crt: "1",
-                    nome: "Simples Nacional", 
-                    pis: "0.00%",
-                    cofins: "0.00%",
+                    crt: this.CONFIG.CRT.SIMPLES_NACIONAL,
+                    nome: "Simples Nacional",
+                    pis: `${this.CONFIG.ALIQUOTAS.SIMPLES_NACIONAL.PIS.toFixed(2)}%`,
+                    cofins: `${this.CONFIG.ALIQUOTAS.SIMPLES_NACIONAL.COFINS.toFixed(2)}%`,
                     observacao: "Recolhido via DAS - Lei Complementar 123/2006"
                 },
                 lucro_real: {
-                    crt: "3",
+                    crt: this.CONFIG.CRT.REGIME_NORMAL,
                     nome: "Lucro Real",
-                    pis: "1.65%", 
-                    cofins: "7.60%",
+                    pis: `${this.CONFIG.ALIQUOTAS.LUCRO_REAL.PIS.toFixed(2)}%`,
+                    cofins: `${this.CONFIG.ALIQUOTAS.LUCRO_REAL.COFINS.toFixed(2)}%`,
                     observacao: "Regime não-cumulativo - Lei 10.833/2003"
                 },
                 lucro_presumido: {
-                    crt: "3",
+                    crt: this.CONFIG.CRT.REGIME_NORMAL,
                     nome: "Lucro Presumido",
-                    pis: "0.65%",
-                    cofins: "3.00%", 
+                    pis: `${this.CONFIG.ALIQUOTAS.LUCRO_PRESUMIDO.PIS.toFixed(2)}%`,
+                    cofins: `${this.CONFIG.ALIQUOTAS.LUCRO_PRESUMIDO.COFINS.toFixed(2)}%`,
                     observacao: "Regime cumulativo - Lei 10.637/2002"
                 }
             },
-            csts_suportados: {
-                "01": "Operação tributável",
-                "02": "Operação tributável (alíquota diferenciada)",
-                "07": "Operação isenta",
-                "08": "Operação sem incidência", 
-                "49": "Outras operações de saída",
-                "99": "Outras operações"
-            },
-            casos_uso: {
-                loja_suvenirs_sn: {
-                    cenario: "Loja de suvenirs (Simples Nacional)",
-                    crt: "1",
-                    cst: "49",
-                    resultado: "PIS=0%, COFINS=0%"
-                },
-                empresa_grande_lr: {
-                    cenario: "Empresa grande (Lucro Real)",
-                    crt: "3",
-                    cst: "01", 
-                    resultado: "PIS=1.65%, COFINS=7.60%"
-                },
-                produto_isento: {
-                    cenario: "Produto isento",
-                    crt: "3",
-                    cst: "07",
-                    resultado: "PIS=0%, COFINS=0%"
-                }
-            }
+            csts_suportados: Object.fromEntries(
+                Object.entries(this.CONFIG.CST).map(([cst, info]) => [cst, info.descricao])
+            ),
+            casos_uso: Object.fromEntries(
+                Object.entries(this.CASOS_USO).map(([key, caso]) => [
+                    key, 
+                    {
+                        ...caso,
+                        resultado: this.calcularResultadoCasoUso(caso.crt, caso.cst)
+                    }
+                ])
+            )
         };
+    }
+
+    /**
+     * CALCULAR RESULTADO PARA CASO DE USO
+     */
+    private static calcularResultadoCasoUso(crt: string, cst: string): string {
+        const aliquotas = this.obterAliquotas(crt, cst);
+        return `PIS=${aliquotas.pPIS}%, COFINS=${aliquotas.pCOFINS}%`;
     }
 }
