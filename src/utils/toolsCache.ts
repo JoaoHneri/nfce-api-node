@@ -89,8 +89,8 @@ export class ToolsCache {
             return tools;
 
         } catch (error: any) {
-            console.error('Erro ao criar Tools:', error);
-            throw new Error(`Falha ao criar Tools: ${error.message}`);
+            console.error('Error creating Tools:', error);
+            throw new Error(`Failed to create Tools: ${error.message}`);
         }
     }
 

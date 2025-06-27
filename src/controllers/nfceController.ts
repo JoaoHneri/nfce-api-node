@@ -216,8 +216,9 @@ export class NFCeController {
 
       if (!accessKey) {
         reply.status(400).send({
-          error: 'Access key is required',
-          status: 400
+          success: false,
+          message: 'Access key is required',
+          error: 'Access key parameter is missing'
         });
         return;
       }
@@ -228,8 +229,9 @@ export class NFCeController {
 
     } catch (error: any) {
       reply.status(500).send({
-        error: 'Internal server error',
-        message: 'Unexpected error when consulting NFCe',
+        success: false,
+        message: 'Internal server error',
+        error: 'Unexpected error when consulting NFCe',
         details: {
           error: error.message,
           timestamp: new Date().toISOString()
@@ -254,9 +256,9 @@ export class NFCeController {
       // Validação básica
       if (!accessKey || !protocol || !justification) {
         reply.status(400).send({
-          error: 'Required data',
-          message: 'accessKey, protocol and justification are required',
-          status: 400
+          success: false,
+          message: 'Required data',
+          error: 'accessKey, protocol and justification are required'
         });
         return;
       }
@@ -275,8 +277,9 @@ export class NFCeController {
       console.error('Error canceling NFCe:', error);
 
       reply.status(500).send({
-        error: 'Internal server error',
-        message: 'Unexpected error when canceling NFCe',
+        success: false,
+        message: 'Internal server error',
+        error: 'Unexpected error when canceling NFCe',
         details: {
           error: error.message,
           timestamp: new Date().toISOString()

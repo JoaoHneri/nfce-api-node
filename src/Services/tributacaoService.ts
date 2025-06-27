@@ -307,18 +307,18 @@ export class TributacaoService {
         // Validar CRT usando constantes
         const crtsValidos = Object.values(this.CONFIG.CRT);
         if (!crtsValidos.includes(crt)) {
-            erros.push(`CRT inválido: ${crt}. Deve ser ${crtsValidos.join(', ')}`);
+            erros.push(`Invalid CRT: ${crt}. Must be ${crtsValidos.join(', ')}`);
         }
         
         // Validar CST
         const validacaoCST = this.validarCST(cst);
         if (!validacaoCST.valido) {
-            erros.push(`CST inválido: ${cst}`);
+            erros.push(`Invalid CST: ${cst}`);
         }
         
         // Validar valor (se fornecido)
         if (valor !== undefined && (valor < 0 || isNaN(valor))) {
-            erros.push(`Valor inválido: ${valor}. Deve ser um número positivo`);
+            erros.push(`Invalid value: ${valor}. Must be a positive number`);
         }
         
         return {
@@ -364,7 +364,7 @@ export class TributacaoService {
         // Validar dados
         const validacao = this.validarDadosTributacao(crt, cstPIS, valorProduto);
         if (!validacao.valido) {
-            return { erro: validacao.erros };
+            return { error: validacao.erros };
         }
         
         // Obter informações completas

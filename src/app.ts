@@ -13,17 +13,17 @@ const app = fastify({
 // Rota principal - registrada diretamente na instância principal
 app.get('/', async (request: any, reply: any) => {
   return {
-    mensagem: 'API NFCe - SEFAZ',
-    versao: '1.0.0',
+    message: 'API NFCe - SEFAZ',
+    version: '1.0.0',
     framework: 'Fastify',
     endpoints: {
-      'POST /api/nfce/emitir': 'Emitir NFCe',
-      'GET /api/nfce/teste': 'Teste de conectividade',
-      'GET /api/nfce/exemplo': 'Obter exemplo de dados',
-      'POST /api/nfce/consultar/:chave': 'Consultar NFCe por chave de acesso',
-      'POST /api/nfce/cancelar-nfce': 'Cancelar NFCe',
-      'GET /api/nfce/cache/stats': 'Estatísticas do cache',
-      'POST /api/nfce/cache/limpar': 'Limpar cache'
+      'POST /api/nfce/emitir': 'Issue NFCe',
+      'GET /api/nfce/teste': 'Connectivity test',
+      'GET /api/nfce/exemplo': 'Get data example',
+      'POST /api/nfce/consultar/:chave': 'Query NFCe by access key',
+      'POST /api/nfce/cancelar-nfce': 'Cancel NFCe',
+      'GET /api/nfce/cache/stats': 'Cache statistics',
+      'POST /api/nfce/cache/limpar': 'Clear cache'
     }
   };
 });
@@ -52,8 +52,8 @@ async function registerPlugins() {
 // Handler para rotas não encontradas
 app.setNotFoundHandler((request: any, reply: any) => {
   reply.status(404).send({
-    sucesso: false,
-    mensagem: 'Endpoint não encontrado',
+    success: false,
+    message: 'Endpoint not found',
     path: request.url
   });
 });
@@ -63,9 +63,9 @@ app.setErrorHandler((error: any, request: any, reply: any) => {
   console.error('Erro não tratado:', error);
   
   reply.status(500).send({
-    sucesso: false,
-    mensagem: 'Erro interno do servidor',
-    erro: process.env.NODE_ENV === 'development' ? error.message : 'Erro interno'
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Internal error'
   });
 });
 
