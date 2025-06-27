@@ -1,6 +1,6 @@
 export interface CertificadoConfig {
   pfx: string;
-  senha: string;
+  password: string;
   CSC: string;
   CSCid: string;
   CNPJ?: string;
@@ -10,14 +10,14 @@ export interface CertificadoConfig {
 }
 
 export interface NFCeData {
-  // Dados do emitente
-  emitente: {
+  // Issuer data
+  issuer: {
     CNPJ: string;
     xNome: string;
     xFant?: string;
     IE: string;
     CRT: string;
-    endereco: {
+    address: {
       xLgr: string;
       nro: string;
       xBairro: string;
@@ -31,8 +31,8 @@ export interface NFCeData {
     };
   };
 
-  // Dados do destinatário (opcional para NFCe)
-  destinatario?: {
+  // Recipient data (optional for NFCe)
+  recipient?: {
     CPF?: string;
     CNPJ?: string;
     xNome?: string;
@@ -61,8 +61,8 @@ export interface NFCeData {
     verProc: string;
   };
 
-  // Produtos
-  produtos: Array<{
+  // Products
+  products: Array<{
     cProd: string;
     cEAN?: string;
     xProd: string;
@@ -80,15 +80,15 @@ export interface NFCeData {
     indTot: string;
   }>;
 
-  // Impostos (simplificado)
-  impostos?: {
+  // Taxes (simplified)
+  taxes?: {
     orig: string;
     CSOSN: string;
     CST_PIS: string;
     CST_COFINS: string;
   };
 
-  responsavelTecnico?: {
+  technicalResponsible?: {
     CNPJ: string;
     xContato: string;
     email: string;
@@ -97,8 +97,8 @@ export interface NFCeData {
     hashCSRT?: string;
   };
   
-  // Pagamento
-  pagamento: {
+  // Payment
+  payment: {
     detPag: Array<{
       indPag: string;
       tPag: string;
@@ -107,8 +107,8 @@ export interface NFCeData {
     vTroco?: string;
   };
 
-  // Transporte (opcional)
-  transporte?: {
+  // Transport (optional)
+  transport?: {
     modFrete: string;
   };
 }

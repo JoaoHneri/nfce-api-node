@@ -132,7 +132,7 @@ export class CancelamentoHandler {
             throw new Error(`Endpoint de cancelamento não configurado para UF: ${uf}`);
         }
 
-        if (!certificadoConfig.pfx || !certificadoConfig.senha) {
+        if (!certificadoConfig.pfx || !certificadoConfig.password) {
             throw new Error('Certificado não configurado adequadamente');
         }
 
@@ -156,7 +156,7 @@ export class CancelamentoHandler {
                     method: 'POST',
                     headers,
                     pfx: certificado,
-                    passphrase: certificadoConfig.senha,
+                    passphrase: certificadoConfig.password,
                     rejectUnauthorized: false,
                     secureProtocol: 'TLSv1_2_method'
                 };

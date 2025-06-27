@@ -71,44 +71,44 @@ export class EmissaoNfceHandler {
             verProc: dados.ide.verProc
         });
 
-        // Dados do emitente
+        // Issuer data
         NFe.tagEmit({
-            CNPJ: dados.emitente.CNPJ,
-            xNome: dados.emitente.xNome,
-            xFant: dados.emitente.xFant,
-            IE: dados.emitente.IE,
-            CRT: dados.emitente.CRT
+            CNPJ: dados.issuer.CNPJ,
+            xNome: dados.issuer.xNome,
+            xFant: dados.issuer.xFant,
+            IE: dados.issuer.IE,
+            CRT: dados.issuer.CRT
         });
 
-        // Endereço do emitente
+        // Issuer address
         NFe.tagEnderEmit({
-            xLgr: dados.emitente.endereco.xLgr,
-            nro: dados.emitente.endereco.nro,
-            xBairro: dados.emitente.endereco.xBairro,
-            cMun: dados.emitente.endereco.cMun,
-            xMun: dados.emitente.endereco.xMun,
-            UF: dados.emitente.endereco.UF,
-            CEP: dados.emitente.endereco.CEP,
-            cPais: dados.emitente.endereco.cPais || "1058",
-            xPais: dados.emitente.endereco.xPais || "BRASIL",
-            fone: dados.emitente.endereco.fone
+            xLgr: dados.issuer.address.xLgr,
+            nro: dados.issuer.address.nro,
+            xBairro: dados.issuer.address.xBairro,
+            cMun: dados.issuer.address.cMun,
+            xMun: dados.issuer.address.xMun,
+            UF: dados.issuer.address.UF,
+            CEP: dados.issuer.address.CEP,
+            cPais: dados.issuer.address.cPais || "1058",
+            xPais: dados.issuer.address.xPais || "BRASIL",
+            fone: dados.issuer.address.fone
         });
 
-        // Destinatário (opcional)
-        if (dados.destinatario) {
+        // Recipient (optional)
+        if (dados.recipient) {
             NFe.tagDest({
-                CPF: dados.destinatario.CPF,
-                CNPJ: dados.destinatario.CNPJ,
-                xNome: dados.destinatario.xNome,
-                indIEDest: dados.destinatario.indIEDest || "9"
+                CPF: dados.recipient.CPF,
+                CNPJ: dados.recipient.CNPJ,
+                xNome: dados.recipient.xNome,
+                indIEDest: dados.recipient.indIEDest || "9"
             });
         }
 
-        // Produtos
-        NFe.tagProd(dados.produtos);
+        // Products
+        NFe.tagProd(dados.products);
 
-        dados.produtos.forEach((produto, index) => {
-            const impostos = dados.impostos || { 
+        dados.products.forEach((produto, index) => {
+            const impostos = dados.taxes || { 
                 orig: "0", 
                 CSOSN: "400", 
                 CST_PIS: "49", 
@@ -123,7 +123,7 @@ export class EmissaoNfceHandler {
 
             // Obter alíquotas baseado no regime da empresa e CST
             const aliquotas = TributacaoService.obterAliquotas(
-                dados.emitente.CRT,         // "1" = Simples Nacional ou outro CRT
+                dados.issuer.CRT,           // "1" = Simples Nacional ou outro CRT
                 impostos.CST_PIS            // "49" = Outras operações ou outro CST
             );
 
@@ -149,23 +149,23 @@ export class EmissaoNfceHandler {
         // Calcular totais
         NFe.tagICMSTot();
 
-        // Transporte
-        if (dados.transporte) {
-            NFe.tagTransp({ modFrete: dados.transporte.modFrete });
+        // Transport
+        if (dados.transport) {
+            NFe.tagTransp({ modFrete: dados.transport.modFrete });
         } else {
-            NFe.tagTransp({ modFrete: "9" }); // Sem ocorrência de transporte
+            NFe.tagTransp({ modFrete: "9" }); // No transport occurrence
         }
 
-        // Pagamento
-        NFe.tagDetPag(dados.pagamento.detPag);
+        // Payment
+        NFe.tagDetPag(dados.payment.detPag);
 
-        if (dados.pagamento.vTroco) {
-            NFe.tagTroco(dados.pagamento.vTroco);
+        if (dados.payment.vTroco) {
+            NFe.tagTroco(dados.payment.vTroco);
         }
 
-        if (dados.responsavelTecnico) {
+        if (dados.technicalResponsible) {
             NFe.tagInfRespTec({
-                CNPJ: dados.responsavelTecnico.CNPJ, xContato: dados.responsavelTecnico.xContato, email: dados.responsavelTecnico.email, fone: dados.responsavelTecnico.fone,
+                CNPJ: dados.technicalResponsible.CNPJ, xContato: dados.technicalResponsible.xContato, email: dados.technicalResponsible.email, fone: dados.technicalResponsible.fone,
             });
         }
 
@@ -175,7 +175,7 @@ export class EmissaoNfceHandler {
 
     private async enviarParaSefaz(xmlAssinado: string, certificadoConfig: CertificadoConfig, dados: NFCeData): Promise<string> {
         try {
-            const uf = dados.emitente.endereco.UF;
+            const uf = dados.issuer.address.UF;
             const cUF = dados.ide.cUF;
             const tpAmb = certificadoConfig.tpAmb || 2; // 1 - Produção, 2 - Homologação
             const ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
@@ -191,7 +191,7 @@ export class EmissaoNfceHandler {
 
             await this.salvarArquivoDebug(soapEnvelope, 'soap_envelope');
 
-            if (!certificadoConfig.pfx || !certificadoConfig.senha) {
+            if (!certificadoConfig.pfx || !certificadoConfig.password) {
                 throw new Error('Certificado não configurado adequadamente');
             }
 
@@ -215,7 +215,7 @@ export class EmissaoNfceHandler {
                         method: 'POST',
                         headers,
                         pfx: certificado,
-                        passphrase: certificadoConfig.senha,
+                        passphrase: certificadoConfig.password,
                         rejectUnauthorized: false,
                         secureProtocol: 'TLSv1_2_method'
                     };

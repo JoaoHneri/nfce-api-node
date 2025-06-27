@@ -14,13 +14,13 @@ export class NFCeController {
 
   async emitirNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { dadosNFCe, certificado } = request.body as { dadosNFCe: any, certificado: CertificadoConfig };
+      const { nfceData, certificate } = request.body as { nfceData: any, certificate: CertificadoConfig };
 
-      if (!validarCertificado(certificado, reply)) {
+      if (!validarCertificado(certificate, reply)) {
         return;
       }
 
-      const resultado = await this.sefazNfceService.emitirNFCe(dadosNFCe, certificado);
+      const resultado = await this.sefazNfceService.emitirNFCe(nfceData, certificate);
 
       if (resultado.success) {
         reply.status(200).send({
@@ -79,43 +79,43 @@ export class NFCeController {
 
   async obterExemplo(request: FastifyRequest, reply: FastifyReply): Promise<void> {
       const exemploCompleto = {
-          certificado: {
-              pfx: "/caminho/para/seu/certificado.pfx",
-              senha: "senha_do_certificado",
-              CSC: "seu_codigo_CSC_aqui",
+          certificate: {
+              pfx: "/path/to/your/certificate.pfx",
+              password: "certificate_password",
+              CSC: "your_CSC_code_here",
               CSCid: "1",
               CNPJ: "12345678000199",
-              tpAmb: 2, // 2 = Homologação, 1 = Produção
+              tpAmb: 2, // 2 = Homologation, 1 = Production
               UF: "SP"
           },
           
-          dadosNFCe: {
-              emitente: {
-                  CNPJ: "12345678000199", //Mesmo CNPJ do certificado
+          nfceData: {
+              issuer: {
+                  CNPJ: "12345678000199", // Mesmo CNPJ do certificado
                   xNome: "EMPRESA EXEMPLO LTDA",
                   xFant: "LOJA EXEMPLO",
                   IE: "123456789",
                   CRT: "1", // 1-Simples Nacional
-                  endereco: {
+                  address: {
                       xLgr: "RUA EXEMPLO",
                       nro: "123",
                       xBairro: "CENTRO",
                       cMun: "3550308", // São Paulo
                       xMun: "SÃO PAULO",
-                      UF: "SP", //Mesmo UF do certificado
+                      UF: "SP", // Mesmo UF do certificado
                       CEP: "01234567",
                       cPais: "1058",
                       xPais: "BRASIL",
                       fone: "1199999999"
                   }
               },
-              destinatario: {
+              recipient: {
                   CPF: "12345678901",
                   xNome: "CONSUMIDOR FINAL",
                   indIEDest: "9" // 9-Não contribuinte
               },
               ide: {
-                  cUF: "35", // São Paulo -Consistente com UF
+                  cUF: "35", // São Paulo - Consistente com UF
                   cNF: "00001234",
                   natOp: "VENDA",
                   serie: "1",
@@ -125,19 +125,19 @@ export class NFCeController {
                   cMunFG: "3550308", // São Paulo
                   tpImp: "4", // 4-NFCe em papel
                   tpEmis: "1", // 1-Emissão normal
-                  tpAmb: "2", //Mesmo ambiente do certificado
+                  tpAmb: "2", // Mesmo ambiente do certificado
                   finNFe: "1", // 1-Normal
                   indFinal: "1", // 1-Consumidor final
                   indPres: "1", // 1-Operação presencial
-                  indIntermed: "0", // 0-Sem intermediador
+                  indIntermed: "0", // 0-Sem intermediário
                   procEmi: "0", // 0-Emissão com aplicativo do contribuinte
                   verProc: "1.0"
               },
-              produtos: [
+              products: [
                   {
                       cProd: "001",
                       cEAN: "SEM GTIN",
-                      xProd: "PRODUTO EXEMPLO - AMBIENTE DE HOMOLOGACAO",
+                      xProd: "PRODUTO EXEMPLO - AMBIENTE HOMOLOGAÇÃO",
                       NCM: "85044010",
                       CFOP: "5102",
                       uCom: "UNID",
@@ -151,24 +151,24 @@ export class NFCeController {
                       indTot: "1"
                   }
               ],
-              responsavelTecnico: {
-                CNPJ: "11222333000181", // CNPJ do desenvolvedor/empresa responsável
+              technicalResponsible: {
+                CNPJ: "11222333000181", // CNPJ da empresa desenvolvedora/responsável
                 xContato: "João Silva - Desenvolvedor",
                 email: "joao.silva@empresa.com.br",
                 fone: "11999887766"
                 // idCSRT e hashCSRT são calculados automaticamente
             },
-              impostos: {
+              taxes: {
                   orig: "0", // 0-Nacional
                   CSOSN: "102", // 102-Tributada pelo Simples Nacional sem permissão de crédito
-                  CST_PIS: "49", // 49-Outras operações (BACKEND CALCULA AUTOMATICAMENTE)
-                  CST_COFINS: "49" // 49-Outras operações (BACKEND CALCULA AUTOMATICAMENTE)
+                  CST_PIS: "49", // 49-Outras operações (CALCULADO AUTOMATICAMENTE PELO BACKEND)
+                  CST_COFINS: "49" // 49-Outras operações (CALCULADO AUTOMATICAMENTE PELO BACKEND)
                   // ⚡ NOVO: PIS/COFINS são calculados automaticamente pelo backend!
                   // ✅ Simples Nacional: Sempre R$ 0,00 (recolhido via DAS)
                   // ✅ Lucro Real: 1,65% PIS + 7,60% COFINS
                   // ✅ Produtos isentos: R$ 0,00 conforme CST
               },
-              pagamento: {
+              payment: {
                   detPag: [
                       {
                           indPag: "0", // 0-Pagamento à vista
@@ -178,7 +178,7 @@ export class NFCeController {
                   ],
                   vTroco: "0.00"
               },
-              transporte: {
+              transport: {
                   modFrete: "9" // 9-Sem ocorrência de transporte
               }
           }
@@ -186,20 +186,20 @@ export class NFCeController {
 
       reply.status(200).send({
           success: true,
-          message: 'Complete example for NFCe issuance via HUB',
+          message: 'Exemplo completo para emissão de NFCe via HUB',
           notes: [
-              "HUB API: Accepts certificate per request",
-              "Replace certificate data with real ones",
-              "Adjust .pfx file path",
-              "tpAmb: 2=Homologation, 1=Production",
-              "UF must be consistent in certificate and issuer",
-              "Low value (R$ 10.00) to facilitate testing",
-              "Fictitious CNPJ but with valid format"
+              "API HUB: Aceita certificado por requisição",
+              "Substitua os dados do certificado pelos reais",
+              "Ajuste o caminho do arquivo .pfx",
+              "tpAmb: 2=Homologação, 1=Produção",
+              "UF deve ser consistente no certificado e emitente",
+              "Valor baixo (R$ 10,00) para facilitar teste",
+              "CNPJ fictício mas com formato válido"
           ],
           howToUse: {
               endpoint: "POST /api/nfce/emitir",
               contentType: "application/json",
-              body: "Use the 'completeExample' object below"
+              body: "Use o objeto 'completeExample' abaixo"
           },
           completeExample: exemploCompleto
       });
@@ -207,14 +207,14 @@ export class NFCeController {
 
   async consultarNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { chave } = request.params as { chave: string };
-      const { certificado } = request.body as { certificado: CertificadoConfig };
+      const { accessKey } = request.params as { accessKey: string };
+      const { certificate } = request.body as { certificate: CertificadoConfig };
 
-      if (!validarCertificado(certificado, reply)) {
+      if (!validarCertificado(certificate, reply)) {
         return; // Resposta já foi enviada pela função
       }
 
-      if (!chave) {
+      if (!accessKey) {
         reply.status(400).send({
           error: 'Access key is required',
           status: 400
@@ -222,7 +222,7 @@ export class NFCeController {
         return;
       }
 
-      const resultado = await this.sefazNfceService.consultarNFCe(chave, certificado);
+      const resultado = await this.sefazNfceService.consultarNFCe(accessKey, certificate);
 
       reply.status(200).send({ result: resultado });
 
@@ -240,19 +240,19 @@ export class NFCeController {
 
   async cancelarNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { chaveAcesso, protocolo, justificativa, certificado } = request.body as {
-        chaveAcesso: string;
-        protocolo: string;
-        justificativa: string;
-        certificado: CertificadoConfig;
+      const { accessKey, protocol, justification, certificate } = request.body as {
+        accessKey: string;
+        protocol: string;
+        justification: string;
+        certificate: CertificadoConfig;
       };
 
-      if (!validarCertificado(certificado, reply)) {
+      if (!validarCertificado(certificate, reply)) {
         return; // Resposta já foi enviada pela função
       }
 
       // Validação básica
-      if (!chaveAcesso || !protocolo || !justificativa) {
+      if (!accessKey || !protocol || !justification) {
         reply.status(400).send({
           error: 'Required data',
           message: 'accessKey, protocol and justification are required',
@@ -262,13 +262,13 @@ export class NFCeController {
       }
 
       const dadosCancelamento: CancelamentoRequest = {
-        accessKey: chaveAcesso,
-        protocol: protocolo,
-        justification: justificativa
+        accessKey: accessKey,
+        protocol: protocol,
+        justification: justification
       };
 
       // Cancelamento via service
-      const resultado = await this.sefazNfceService.cancelarNFCe(dadosCancelamento, certificado);
+      const resultado = await this.sefazNfceService.cancelarNFCe(dadosCancelamento, certificate);
       reply.status(200).send(resultado);
 
     } catch (error: any) {

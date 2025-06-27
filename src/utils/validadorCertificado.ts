@@ -12,7 +12,7 @@ export function validarCertificado(certificado: CertificadoConfig, reply: Fastif
       return false;
     }
 
-    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfx', 'senha', 'CSC', 'CSCid'];
+    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfx', 'password', 'CSC', 'CSCid'];
 
     const camposFaltando = camposObrigatorios.filter(campo => !certificado[campo]);
     

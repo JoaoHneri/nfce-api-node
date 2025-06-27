@@ -17,7 +17,7 @@ async function nfcRoutes(fastify: FastifyInstance) {
     handler: nfcController.obterExemplo.bind(nfcController)
   });
 
-  fastify.post('/consultar/:chave', {
+  fastify.post('/consultar/:accessKey', {
     handler: nfcController.consultarNFCe.bind(nfcController)
   });
 

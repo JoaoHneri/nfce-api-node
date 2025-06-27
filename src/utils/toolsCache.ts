@@ -80,7 +80,7 @@ export class ToolsCache {
                 },
                 {
                     pfx: certificadoConfig.pfx,
-                    senha: certificadoConfig.senha,
+                    senha: certificadoConfig.password,
                 }
             );
 

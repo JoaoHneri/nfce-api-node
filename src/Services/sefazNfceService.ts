@@ -46,7 +46,7 @@ export class SefazNfceService {
 
             return {
                 pfx: certificadoConfig.pfx || '',
-                senha: certificadoConfig.senha || '',
+                password: certificadoConfig.password || '',
                 CSC: certificadoConfig.CSC || '',
                 CSCid: certificadoConfig.CSCid || '',
                 CNPJ: certificadoConfig.CNPJ || '',
