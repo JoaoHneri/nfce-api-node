@@ -45,8 +45,8 @@ export class NumeracaoService {
 
         try {
           await connection.execute(`
-            INSERT INTO nfce_numeracao (cnpj, uf, serie, ambiente, proximo_nnf, ultimo_cnf, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+            INSERT INTO nfce_numeracao (cnpj, uf, serie, ambiente, proximo_nnf, ultimo_cnf, total_emitidas, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
           `, [config.cnpj, config.uf, config.serie, config.ambiente, proximoNNF + 1, ultimoCNF]);
         } catch (error: any) {
           // Se já existe (criado por outra thread), buscar novamente
@@ -61,6 +61,15 @@ export class NumeracaoService {
             const registro = (retryRows as any[])[0];
             proximoNNF = registro.proximo_nnf;
             ultimoCNF = registro.ultimo_cnf || 0;
+            
+            // Incrementar total_emitidas quando buscar registro existente
+            await connection.execute(`
+              UPDATE nfce_numeracao 
+              SET proximo_nnf = proximo_nnf + 1, 
+                  total_emitidas = total_emitidas + 1,
+                  updated_at = NOW()
+              WHERE cnpj = ? AND uf = ? AND serie = ? AND ambiente = ?
+            `, [config.cnpj, config.uf, config.serie, config.ambiente]);
           } else {
             throw error;
           }
@@ -73,7 +82,9 @@ export class NumeracaoService {
 
         const [updateResult] = await connection.execute(`
           UPDATE nfce_numeracao 
-          SET proximo_nnf = proximo_nnf + 1, updated_at = NOW()
+          SET proximo_nnf = proximo_nnf + 1, 
+              total_emitidas = total_emitidas + 1,
+              updated_at = NOW()
           WHERE cnpj = ? AND uf = ? AND serie = ? AND ambiente = ? 
           AND proximo_nnf = ?
         `, [config.cnpj, config.uf, config.serie, config.ambiente, proximoNNF]);
@@ -137,18 +148,42 @@ export class NumeracaoService {
     motivo?: string,
     protocolo?: string
   ): Promise<void> {
+    const connection = await this.connectionPool.getConnection();
+    
     try {
-      await this.connectionPool.execute(`
+      await connection.beginTransaction();
+      
+      // Atualizar histórico
+      await connection.execute(`
         UPDATE nfce_historico 
         SET status = ?, chave_acesso = ?, motivo = ?, protocolo = ?, updated_at = NOW()
         WHERE cnpj = ? AND uf = ? AND serie = ? AND ambiente = ? AND nnf = ? AND cnf = ?
       `, [status, chaveAcesso || null, motivo || null, protocolo || null, config.cnpj, config.uf, config.serie, config.ambiente, nNF, cNF]);
       
-      console.log(`📝 Status atualizado: ${status} - Protocolo: ${protocolo || 'N/A'}`);
+      // Atualizar contadores
+      if (status === 'AUTORIZADA') {
+        await connection.execute(`
+          UPDATE nfce_numeracao 
+          SET total_autorizadas = total_autorizadas + 1, updated_at = NOW()
+          WHERE cnpj = ? AND uf = ? AND serie = ? AND ambiente = ?
+        `, [config.cnpj, config.uf, config.serie, config.ambiente]);
+      } else if (status === 'REJEITADA') {
+        await connection.execute(`
+          UPDATE nfce_numeracao 
+          SET total_rejeitadas = total_rejeitadas + 1, updated_at = NOW()
+          WHERE cnpj = ? AND uf = ? AND serie = ? AND ambiente = ?
+        `, [config.cnpj, config.uf, config.serie, config.ambiente]);
+      }
+      
+      await connection.commit();
+      console.log(`📝 Status atualizado: ${status} - Contador incrementado`);
       
     } catch (error) {
+      await connection.rollback();
       console.error('❌ Erro ao atualizar status da numeração:', error);
-      // Não falha a operação principal por causa do histórico
+      throw error;
+    } finally {
+      connection.release();
     }
   }
 
