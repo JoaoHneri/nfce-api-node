@@ -4,14 +4,20 @@ import { CancelamentoRequest, CancelamentoResponse, CertificadoConfig } from "..
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpoints';
 import { obterConfigSOAP, obterNamespaceSOAP } from '../config/soap-config';
 import { SoapHeadersUtil } from "../utils/soapHeadersUtil";
+import { NumeracaoService } from "../services/numeracaoService";
+import { getDatabaseConfig } from "../config/database";
 import https from 'https';
 import fs from 'fs';
 
 export class CancelamentoHandler {
     private parser: SefazResponseParser;
+    private numeracaoService: NumeracaoService;
 
     constructor() {
         this.parser = new SefazResponseParser();
+        
+        const dbConfig = getDatabaseConfig();
+        this.numeracaoService = new NumeracaoService(dbConfig);
     }
 
 
@@ -34,7 +40,6 @@ export class CancelamentoHandler {
             // 1. Criar estrutura do evento
             const eventoObj = this.criarObjetoEvento(dados, certificadoConfig);
 
-            // 2. ✅ USAR TOOLS para converter JSON para XML
             let xmlEvento;
             if (typeof tools.json2xml === 'function') {
                 xmlEvento = await tools.json2xml(eventoObj);
@@ -43,17 +48,20 @@ export class CancelamentoHandler {
                 xmlEvento = this.converterParaXML(eventoObj);
             }
 
-            // 3. ✅ USAR TOOLS para assinar XML
             const xmlAssinado = await tools.xmlSign(xmlEvento, { tag: "infEvento" });
 
-            // 4. Criar envelope SOAP
             const soapEnvelope = this.criarSOAPEnvelope(xmlAssinado, dados.accessKey.substring(0, 2));
 
-            // 5. ✅ Enviar para SEFAZ usando certificado do config
             const xmlResponse = await this.enviarParaSefaz(soapEnvelope, dados.accessKey, certificadoConfig);
 
-            // 6. Parse da resposta
-            return this.parser.parseCancelamentoResponse(xmlResponse, dados.accessKey);
+            const resultado = this.parser.parseCancelamentoResponse(xmlResponse, dados.accessKey);
+
+            if (resultado.success && resultado.cStat === '135') { // 135 = Cancelamento homologado
+                await this.atualizarStatusCancelamento(dados.accessKey, resultado);
+                console.log(`✅ NFCe ${dados.accessKey} marcada como CANCELADA no banco`);
+            }
+
+            return resultado;
 
         } catch (error: any) {
             return {
@@ -320,5 +328,75 @@ export class CancelamentoHandler {
         }
 
         return { valido: true };
+    }
+
+    private async atualizarStatusCancelamento(chaveAcesso: string, resultadoCancelamento: any): Promise<void> {
+        try {
+            // Extrair dados da chave de acesso para localizar no banco
+            const cnpj = this.extrairCNPJDaChave(chaveAcesso);
+            const uf = this.extrairUFDaChave(chaveAcesso);
+            const serie = this.extrairSerieDaChave(chaveAcesso);
+            const nNF = this.extrairNNFDaChave(chaveAcesso);
+            const ambiente = this.extrairAmbienteDaChave(chaveAcesso);
+
+            // Atualizar diretamente no banco usando a chave de acesso
+            await this.numeracaoService.atualizarStatusPorChave(
+                chaveAcesso,
+                'CANCELADA',
+                resultadoCancelamento.reason || 'Cancelamento homologado',
+                resultadoCancelamento.protocol
+            );
+
+            console.log(`📝 Status de cancelamento atualizado para chave: ${chaveAcesso}`);
+
+        } catch (error) {
+            console.error('❌ Erro ao atualizar status de cancelamento:', error);
+            // Não falha a operação principal se não conseguir atualizar o histórico
+        }
+    }
+
+    /**
+     * Extrair CNPJ da chave de acesso (posições 6-19)
+     */
+    private extrairCNPJDaChave(chave: string): string {
+        return chave.substring(6, 20);
+    }
+
+    /**
+     * Extrair UF da chave de acesso (primeiros 2 dígitos)
+     */
+    private extrairUFDaChave(chave: string): string {
+        const codigoUF = chave.substring(0, 2);
+        // Mapear código UF para sigla
+        const mapaUF: { [key: string]: string } = {
+            '35': 'SP', '41': 'PR', '43': 'RS', '33': 'RJ', '31': 'MG',
+            '23': 'CE', '53': 'DF', '52': 'GO', '21': 'MA', '50': 'MS',
+            '51': 'MT', '15': 'PA', '25': 'PB', '26': 'PE', '22': 'PI',
+            '32': 'ES', '24': 'RN', '11': 'RO', '14': 'RR', '42': 'SC',
+            '28': 'SE', '17': 'TO', '27': 'AL', '16': 'AP', '13': 'AM',
+            '29': 'BA', '12': 'AC'
+        };
+        return mapaUF[codigoUF] || 'SP';
+    }
+
+    /**
+     * Extrair série da chave de acesso (posições 22-24)
+     */
+    private extrairSerieDaChave(chave: string): string {
+        return chave.substring(22, 25);
+    }
+
+    /**
+     * Extrair nNF da chave de acesso (posições 25-33)
+     */
+    private extrairNNFDaChave(chave: string): string {
+        return parseInt(chave.substring(25, 34)).toString();
+    }
+
+    /**
+     * Extrair ambiente da chave de acesso (posição 34)
+     */
+    private extrairAmbienteDaChave(chave: string): '1' | '2' {
+        return chave.substring(34, 35) as '1' | '2';
     }
 }

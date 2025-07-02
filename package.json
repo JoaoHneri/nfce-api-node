@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/app.ts",
     "start": "node dist/app.js",
-    "build": "tsc"
+    "build": "tsc",
+    "init-db": "node scripts/init-database.js"
   },
   "repository": {
     "type": "git",
@@ -33,6 +34,7 @@
     "dotenv": "^16.5.0",
     "fastify": "^5.4.0",
     "multer": "^2.0.1",
+    "mysql2": "^3.14.1",
     "node-sped-nfe": "^1.2.34",
     "uuid": "^11.1.0"
   },

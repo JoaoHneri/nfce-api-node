@@ -4,7 +4,10 @@ import { NFCeData, CertificadoConfig, SefazResponse } from "../types";
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpoints';
 import { obterConfigSOAP, obterNamespaceSOAP } from '../config/soap-config';
 import { SoapHeadersUtil } from "../utils/soapHeadersUtil";
-import { TributacaoService } from "../Services/tributacaoService";
+import { TributacaoService } from "../services/tributacaoService";
+import { NumeracaoService} from "../services/numeracaoService";
+import { ConfiguracaoNumeracao } from "../types/numeracaoTypes";
+import { getDatabaseConfig } from "../config/database";
 import { Make } from "node-sped-nfe";
 import https from 'https';
 import fs from 'fs';
@@ -12,14 +15,38 @@ import path from 'path';
 
 export class EmissaoNfceHandler {
     private parser: SefazResponseParser;
+    private numeracaoService: NumeracaoService;
 
     constructor() {
         this.parser = new SefazResponseParser();
+        
+        // Inicializa o service de numeração com configuração do banco
+        const dbConfig = getDatabaseConfig();
+        this.numeracaoService = new NumeracaoService(dbConfig);
     }
 
     async emitirNFCe(tools: any, certificadoConfig: CertificadoConfig, dados: NFCeData): Promise<SefazResponse> {
+        let numeracaoGerada: { nNF: string; cNF: string } | null = null;
+        let configNumeracao: ConfiguracaoNumeracao | null = null;
+        
         try {
+            // 🔢 GERAR NUMERAÇÃO AUTOMÁTICA
+            configNumeracao = {
+                cnpj: dados.issuer.CNPJ,
+                uf: dados.issuer.address.UF,
+                serie: dados.ide.serie,
+                ambiente: certificadoConfig.tpAmb?.toString() as '1' | '2' || '2'
+            };
 
+            numeracaoGerada = await this.numeracaoService.gerarProximaNumeracao(configNumeracao);
+            
+            // Atribui nNF e cNF gerados automaticamente
+            dados.ide.nNF = numeracaoGerada.nNF;
+            dados.ide.cNF = numeracaoGerada.cNF;
+
+            console.log(`📊 Numeração gerada: nNF=${numeracaoGerada.nNF}, cNF=${numeracaoGerada.cNF}`);
+
+            // 🔄 Continuar com o processo normal
             const xmlNFCe = await this.criarXMLNFCe(dados);
 
             await this.salvarArquivoDebug(xmlNFCe, 'nfce_original');
@@ -32,14 +59,72 @@ export class EmissaoNfceHandler {
 
             await this.salvarArquivoDebug(xmlResponse, 'sefaz_resposta');
 
-            return this.processarResposta(xmlResponse);
+            const resultado = this.processarResposta(xmlResponse);
+
+            // 📊 ATUALIZAR STATUS NO HISTÓRICO
+            if (numeracaoGerada) {
+                if (resultado.success) {
+                    // ✅ Sucesso - marcar como autorizada
+                    await this.numeracaoService.atualizarStatusNumeracao(
+                        configNumeracao,
+                        numeracaoGerada.nNF,
+                        numeracaoGerada.cNF,
+                        'AUTORIZADA',
+                        resultado.accessKey,
+                        resultado.reason,
+                        resultado.protocol
+                    );
+                } else {
+                    // ❌ Rejeitada - marcar como rejeitada (manter numeração consumida)
+                    await this.numeracaoService.atualizarStatusNumeracao(
+                        configNumeracao,
+                        numeracaoGerada.nNF,
+                        numeracaoGerada.cNF,
+                        'REJEITADA',
+                        resultado.accessKey,
+                        resultado.reason,
+                        resultado.protocol
+                    );
+                }
+            }
+
+            return resultado;
 
         } catch (error: any) {
-            console.error('Error in issuance:', error);
+            console.error('❌ Erro na emissão:', error);
+            
+            // � RECUPERAÇÃO: Liberar numeração em caso de falha técnica
+            if (numeracaoGerada && configNumeracao && this.isFalhaTecnica(error)) {
+                try {
+                    await this.numeracaoService.liberarNumeracaoReservada(
+                        configNumeracao,
+                        numeracaoGerada.nNF,
+                        `Falha técnica: ${error.message}`
+                    );
+                    console.log(`🔄 Numeração ${numeracaoGerada.nNF} liberada automaticamente`);
+                } catch (recoveryError) {
+                    console.error('❌ Erro ao liberar numeração:', recoveryError);
+                }
+            } else if (numeracaoGerada && configNumeracao) {
+                // Registrar falha para auditoria
+                await this.numeracaoService.registrarFalhaNumeracao(
+                    configNumeracao,
+                    numeracaoGerada.nNF,
+                    numeracaoGerada.cNF,
+                    error.message
+                );
+            }
+
             return {
                 success: false,
-                error: error.message
-            };
+                error: error.message,
+                // Retornar numeração para debug se foi gerada
+                debugInfo: numeracaoGerada ? {
+                    nNF: numeracaoGerada.nNF,
+                    cNF: numeracaoGerada.cNF,
+                    recovered: this.isFalhaTecnica(error)
+                } : undefined
+            } as any;
         }
     }
 
@@ -50,11 +135,11 @@ export class EmissaoNfceHandler {
 
         NFe.tagIde({
             cUF: dados.ide.cUF,
-            cNF: dados.ide.cNF,
+            cNF: dados.ide.cNF!, // Agora garantido que existe
             natOp: dados.ide.natOp,
             mod: "65",
             serie: dados.ide.serie,
-            nNF: dados.ide.nNF,
+            nNF: dados.ide.nNF!, // Agora garantido que existe
             dhEmi: NFe.formatData(),
             tpNF: dados.ide.tpNF,
             idDest: dados.ide.idDest,
@@ -399,5 +484,33 @@ export class EmissaoNfceHandler {
         } catch (error) {
             console.log('⚠️ Erro ao salvar debug:', error);
         }
+    }
+
+    /**
+     * 🔍 Identificar se é falha técnica (pode recuperar numeração) ou rejeição SEFAZ (manter consumida)
+     */
+    private isFalhaTecnica(error: any): boolean {
+        const falhaTecnica = [
+            'ECONNRESET',
+            'ETIMEDOUT', 
+            'certificate',
+            'SOAP',
+            'Network',
+            'timeout',
+            'connection',
+            'SSL',
+            'TLS',
+            'socket',
+            'ENOTFOUND',
+            'ECONNREFUSED'
+        ];
+        
+        const errorMessage = error.message?.toLowerCase() || '';
+        const errorCode = error.code?.toLowerCase() || '';
+        
+        return falhaTecnica.some(tipo => 
+            errorMessage.includes(tipo.toLowerCase()) ||
+            errorCode.includes(tipo.toLowerCase())
+        );
     }
 }

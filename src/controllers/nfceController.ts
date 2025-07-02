@@ -1,15 +1,22 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { SefazNfceService } from '../Services/sefazNfceService';
-import { TributacaoService } from '../Services/tributacaoService';
+import { SefazNfceService } from '../services/sefazNfceService';
+import { TributacaoService } from '../services/tributacaoService';
+import { NumeracaoService } from '../services/numeracaoService';
+import { getDatabaseConfig } from '../config/database';
 import { NFCeData, CertificadoConfig, CancelamentoRequest } from '../types';
 import { validarCertificado } from '../utils/validadorCertificado';
 
 export class NFCeController {
   private sefazNfceService: SefazNfceService;
+  private numeracaoService: NumeracaoService;
 
   constructor() {
     // Carregar configuração do certificado
     this.sefazNfceService = new SefazNfceService();
+    
+    // Inicializar service de numeração
+    const dbConfig = getDatabaseConfig();
+    this.numeracaoService = new NumeracaoService(dbConfig);
   }
 
   async emitirNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -472,6 +479,112 @@ export class NFCeController {
       reply.status(400).send({
         success: false,
         message: 'Error validating CST',
+        error: error.message
+      });
+    }
+  }
+
+  async obterEstatisticasNumeracao(request: FastifyRequest<{
+    Querystring: { cnpj: string; uf: string; serie: string; ambiente: '1' | '2' }
+  }>, reply: FastifyReply): Promise<void> {
+    try {
+      const { cnpj, uf, serie, ambiente } = request.query;
+      
+      if (!cnpj || !uf || !serie || !ambiente) {
+        reply.status(400).send({
+          success: false,
+          message: 'Missing required parameters: cnpj, uf, serie, ambiente'
+        });
+        return;
+      }
+
+      const stats = await this.numeracaoService.obterEstatisticasNumeracao({
+        cnpj,
+        uf,
+        serie,
+        ambiente
+      });
+      
+      reply.status(200).send({
+        success: true,
+        message: 'Numbering statistics retrieved successfully',
+        data: {
+          nextNNF: stats.proximoNNF,
+          totalAuthorized: stats.totalAutorizadas,
+          totalRejected: stats.totalRejeitadas,
+          lastIssuance: stats.ultimaEmissao,
+          company: cnpj,
+          state: uf,
+          series: serie,
+          environment: ambiente === '1' ? 'Production' : 'Staging'
+        }
+      });
+      
+    } catch (error: any) {
+      reply.status(500).send({
+        success: false,
+        message: 'Error getting numbering statistics',
+        error: error.message
+      });
+    }
+  }
+
+  async inicializarTabelasNumeracao(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      await this.numeracaoService.inicializarTabelas();
+      
+      reply.status(200).send({
+        success: true,
+        message: 'Numbering tables initialized successfully'
+      });
+      
+    } catch (error: any) {
+      reply.status(500).send({
+        success: false,
+        message: 'Error initializing numbering tables',
+        error: error.message
+      });
+    }
+  }
+
+  async liberarNumeracao(request: FastifyRequest<{
+    Body: { cnpj: string; uf: string; serie: string; ambiente: '1' | '2'; nNF: string; motivo: string }
+  }>, reply: FastifyReply): Promise<void> {
+    try {
+      const { cnpj, uf, serie, ambiente, nNF, motivo } = request.body;
+      
+      if (!cnpj || !uf || !serie || !ambiente || !nNF || !motivo) {
+        reply.status(400).send({
+          success: false,
+          message: 'Missing required parameters: cnpj, uf, serie, ambiente, nNF, motivo'
+        });
+        return;
+      }
+
+      await this.numeracaoService.liberarNumeracaoReservada({
+        cnpj,
+        uf,
+        serie,
+        ambiente
+      }, nNF, motivo);
+      
+      reply.status(200).send({
+        success: true,
+        message: 'Numbering released successfully',
+        data: {
+          nNF,
+          motivo,
+          company: cnpj,
+          state: uf,
+          series: serie,
+          environment: ambiente === '1' ? 'Production' : 'Staging'
+        }
+      });
+      
+    } catch (error: any) {
+      reply.status(500).send({
+        success: false,
+        message: 'Error releasing numbering',
         error: error.message
       });
     }

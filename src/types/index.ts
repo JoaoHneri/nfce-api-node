@@ -42,10 +42,10 @@ export interface NFCeData {
   // Dados da NFCe
   ide: {
     cUF: string;
-    cNF: string;
+    cNF?: string; // Gerado automaticamente pelo sistema
     natOp: string;
     serie: string;
-    nNF: string;
+    nNF?: string; // Gerado automaticamente pelo sistema
     dhEmi?: string;
     tpNF: string;
     idDest: string;

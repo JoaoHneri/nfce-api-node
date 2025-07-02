@@ -55,6 +55,19 @@ async function nfcRoutes(fastify: FastifyInstance) {
   fastify.get('/tax/validate-cst/:cst', {
     handler: nfcController.validarCST.bind(nfcController)
   });
+
+  // 📊 ROTAS DE NUMERAÇÃO E ESTATÍSTICAS
+  fastify.get('/numbering/stats', {
+    handler: nfcController.obterEstatisticasNumeracao.bind(nfcController)
+  });
+
+  fastify.post('/numbering/initialize', {
+    handler: nfcController.inicializarTabelasNumeracao.bind(nfcController)
+  });
+
+  fastify.post('/numbering/release', {
+    handler: nfcController.liberarNumeracao.bind(nfcController)
+  });
 }
 
 export default nfcRoutes;
