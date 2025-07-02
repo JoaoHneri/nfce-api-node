@@ -21,6 +21,8 @@ export class NumeracaoService {
    */
   async gerarProximaNumeracao(config: ConfiguracaoNumeracao): Promise<DadosNumeracao> {
     const connection = await this.connectionPool.getConnection();
+    let proximoNNF: number;
+    let ultimoCNF: number;
     
     try {
       // 🔒 ISOLAMENTO SERIALIZABLE para evitar race conditions
@@ -34,9 +36,6 @@ export class NumeracaoService {
         WHERE cnpj = ? AND uf = ? AND serie = ? AND ambiente = ?
         FOR UPDATE
       `, [config.cnpj, config.uf, config.serie, config.ambiente]);
-
-      let proximoNNF: number;
-      let ultimoCNF: number;
 
       if ((rows as any[]).length === 0) {
         // 🆕 Primeira numeração - INSERT com tratamento de concorrência
@@ -130,6 +129,13 @@ export class NumeracaoService {
         return this.gerarProximaNumeracao(config); // Retry
       }
       
+      // 📝 Registrar falha na tabela de auditoria
+      try {
+        await this.registrarFalhaNumeracao(config, '0', '00000000', `Erro na geração: ${error.message}`);
+      } catch (logError) {
+        console.error('Erro ao registrar falha:', logError);
+      }
+      
       throw new Error(`Erro ao gerar numeração: ${error.message}`);
     } finally {
       connection.release();
@@ -181,6 +187,14 @@ export class NumeracaoService {
     } catch (error) {
       await connection.rollback();
       console.error('❌ Erro ao atualizar status da numeração:', error);
+      
+      // 📝 Registrar falha na tabela de auditoria
+      try {
+        await this.registrarFalhaNumeracao(config, nNF, cNF, `Erro ao atualizar status ${status}: ${error}`);
+      } catch (logError) {
+        console.error('Erro ao registrar falha:', logError);
+      }
+      
       throw error;
     } finally {
       connection.release();
@@ -303,6 +317,13 @@ export class NumeracaoService {
       
       tentativas++;
       await this.delay(1); // Pequeno delay para evitar colisões
+    }
+    
+    // 📝 Registrar falha crítica antes de lançar erro
+    try {
+      await this.registrarFalhaNumeracao(config, nNF.toString(), '00000000', `Falha crítica: não foi possível gerar cNF único após ${maxTentativas} tentativas`);
+    } catch (logError) {
+      console.error('Erro ao registrar falha crítica:', logError);
     }
     
     throw new Error('Falha crítica: não foi possível gerar cNF único após 50 tentativas');
