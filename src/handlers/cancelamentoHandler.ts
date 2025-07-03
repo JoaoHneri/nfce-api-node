@@ -5,6 +5,7 @@ import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpo
 import { obterConfigSOAP, obterNamespaceSOAP } from '../config/soap-config';
 import { SoapHeadersUtil } from "../utils/soapHeadersUtil";
 import { NumeracaoService } from "../services/numeracaoService";
+import { MemberService } from "../services/memberService";
 import { getDatabaseConfig } from "../config/database";
 import https from 'https';
 import fs from 'fs';
@@ -12,14 +13,129 @@ import fs from 'fs';
 export class CancelamentoHandler {
     private parser: SefazResponseParser;
     private numeracaoService: NumeracaoService;
+    private memberService: MemberService;
 
     constructor() {
         this.parser = new SefazResponseParser();
         
         const dbConfig = getDatabaseConfig();
         this.numeracaoService = new NumeracaoService(dbConfig);
+        this.memberService = new MemberService();
     }
 
+    async processarCancelamentoPorCNPJ(
+        memberCnpj: string,
+        environment: number,
+        accessKey: string,
+        protocol: string,
+        justification: string,
+        sefazService: any
+    ): Promise<{
+        success: boolean;
+        data?: any;
+        error?: string;
+    }> {
+        try {
+            // 1. Buscar dados da empresa + certificado automaticamente
+            const dados = await this.memberService.buscarDadosCompletos(memberCnpj, environment);
+            
+            if (!dados) {
+                return {
+                    success: false,
+                    error: `No active company/certificate found for CNPJ: ${memberCnpj} in environment: ${environment}`
+                };
+            }
+
+            const { member: memberData, certificate: certificateData } = dados;
+
+            // 2. Preparar configuração do certificado
+            const certificateConfig: CertificadoConfig = {
+                pfxPath: certificateData.pfxPath,
+                password: certificateData.password,
+                csc: certificateData.csc,
+                cscId: certificateData.cscId,
+                cnpj: memberData.cnpj,
+                environment: parseInt(certificateData.environment),
+                uf: certificateData.uf
+            };
+
+            // 3. Preparar dados do cancelamento
+            const dadosCancelamento: CancelamentoRequest = {
+                accessKey,
+                protocol,
+                justification
+            };
+
+            // 4. Obter tools e executar cancelamento
+            const tools = await sefazService.obterTools(certificateConfig);
+            const resultado = await this.cancelarNFCe(tools, certificateConfig, dadosCancelamento);
+
+            if (resultado.success) {
+                // 5. Atualizar status no banco usando MemberService
+                await this.atualizarStatusNoBanco(accessKey, justification);
+
+                return {
+                    success: true,
+                    data: {
+                        accessKey,
+                        protocol: resultado.protocol,
+                        justification,
+                        cancelDate: new Date().toISOString(),
+                        company: {
+                            cnpj: memberData.cnpj,
+                            name: memberData.xName
+                        },
+                        sefaz: {
+                            cStat: resultado.cStat,
+                            reason: resultado.reason,
+                            protocol: resultado.protocol
+                        }
+                    }
+                };
+            } else {
+                return {
+                    success: false,
+                    error: resultado.reason || resultado.error,
+                    data: {
+                        accessKey,
+                        cStat: resultado.cStat,
+                        reason: resultado.reason,
+                        justification
+                    }
+                };
+            }
+
+        } catch (error: any) {
+            console.error('❌ Erro no processamento do cancelamento:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    private async atualizarStatusNoBanco(accessKey: string, justification: string): Promise<void> {
+        try {
+            // Verificar se a NFCe existe
+            const nfce = await this.memberService.buscarNfcePorChave(accessKey);
+            
+            if (nfce) {
+                // Atualizar status para cancelado
+                await this.memberService.atualizarStatusNfce(
+                    accessKey, 
+                    'cancelled', 
+                    `Cancelamento: ${justification}`
+                );
+                
+                console.log(`✅ NFCe ${accessKey} marcada como CANCELADA no banco via MemberService`);
+            } else {
+                console.warn(`⚠️ NFCe ${accessKey} não encontrada no banco local`);
+            }
+        } catch (error) {
+            console.error('❌ Erro ao atualizar status no banco:', error);
+            // Não falha a operação principal se não conseguir atualizar
+        }
+    }
 
     async cancelarNFCe(tools: any, certificadoConfig: CertificadoConfig, dados: CancelamentoRequest): Promise<CancelamentoResponse> {
         try {
@@ -395,4 +511,6 @@ export class CancelamentoHandler {
     private extrairAmbienteDaChave(chave: string): '1' | '2' {
         return chave.substring(34, 35) as '1' | '2';
     }
+
+
 }

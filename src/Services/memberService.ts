@@ -86,4 +86,56 @@ export class MemberService {
             await connection.end();
         }
     }
+
+    // ✅ Buscar NFCe por chave de acesso
+    async buscarNfcePorChave(accessKey: string): Promise<any | null> {
+        const dbConfig = getDatabaseConfig();
+        const connection = await createDatabaseConnection(dbConfig);
+        
+        try {
+            const [rows] = await connection.execute(`
+                SELECT 
+                    i.id, i.access_key, i.number, i.series, i.status, i.protocol, 
+                    i.environment, i.total_value, i.issue_date, i.rejection_reason,
+                    m.cnpj, m.company_name, m.trade_name
+                FROM invoices i 
+                INNER JOIN member m ON i.member_id = m.id 
+                WHERE i.access_key = ?
+            `, [accessKey]);
+
+            if (!Array.isArray(rows) || rows.length === 0) {
+                return null;
+            }
+
+            return rows[0];
+        } finally {
+            await connection.end();
+        }
+    }
+
+    // ✅ Atualizar status da NFCe
+    async atualizarStatusNfce(accessKey: string, status: string, justification?: string): Promise<void> {
+        const dbConfig = getDatabaseConfig();
+        const connection = await createDatabaseConnection(dbConfig);
+        
+        try {
+            let query = `
+                UPDATE invoices 
+                SET status = ?, updated_at = NOW()
+            `;
+            const params = [status];
+
+            if (justification) {
+                query += `, rejection_reason = ?`;
+                params.push(justification);
+            }
+
+            query += ` WHERE access_key = ?`;
+            params.push(accessKey);
+
+            await connection.execute(query, params);
+        } finally {
+            await connection.end();
+        }
+    }
 }

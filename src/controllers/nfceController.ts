@@ -7,12 +7,14 @@ import { NFCeData, CertificadoConfig, CancelamentoRequest } from '../types';
 import { validarCertificado } from '../utils/validadorCertificado';
 import { MemberService } from '../services/memberService';
 import { EmissaoNfceHandler } from '../handlers/emissaoNfceHandler';
+import { CancelamentoHandler } from '../handlers/cancelamentoHandler';
 
 export class NFCeController {
   private sefazNfceService: SefazNfceService;
   private numeracaoService: NumeracaoService;
   private memberService: MemberService; 
   private emissaoHandler: EmissaoNfceHandler;
+  private cancelamentoHandler: CancelamentoHandler;
 
   constructor() {
     // Carregar configuração do certificado
@@ -23,6 +25,7 @@ export class NFCeController {
     this.numeracaoService = new NumeracaoService(dbConfig);
     this.memberService = new MemberService();
     this.emissaoHandler = new EmissaoNfceHandler();
+    this.cancelamentoHandler = new CancelamentoHandler();
   }
 
   // ✅ MÉTODO SIMPLIFICADO - apenas validação e delegação
@@ -234,142 +237,59 @@ export class NFCeController {
     }
   }
 
+  // ✅ MÉTODO SIMPLIFICADO - apenas validação e delegação
   async cancelarNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { accessKey, protocol, justification, certificate } = request.body as {
+      const { memberCnpj, environment, accessKey, protocol, justification } = request.body as {
+        memberCnpj: string;
+        environment: number;
         accessKey: string;
         protocol: string;
         justification: string;
-        certificate: CertificadoConfig;
       };
 
-      if (!validarCertificado(certificate, reply)) {
-        return; // Resposta já foi enviada pela função
-      }
-
-      // Validação básica
-      if (!accessKey || !protocol || !justification) {
+      // ✅ Validação de entrada
+      if (!memberCnpj || !environment || !accessKey || !protocol || !justification) {
         reply.status(400).send({
           success: false,
-          message: 'Required data',
-          error: 'accessKey, protocol and justification are required'
+          message: 'Missing required parameters',
+          error: 'memberCnpj, environment, accessKey, protocol and justification are required'
         });
         return;
       }
 
-      const dadosCancelamento: CancelamentoRequest = {
-        accessKey: accessKey,
-        protocol: protocol,
-        justification: justification
-      };
+      // ✅ Delegar TODA a lógica para o handler
+      const resultado = await this.cancelamentoHandler.processarCancelamentoPorCNPJ(
+        memberCnpj,
+        environment,
+        accessKey,
+        protocol,
+        justification,
+        this.sefazNfceService
+      );
 
-      // 1. Cancelamento via service
-      const resultado = await this.sefazNfceService.cancelarNFCe(dadosCancelamento, certificate);
-
-      // 2. ✅ Se cancelamento foi bem-sucedido, atualizar no banco
+      // ✅ Apenas retornar resposta HTTP
       if (resultado.success) {
-        const dbConfig = getDatabaseConfig();
-        const connection = await createDatabaseConnection(dbConfig);
-
-        try {
-          // Verificar se NFCe existe no banco
-          const [rows] = await connection.execute(`
-            SELECT i.id, i.member_id, i.number, i.series, m.cnpj, m.company_name
-            FROM invoices i
-            INNER JOIN member m ON i.member_id = m.id
-            WHERE i.access_key = ?
-          `, [accessKey]);
-
-          if ((rows as any[]).length > 0) {
-            const nfce = (rows as any[])[0];
-
-            // Atualizar status para cancelado
-            await connection.execute(`
-              UPDATE invoices 
-              SET 
-                status = 'cancelled',
-                updated_at = NOW(),
-                rejection_reason = ?
-              WHERE access_key = ?
-            `, [
-              `Cancelamento: ${justification}`,
-              accessKey
-            ]);
-
-            console.log(`✅ NFCe cancelada no banco - ID: ${nfce.id}, CNPJ: ${nfce.cnpj}, Chave: ${accessKey}`);
-
-            // Resposta com dados completos
-            reply.status(200).send({
-              success: true,
-              message: 'NFCe cancelled successfully',
-              data: {
-                accessKey: accessKey,
-                protocol: resultado.protocol,
-                number: nfce.number,
-                series: nfce.series,
-                justification: justification,
-                cancelDate: new Date().toISOString(),
-                company: {
-                  cnpj: nfce.cnpj,
-                  name: nfce.company_name
-                },
-                sefaz: {
-                  cStat: resultado.cStat,
-                  reason: resultado.reason,
-                  protocol: resultado.protocol
-                }
-              }
-            });
-          } else {
-            console.warn(`⚠️ NFCe não encontrada no banco local - Chave: ${accessKey}`);
-            
-            // Cancelamento OK na SEFAZ, mas não encontrada no banco local
-            reply.status(200).send({
-              success: true,
-              message: 'NFCe cancelled successfully in SEFAZ (not found in local database)',
-              data: {
-                accessKey: accessKey,
-                protocol: resultado.protocol,
-                justification: justification,
-                cancelDate: new Date().toISOString(),
-                warning: 'NFCe not found in local database',
-                sefaz: {
-                  cStat: resultado.cStat,
-                  reason: resultado.reason,
-                  protocol: resultado.protocol
-                }
-              }
-            });
-          }
-        } finally {
-          await connection.end();
-        }
+        reply.status(200).send({
+          success: true,
+          message: 'NFCe cancelled successfully',
+          data: resultado.data
+        });
       } else {
-        // ❌ Cancelamento rejeitado pela SEFAZ
         reply.status(400).send({
           success: false,
-          message: 'NFCe cancellation rejected by SEFAZ',
-          error: resultado.reason || 'Unknown error',
-          data: {
-            accessKey: accessKey,
-            cStat: resultado.cStat,
-            reason: resultado.reason,
-            justification: justification
-          }
+          message: 'Error cancelling NFCe',
+          error: resultado.error,
+          data: resultado.data
         });
       }
 
     } catch (error: any) {
-      console.error('Error canceling NFCe:', error);
-
+      console.error('❌ Erro no controller:', error);
       reply.status(500).send({
         success: false,
         message: 'Internal server error',
-        error: 'Unexpected error when canceling NFCe',
-        details: {
-          error: error.message,
-          timestamp: new Date().toISOString()
-        }
+        error: error.message
       });
     }
   }
