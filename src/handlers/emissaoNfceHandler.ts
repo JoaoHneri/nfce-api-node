@@ -5,7 +5,8 @@ import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpo
 import { obterConfigSOAP, obterNamespaceSOAP } from '../config/soap-config';
 import { SoapHeadersUtil } from "../utils/soapHeadersUtil";
 import { TributacaoService } from "../services/tributacaoService";
-import { NumeracaoService} from "../services/numeracaoService";
+import { NumeracaoService } from "../services/numeracaoService";
+import { MemberService } from "../services/memberService";
 import { ConfiguracaoNumeracao } from "../types/numeracaoTypes";
 import { getDatabaseConfig } from "../config/database";
 import { Make } from "node-sped-nfe";
@@ -16,19 +17,288 @@ import path from 'path';
 export class EmissaoNfceHandler {
     private parser: SefazResponseParser;
     private numeracaoService: NumeracaoService;
+    private memberService: MemberService;
 
     constructor() {
         this.parser = new SefazResponseParser();
-        
+
         // Inicializa o service de numeração com configuração do banco
         const dbConfig = getDatabaseConfig();
         this.numeracaoService = new NumeracaoService(dbConfig);
+        this.memberService = new MemberService();
+    }
+
+    
+    async processarEmissaoCompleta(memberCnpj: string, environment: number, nfceData: any, sefazService: any): Promise<{
+        success: boolean;
+        accessKey?: string;
+        protocol?: string;
+        qrCode?: string;
+        xmlSigned?: string;
+        error?: string;
+        [key: string]: any;
+    }> {
+        try {
+            // 1. Buscar dados da empresa e certificado
+            const memberData = await this.memberService.buscarDadosCompletos(memberCnpj, environment);
+            if (!memberData) {
+                return {
+                    success: false,
+                    error: 'Company or certificate not found'
+                };
+            }
+
+            // 2. Gerar numeração
+            const dadosNumeracao = await this.numeracaoService.gerarProximaNumeracao({
+                cnpj: memberData.member.cnpj,
+                uf: memberData.member.state,
+                serie: nfceData.ide.serie,
+                ambiente: environment.toString() as '1' | '2'
+            });
+
+            // 3. Preparar configuração do certificado
+            const certificateConfig: CertificadoConfig = {
+                pfxPath: memberData.certificate.pfxPath,
+                password: memberData.certificate.password,
+                csc: memberData.certificate.csc,
+                cscId: memberData.certificate.cscId,
+                cnpj: memberData.member.cnpj,
+                environment: parseInt(memberData.certificate.environment),
+                uf: memberData.certificate.uf
+            };
+
+            // 4. Obter tools
+            const tools = await sefazService.obterTools(certificateConfig);
+
+            // 5. Montar dados completos da NFCe
+            const nfceDataCompleta = this.montarDadosNFCe(memberData.member, nfceData, dadosNumeracao, environment);
+
+            // 6. Emitir NFCe
+            const resultadoEmissao = await this.emitirNFCe(tools, certificateConfig, nfceDataCompleta);
+
+            // 7. Processar resultado e salvar no banco
+            const resultadoFinal = await this.processarResultadoEmissao(
+                resultadoEmissao,
+                memberData.member,
+                dadosNumeracao,
+                nfceData,
+                environment
+            );
+
+            return resultadoFinal;
+
+        } catch (error: any) {
+            console.error('❌ Erro no processamento da emissão:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+
+    private montarDadosNFCe(memberData: any, nfceData: any, dadosNumeracao: any, environment: number): NFCeData {
+        const getUFCode = (uf: string): string => {
+            const ufCodes: { [key: string]: string } = {
+                'AC': '12', 'AL': '17', 'AP': '16', 'AM': '23', 'BA': '29', 'CE': '23', 'DF': '53',
+                'ES': '32', 'GO': '52', 'MA': '21', 'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15',
+                'PB': '25', 'PR': '41', 'PE': '26', 'PI': '22', 'RJ': '33', 'RN': '24', 'RS': '43',
+                'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35', 'SE': '28', 'TO': '17'
+            };
+            return ufCodes[uf] || '35';
+        };
+
+        return {
+            issuer: {
+                cnpj: memberData.cnpj,
+                xName: memberData.xName,
+                xFant: memberData.xFant,
+                ie: memberData.ie,
+                crt: memberData.crt,
+                address: {
+                    street: memberData.street,
+                    number: memberData.number,
+                    neighborhood: memberData.neighborhood,
+                    cityCode: memberData.cityCode,
+                    city: memberData.city,
+                    state: memberData.state,
+                    zipCode: memberData.zipCode,
+                    cPais: memberData.cPais,
+                    xPais: memberData.xPais,
+                    phone: memberData.phone
+                }
+            },
+            recipient: nfceData.recipient,
+            ide: {
+                cUF: getUFCode(memberData.state),
+                cNF: dadosNumeracao.cNF,
+                natOp: nfceData.ide.natOp,
+                serie: nfceData.ide.serie,
+                nNF: dadosNumeracao.nNF,
+                dhEmi: new Date().toISOString(),
+                tpNF: "1",
+                idDest: "1",
+                cMunFG: memberData.cityCode,
+                tpImp: "4",
+                tpEmis: "1",
+                tpAmb: environment.toString(),
+                finNFe: "1",
+                indFinal: "1",
+                indPres: "1",
+                indIntermed: "0",
+                procEmi: "0",
+                verProc: "1.0"
+            },
+            products: nfceData.products,
+            technicalResponsible: nfceData.technicalResponsible,
+            taxes: {
+                orig: "0",
+                CSOSN: memberData.crt === "1" ? "102" : "400",
+                CST_PIS: "49",
+                CST_COFINS: "49"
+            },
+            payment: nfceData.payment,
+            transport: nfceData.transport || { mode: "9" }
+        };
+    }
+
+    private async processarResultadoEmissao(
+        resultadoEmissao: SefazResponse,
+        memberData: any,
+        dadosNumeracao: any,
+        nfceData: any,
+        environment: number
+    ): Promise<any> {
+        if (resultadoEmissao.success) {
+            // ✅ NFCe autorizada - extrair dados e salvar
+            const dadosExtraidos = this.extrairDadosXML(resultadoEmissao, nfceData);
+
+            await this.memberService.salvarNFCe(memberData, {
+                accessKey: dadosExtraidos.accessKey,
+                number: dadosNumeracao.nNF.padStart(9, '0'),
+                cnf: dadosNumeracao.cNF,
+                series: nfceData.ide.serie,
+                totalValue: dadosExtraidos.totalValue,
+                status: 'authorized',
+                protocol: dadosExtraidos.protocol,
+                environment: environment.toString(),
+                operationNature: nfceData.ide.natOp,
+                recipientCpf: nfceData.recipient?.cpf || null,
+                recipientName: nfceData.recipient?.xName || null,
+                xmlContent: resultadoEmissao.xmlSigned,
+                qrCode: dadosExtraidos.qrCode,
+                rejectionReason: null
+            });
+
+            return {
+                success: true,
+                accessKey: dadosExtraidos.accessKey,
+                protocol: dadosExtraidos.protocol,
+                qrCode: dadosExtraidos.qrCode,
+                xmlSigned: resultadoEmissao.xmlSigned,
+                number: dadosNumeracao.nNF,
+                series: nfceData.ide.serie,
+                totalValue: dadosExtraidos.totalValue,
+                dateTime: resultadoEmissao.dateTime,
+                status: resultadoEmissao.cStat,
+                reason: resultadoEmissao.reason,
+                company: {
+                    cnpj: memberData.cnpj,
+                    name: memberData.xName
+                },
+                numbering: {
+                    nNF: dadosNumeracao.nNF,
+                    cNF: dadosNumeracao.cNF
+                }
+            };
+        } else {
+            // ❌ NFCe rejeitada - salvar como denied
+            const totalValue = this.calcularTotalValue(nfceData);
+
+            await this.memberService.salvarNFCe(memberData, {
+                accessKey: resultadoEmissao.accessKey || `TEMP_${Date.now()}`,
+                number: dadosNumeracao.nNF.padStart(9, '0'),
+                cnf: dadosNumeracao.cNF,
+                series: nfceData.ide.serie,
+                totalValue,
+                status: 'denied',
+                protocol: resultadoEmissao.protocol || null,
+                environment: environment.toString(),
+                operationNature: nfceData.ide.natOp,
+                recipientCpf: nfceData.recipient?.cpf || null,
+                recipientName: nfceData.recipient?.xName || null,
+                xmlContent: resultadoEmissao.xmlComplete,
+                qrCode: null,
+                rejectionReason: resultadoEmissao.reason || resultadoEmissao.error
+            });
+
+            return {
+                success: false,
+                error: resultadoEmissao.reason || resultadoEmissao.error,
+                totalValue,
+                cStat: resultadoEmissao.cStat,
+                reason: resultadoEmissao.reason,
+                numbering: {
+                    nNF: dadosNumeracao.nNF,
+                    cNF: dadosNumeracao.cNF
+                }
+            };
+        }
+    }
+
+    private extrairDadosXML(resultado: SefazResponse, nfceData: any): any {
+        let totalValue = 0;
+        if (resultado.xmlSigned) {
+            const vNFMatch = resultado.xmlSigned.match(/<vNF>([\d.,]+)<\/vNF>/);
+            if (vNFMatch) {
+                totalValue = parseFloat(vNFMatch[1]);
+            }
+        }
+
+        if (totalValue === 0) {
+            totalValue = this.calcularTotalValue(nfceData);
+        }
+
+        let qrCode = null;
+        if (resultado.xmlSigned) {
+            const qrMatch = resultado.xmlSigned.match(/<qrCode>\s*(https?:\/\/[^\s<]+)\s*<\/qrCode>/s);
+            if (qrMatch) {
+                qrCode = qrMatch[1].trim();
+            }
+        }
+
+        let accessKey = resultado.accessKey;
+        if (!accessKey && resultado.xmlSigned) {
+            const keyMatch = resultado.xmlSigned.match(/Id="NFe([0-9]{44})"/);
+            if (keyMatch) {
+                accessKey = keyMatch[1];
+            }
+        }
+
+        let protocol = resultado.protocol;
+        if (!protocol && resultado.xmlComplete) {
+            const protocolMatch = resultado.xmlComplete.match(/<nProt>([^<]+)<\/nProt>/);
+            if (protocolMatch) {
+                protocol = protocolMatch[1];
+            }
+        }
+
+        return { totalValue, qrCode, accessKey, protocol };
+    }
+
+    private calcularTotalValue(nfceData: any): number {
+        if (nfceData.products && Array.isArray(nfceData.products)) {
+            return nfceData.products.reduce((sum: number, produto: any) => {
+                return sum + parseFloat(produto.vProd || '0');
+            }, 0);
+        }
+        return 0;
     }
 
     async emitirNFCe(tools: any, certificadoConfig: CertificadoConfig, dados: NFCeData): Promise<SefazResponse> {
         let numeracaoGerada: { nNF: string; cNF: string } | null = null;
         let configNumeracao: ConfiguracaoNumeracao | null = null;
-        
+
         try {
             // 🔢 GERAR NUMERAÇÃO AUTOMÁTICA
             configNumeracao = {
@@ -39,7 +309,7 @@ export class EmissaoNfceHandler {
             };
 
             numeracaoGerada = await this.numeracaoService.gerarProximaNumeracao(configNumeracao);
-            
+
             // Atribui nNF e cNF gerados automaticamente
             dados.ide.nNF = numeracaoGerada.nNF;
             dados.ide.cNF = numeracaoGerada.cNF;
@@ -81,7 +351,7 @@ export class EmissaoNfceHandler {
 
         } catch (error: any) {
             console.error('❌ Erro na emissão:', error);
-            
+
             // � RECUPERAÇÃO: Liberar numeração em caso de falha técnica
             if (numeracaoGerada && configNumeracao && this.isFalhaTecnica(error)) {
                 try {
@@ -177,16 +447,16 @@ export class EmissaoNfceHandler {
         NFe.tagProd(dados.products);
 
         dados.products.forEach((produto, index) => {
-            const impostos = dados.taxes || { 
-                orig: "0", 
-                CSOSN: "400", 
-                CST_PIS: "49", 
-                CST_COFINS: "49" 
+            const impostos = dados.taxes || {
+                orig: "0",
+                CSOSN: "400",
+                CST_PIS: "49",
+                CST_COFINS: "49"
             };
 
             // ICMS (sempre igual - não mudou)
-            NFe.tagProdICMSSN(index, { 
-                orig: impostos.orig, 
+            NFe.tagProdICMSSN(index, {
+                orig: impostos.orig,
                 CSOSN: impostos.CSOSN
             });
 
@@ -202,7 +472,7 @@ export class EmissaoNfceHandler {
                 aliquotas,                  // Alíquotas determinadas
                 impostos.CST_PIS           // CST informado
             );
-            
+
             NFe.tagProdPIS(index, dadosPIS);
 
             // Calcular COFINS automaticamente
@@ -211,7 +481,7 @@ export class EmissaoNfceHandler {
                 aliquotas,                  // Alíquotas determinadas
                 impostos.CST_COFINS        // CST informado
             );
-            
+
             NFe.tagProdCOFINS(index, dadosCOFINS);
         });
 
@@ -234,9 +504,9 @@ export class EmissaoNfceHandler {
 
         if (dados.technicalResponsible) {
             NFe.tagInfRespTec({
-                CNPJ: dados.technicalResponsible.CNPJ, 
-                xContato: dados.technicalResponsible.xContact, 
-                email: dados.technicalResponsible.email, 
+                CNPJ: dados.technicalResponsible.CNPJ,
+                xContato: dados.technicalResponsible.xContact,
+                email: dados.technicalResponsible.email,
                 fone: dados.technicalResponsible.phone,
             });
         }
@@ -308,16 +578,16 @@ export class EmissaoNfceHandler {
                                     if (res.statusCode && res.statusCode >= 400) {
                                         // Salvar resposta de erro para debug
                                         this.salvarArquivoDebug(data, `erro_http_${res.statusCode}`);
-                                        
+
                                         reject(new Error(`Erro HTTP ${res.statusCode}: ${data}`));
                                         return;
                                     }
 
                                     // 🚨 Verificar se contém erro de media type
-                                    if (data.includes('media type is unsupported') || 
-                                        data.includes('Content-Type') || 
+                                    if (data.includes('media type is unsupported') ||
+                                        data.includes('Content-Type') ||
                                         data.includes('unsupported')) {
-                                        
+
                                         this.salvarArquivoDebug(data, 'erro_content_type');
                                         reject(new Error(`Erro de Content-Type: ${data}`));
                                         return;
@@ -474,12 +744,12 @@ export class EmissaoNfceHandler {
     }
 
     /**
-     * 🔍 Identificar se é falha técnica (pode recuperar numeração) ou rejeição SEFAZ (manter consumida)
+     * Identificar se é falha técnica (pode recuperar numeração) ou rejeição SEFAZ (manter consumida)
      */
     private isFalhaTecnica(error: any): boolean {
         const falhaTecnica = [
             'ECONNRESET',
-            'ETIMEDOUT', 
+            'ETIMEDOUT',
             'certificate',
             'SOAP',
             'Network',
@@ -491,11 +761,11 @@ export class EmissaoNfceHandler {
             'ENOTFOUND',
             'ECONNREFUSED'
         ];
-        
+
         const errorMessage = error.message?.toLowerCase() || '';
         const errorCode = error.code?.toLowerCase() || '';
-        
-        return falhaTecnica.some(tipo => 
+
+        return falhaTecnica.some(tipo =>
             errorMessage.includes(tipo.toLowerCase()) ||
             errorCode.includes(tipo.toLowerCase())
         );

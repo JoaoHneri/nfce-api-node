@@ -6,11 +6,13 @@ import { getDatabaseConfig, createDatabaseConnection } from '../config/database'
 import { NFCeData, CertificadoConfig, CancelamentoRequest } from '../types';
 import { validarCertificado } from '../utils/validadorCertificado';
 import { MemberService } from '../services/memberService';
+import { EmissaoNfceHandler } from '../handlers/emissaoNfceHandler';
 
 export class NFCeController {
   private sefazNfceService: SefazNfceService;
   private numeracaoService: NumeracaoService;
   private memberService: MemberService; 
+  private emissaoHandler: EmissaoNfceHandler;
 
   constructor() {
     // Carregar configuração do certificado
@@ -20,8 +22,10 @@ export class NFCeController {
     const dbConfig = getDatabaseConfig();
     this.numeracaoService = new NumeracaoService(dbConfig);
     this.memberService = new MemberService();
+    this.emissaoHandler = new EmissaoNfceHandler();
   }
 
+  // ✅ MÉTODO SIMPLIFICADO - apenas validação e delegação
   async emitirNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { memberCnpj, environment, nfceData } = request.body as { 
@@ -30,6 +34,7 @@ export class NFCeController {
         nfceData: any 
       };
 
+      // ✅ Validação de entrada
       if (!memberCnpj || !environment || !nfceData) {
         reply.status(400).send({
           success: false,
@@ -39,226 +44,32 @@ export class NFCeController {
         return;
       }
 
-      // ✅ Substituir todo o SQL por uma linha
-      const dados = await this.memberService.buscarDadosCompletos(memberCnpj, environment);
-      
-      if (!dados) {
-        reply.status(404).send({
-          success: false,
-          message: 'Company or certificate not found',
-          error: `No active company/certificate found for CNPJ: ${memberCnpj} in environment: ${environment}`
-        });
-        return;
-      }
+      // ✅ Delegar TODA a lógica para o handler
+      const resultado = await this.emissaoHandler.processarEmissaoCompleta(
+        memberCnpj, 
+        environment, 
+        nfceData, 
+        this.sefazNfceService
+      );
 
-      const { member: memberData, certificate: certificateData } = dados;
-
-      // ✅ Resto do código continua igual...
-      const dadosNumeracao = await this.numeracaoService.gerarProximaNumeracao({
-        cnpj: memberData.cnpj,
-        uf: memberData.state,
-        serie: nfceData.ide.serie,
-        ambiente: environment.toString() as '1' | '2'
-      });
-
-      const certificateConfig: CertificadoConfig = {
-        pfxPath: certificateData.pfxPath,
-        password: certificateData.password,
-        csc: certificateData.csc,
-        cscId: certificateData.cscId,
-        cnpj: memberData.cnpj,
-        environment: parseInt(certificateData.environment),
-        uf: certificateData.uf
-      };
-
-      const getUFCode = (uf: string): string => {
-        const ufCodes: { [key: string]: string } = {
-          'AC': '12', 'AL': '17', 'AP': '16', 'AM': '23', 'BA': '29', 'CE': '23', 'DF': '53',
-          'ES': '32', 'GO': '52', 'MA': '21', 'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15',
-          'PB': '25', 'PR': '41', 'PE': '26', 'PI': '22', 'RJ': '33', 'RN': '24', 'RS': '43',
-          'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35', 'SE': '28', 'TO': '17'
-        };
-        return ufCodes[uf] || '35';
-      };
-
-      const nfceDataCompleta: NFCeData = {
-        issuer: {
-          cnpj: memberData.cnpj,
-          xName: memberData.xName,
-          xFant: memberData.xFant,
-          ie: memberData.ie,
-          crt: memberData.crt,
-          address: {
-            street: memberData.street,
-            number: memberData.number,
-            neighborhood: memberData.neighborhood,
-            cityCode: memberData.cityCode,
-            city: memberData.city,
-            state: memberData.state,
-            zipCode: memberData.zipCode,
-            cPais: memberData.cPais,
-            xPais: memberData.xPais,
-            phone: memberData.phone
-          }
-        },
-        recipient: nfceData.recipient,
-        ide: {
-          cUF: getUFCode(memberData.state),
-          cNF: dadosNumeracao.cNF,
-          natOp: nfceData.ide.natOp,
-          serie: nfceData.ide.serie,
-          nNF: dadosNumeracao.nNF,
-          dhEmi: new Date().toISOString(),
-          tpNF: "1",
-          idDest: "1",
-          cMunFG: memberData.cityCode,
-          tpImp: "4",
-          tpEmis: "1",
-          tpAmb: environment.toString(),
-          finNFe: "1",
-          indFinal: "1",
-          indPres: "1",
-          indIntermed: "0",
-          procEmi: "0",
-          verProc: "1.0"
-        },
-        products: nfceData.products,
-        technicalResponsible: nfceData.technicalResponsible,
-        taxes: {
-          orig: "0",
-          CSOSN: memberData.crt === "1" ? "102" : "400",
-          CST_PIS: "49",
-          CST_COFINS: "49"
-        },
-        payment: nfceData.payment,
-        transport: nfceData.transport || { mode: "9" }
-      };
-
-      const resultado = await this.sefazNfceService.emitirNFCe(nfceDataCompleta, certificateConfig);
-
+      // ✅ Apenas retornar resposta HTTP
       if (resultado.success) {
-        // ✅ Extrair dados (continua igual)
-        let totalValue = 0;
-        if (resultado.xmlSigned) {
-          const vNFMatch = resultado.xmlSigned.match(/<vNF>([\d.,]+)<\/vNF>/);
-          if (vNFMatch) {
-            totalValue = parseFloat(vNFMatch[1]);
-          }
-        }
-        
-        if (totalValue === 0 && nfceData.products && Array.isArray(nfceData.products)) {
-          totalValue = nfceData.products.reduce((sum: number, produto: any) => {
-            return sum + parseFloat(produto.vProd || '0');
-          }, 0);
-        }
-
-        let qrCode = null;
-        if (resultado.xmlSigned) {
-          const qrMatch = resultado.xmlSigned.match(/<qrCode>\s*(https?:\/\/[^\s<]+)\s*<\/qrCode>/s);
-          if (qrMatch) {
-            qrCode = qrMatch[1].trim();
-          }
-        }
-
-        let accessKey = resultado.accessKey;
-        if (!accessKey && resultado.xmlSigned) {
-          const keyMatch = resultado.xmlSigned.match(/Id="NFe([0-9]{44})"/);
-          if (keyMatch) {
-            accessKey = keyMatch[1];
-          }
-        }
-
-        let protocol = resultado.protocol;
-        if (!protocol && resultado.xmlComplete) {
-          const protocolMatch = resultado.xmlComplete.match(/<nProt>([^<]+)<\/nProt>/);
-          if (protocolMatch) {
-            protocol = protocolMatch[1];
-          }
-        }
-
-        // ✅ Salvar usando service (1 linha vs 15 linhas)
-        await this.memberService.salvarNFCe(memberData, {
-          accessKey,
-          number: dadosNumeracao.nNF.padStart(9, '0'),
-          cnf: dadosNumeracao.cNF,
-          series: nfceData.ide.serie,
-          totalValue,
-          status: 'authorized',
-          protocol,
-          environment: environment.toString(),
-          operationNature: nfceData.ide.natOp,
-          recipientCpf: nfceData.recipient?.cpf || null,
-          recipientName: nfceData.recipient?.xName || null,
-          xmlContent: resultado.xmlSigned,
-          qrCode,
-          rejectionReason: null
-        });
-
         reply.status(200).send({
           success: true,
           message: 'NFCe issued successfully',
-          data: {
-            accessKey,
-            protocol,
-            number: dadosNumeracao.nNF,
-            series: nfceData.ide.serie,
-            totalValue,
-            dateTime: resultado.dateTime,
-            status: resultado.cStat,
-            reason: resultado.reason,
-            qrCode,
-            company: {
-              cnpj: memberData.cnpj,
-              name: memberData.xName
-            },
-            numbering: {
-              nNF: dadosNumeracao.nNF,
-              cNF: dadosNumeracao.cNF
-            }
-          }
+          data: resultado
         });
       } else {
-        // ✅ NFCe rejeitada
-        const totalValue = nfceData.products.reduce((sum: number, produto: any) => {
-          return sum + parseFloat(produto.vProd || '0');
-        }, 0);
-
-        // ✅ Salvar rejeitada usando service (1 linha vs 15 linhas)
-        await this.memberService.salvarNFCe(memberData, {
-          accessKey: resultado.accessKey || `TEMP_${Date.now()}`,
-          number: dadosNumeracao.nNF.padStart(9, '0'),
-          cnf: dadosNumeracao.cNF,
-          series: nfceData.ide.serie,
-          totalValue,
-          status: 'denied',
-          protocol: resultado.protocol || null,
-          environment: environment.toString(),
-          operationNature: nfceData.ide.natOp,
-          recipientCpf: nfceData.recipient?.cpf || null,
-          recipientName: nfceData.recipient?.xName || null,
-          xmlContent: resultado.xmlComplete,
-          qrCode: null,
-          rejectionReason: resultado.reason || resultado.error
-        });
-        
         reply.status(400).send({
           success: false,
           message: 'Error issuing NFCe',
-          error: resultado.reason || resultado.error,
-          data: {
-            totalValue,
-            cStat: resultado.cStat,
-            reason: resultado.reason
-          },
-          numbering: {
-            nNF: dadosNumeracao.nNF,
-            cNF: dadosNumeracao.cNF
-          }
+          error: resultado.error,
+          data: resultado
         });
       }
 
     } catch (error: any) {
-      console.error('Internal error:', error.message);
+      console.error('❌ Erro no controller:', error);
       reply.status(500).send({
         success: false,
         message: 'Internal server error',

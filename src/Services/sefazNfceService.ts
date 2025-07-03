@@ -64,5 +64,7 @@ export class SefazNfceService {
         this.toolsCache.limparCache();
     }
 
-
+    public async obterTools(certificadoConfig: CertificadoConfig) {
+        return await this.toolsCache.obterTools(certificadoConfig);
+    }
 }
