@@ -8,6 +8,7 @@ import { validarCertificado } from '../utils/validadorCertificado';
 import { MemberService } from '../services/memberService';
 import { EmissaoNfceHandler } from '../handlers/emissaoNfceHandler';
 import { CancelamentoHandler } from '../handlers/cancelamentoHandler';
+import { ConsultaHandler } from '../handlers/consultaNfceHandlers';
 
 export class NFCeController {
   private sefazNfceService: SefazNfceService;
@@ -15,6 +16,7 @@ export class NFCeController {
   private memberService: MemberService; 
   private emissaoHandler: EmissaoNfceHandler;
   private cancelamentoHandler: CancelamentoHandler;
+  private consultaHandler: ConsultaHandler;
 
   constructor() {
     // Carregar configuração do certificado
@@ -26,6 +28,7 @@ export class NFCeController {
     this.memberService = new MemberService();
     this.emissaoHandler = new EmissaoNfceHandler();
     this.cancelamentoHandler = new CancelamentoHandler();
+    this.consultaHandler = new ConsultaHandler();
   }
 
   // ✅ MÉTODO SIMPLIFICADO - apenas validação e delegação
@@ -202,10 +205,77 @@ export class NFCeController {
       });
   }
 
+  // ✅ NOVO MÉTODO - Consulta por CNPJ (GET)
+  async consultarNFCePorCNPJ(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const { accessKey, memberCnpj, environment } = request.params as { 
+        accessKey: string;
+        memberCnpj: string;
+        environment: string;
+      };
+
+      // ✅ Validação de entrada
+      if (!accessKey || !memberCnpj || !environment) {
+        reply.status(400).send({
+          success: false,
+          message: 'Missing required parameters',
+          error: 'accessKey, memberCnpj, and environment are required'
+        });
+        return;
+      }
+
+      const environmentNumber = parseInt(environment);
+      if (environmentNumber !== 1 && environmentNumber !== 2) {
+        reply.status(400).send({
+          success: false,
+          message: 'Invalid environment',
+          error: 'environment must be 1 (Production) or 2 (Homologation)'
+        });
+        return;
+      }
+
+      // ✅ Delegar TODA a lógica para o handler
+      const resultado = await this.consultaHandler.consultarNFCePorCNPJ(
+        accessKey,
+        memberCnpj,
+        environmentNumber,
+        this.sefazNfceService
+      );
+
+      // ✅ Apenas retornar resposta HTTP
+      if (resultado.success) {
+        reply.status(200).send({
+          success: true,
+          message: 'NFCe consulted successfully',
+          data: resultado.data
+        });
+      } else {
+        reply.status(400).send({
+          success: false,
+          message: 'Error consulting NFCe',
+          error: resultado.error,
+          data: resultado.data
+        });
+      }
+
+    } catch (error: any) {
+      console.error('❌ Erro na consulta:', error);
+      reply.status(500).send({
+        success: false,
+        message: 'Internal server error',
+        error: error.message
+      });
+    }
+  }
+
+  // ✅ MÉTODO ANTIGO - Mantido para compatibilidade (DEPRECATED)
   async consultarNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { accessKey } = request.params as { accessKey: string };
       const { certificate } = request.body as { certificate: CertificadoConfig };
+
+      // ⚠️ Aviso de deprecação
+      console.warn('⚠️ DEPRECATED: consultarNFCe with certificate in body. Use consultarNFCePorCNPJ instead.');
 
       if (!validarCertificado(certificate, reply)) {
         return; // Resposta já foi enviada pela função
@@ -222,7 +292,10 @@ export class NFCeController {
 
       const resultado = await this.sefazNfceService.consultarNFCe(accessKey, certificate);
 
-      reply.status(200).send({ result: resultado });
+      reply.status(200).send({ 
+        result: resultado,
+        warning: 'This endpoint is deprecated. Use GET /api/nfce/consultar/{accessKey}/{memberCnpj}/{environment} instead.'
+      });
 
     } catch (error: any) {
       reply.status(500).send({
@@ -329,8 +402,6 @@ export class NFCeController {
       }
   }
 
-  //NOVAS FUNCIONALIDADES: Consultar tributação automática
-  
   async consultarTributacao(request: FastifyRequest<{
     Params: { crt: string; cst: string }
   }>, reply: FastifyReply): Promise<void> {
@@ -412,8 +483,6 @@ export class NFCeController {
     }
   }
 
-  //NOVAS FUNCIONALIDADES AVANÇADAS DE TRIBUTAÇÃO
-  
   async simularCalculoTributario(request: FastifyRequest<{
     Params: { crt: string; cstpis: string; cstcofins: string; valor: string }
   }>, reply: FastifyReply): Promise<void> {
@@ -524,24 +593,6 @@ export class NFCeController {
       reply.status(500).send({
         success: false,
         message: 'Error getting numbering statistics',
-        error: error.message
-      });
-    }
-  }
-
-  async inicializarTabelasNumeracao(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    try {
-      await this.numeracaoService.inicializarTabelas();
-      
-      reply.status(200).send({
-        success: true,
-        message: 'Numbering tables initialized successfully'
-      });
-      
-    } catch (error: any) {
-      reply.status(500).send({
-        success: false,
-        message: 'Error initializing numbering tables',
         error: error.message
       });
     }
@@ -727,79 +778,4 @@ export class NFCeController {
     }
   }
 
-  async consultarNFCeSalva(request: FastifyRequest<{
-    Params: { accessKey: string }
-  }>, reply: FastifyReply): Promise<void> {
-    try {
-      const { accessKey } = request.params;
-      
-      const dbConfig = getDatabaseConfig();
-      const connection = await createDatabaseConnection(dbConfig);
-      
-      try {
-        const [rows] = await connection.execute(`
-          SELECT 
-            i.*,
-            m.cnpj,
-            m.company_name,
-            m.trade_name
-          FROM invoices i
-          INNER JOIN member m ON i.member_id = m.id
-          WHERE i.access_key = ?
-        `, [accessKey]);
-        
-        if ((rows as any[]).length === 0) {
-          reply.status(404).send({
-            success: false,
-            message: 'NFCe not found in database',
-            error: `No NFCe found with access key: ${accessKey}`
-          });
-          return;
-        }
-        
-        const nfce = (rows as any[])[0];
-        
-        reply.status(200).send({
-          success: true,
-          message: 'NFCe retrieved successfully',
-          data: {
-            id: nfce.id,
-            accessKey: nfce.access_key,
-            number: nfce.number,
-            cnf: nfce.cnf,
-            series: nfce.series,
-            issueDate: nfce.issue_date,
-            totalValue: parseFloat(nfce.total_value),
-            status: nfce.status,
-            protocol: nfce.protocol,
-            qrCode: nfce.qr_code,
-            xmlContent: nfce.xml_content,
-            rejectionReason: nfce.rejection_reason,
-            environment: nfce.environment,
-            operationNature: nfce.operation_nature,
-            recipientCpf: nfce.recipient_cpf,
-            recipientName: nfce.recipient_name,
-            company: {
-              cnpj: nfce.cnpj,
-              name: nfce.company_name,
-              tradeName: nfce.trade_name
-            },
-            createdAt: nfce.created_at,
-            updatedAt: nfce.updated_at
-          }
-        });
-        
-      } finally {
-        await connection.end();
-      }
-      
-    } catch (error: any) {
-      console.error('Error retrieving NFCe:', error);
-      reply.status(500).send({
-        success: false,
-        message: 'Error retrieving NFCe',
-        error: error.message
-      });
-    }
-  }
 }

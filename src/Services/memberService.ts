@@ -138,4 +138,30 @@ export class MemberService {
             await connection.end();
         }
     }
+
+    // ✅ Buscar apenas certificado por CNPJ (para consulta)
+    async buscarCertificadoPorCNPJ(cnpj: string, environment: number): Promise<any | null> {
+        const dbConfig = getDatabaseConfig();
+        const connection = await createDatabaseConnection(dbConfig);
+        
+        try {
+            const [certificateRows] = await connection.execute(`
+                SELECT 
+                    c.id, c.pfx_path as pfxPath, c.password, c.csc,
+                    c.csc_id as cscId, c.environment, c.uf
+                FROM certificates c 
+                INNER JOIN member m ON c.member_id = m.id 
+                WHERE m.cnpj = ? AND c.environment = ? AND c.is_active = TRUE
+                ORDER BY c.created_at DESC LIMIT 1
+            `, [cnpj, environment.toString()]);
+
+            if (!Array.isArray(certificateRows) || certificateRows.length === 0) {
+                return null;
+            }
+
+            return certificateRows[0];
+        } finally {
+            await connection.end();
+        }
+    }
 }
