@@ -74,6 +74,9 @@ export class EmissaoNfceHandler {
                 }
             }
 
+            // 🔄 Adicionar o XML assinado ao resultado
+            resultado.xmlSigned = xmlAssinado;
+
             return resultado;
 
         } catch (error: any) {

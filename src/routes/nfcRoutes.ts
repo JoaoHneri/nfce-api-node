@@ -73,6 +73,11 @@ async function nfcRoutes(fastify: FastifyInstance) {
   fastify.post('/database/initialize', {
     handler: nfcController.criarTabelas.bind(nfcController)
   });
+
+  // 📋 ROTA PARA CONSULTAR NFCe SALVA
+  fastify.get('/nfce/:accessKey', {
+    handler: nfcController.consultarNFCeSalva.bind(nfcController)
+  });
 }
 
 export default nfcRoutes;

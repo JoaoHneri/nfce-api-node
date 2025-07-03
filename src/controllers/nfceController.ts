@@ -197,29 +197,87 @@ export class NFCeController {
         const resultado = await this.sefazNfceService.emitirNFCe(nfceDataCompleta, certificateConfig);
 
         if (resultado.success) {
-          // 5. Calcular valor total dos produtos
-          const totalValue = nfceData.products.reduce((sum: number, p: any) => sum + parseFloat(p.vProd), 0);
+          // 5. ✅ Extrair valor total do XML assinado
+          let totalValue = 0;
+          
+          if (resultado.xmlSigned) {
+            const vNFMatch = resultado.xmlSigned.match(/<vNF>([\d.,]+)<\/vNF>/);
+            if (vNFMatch) {
+              totalValue = parseFloat(vNFMatch[1]);
+            }
+          }
+          
+          // Fallback: calcular do JSON se não extrair do XML
+          if (totalValue === 0 && nfceData.products && Array.isArray(nfceData.products)) {
+            totalValue = nfceData.products.reduce((sum: number, produto: any) => {
+              return sum + parseFloat(produto.vProd || '0');
+            }, 0);
+          }
 
-          // 6. Salvar NFCe no banco com dados de numeração gerados
+          // ✅ Extrair QR Code do XML assinado
+          let qrCode = null;
+          
+          if (resultado.xmlSigned) {
+            const qrMatch = resultado.xmlSigned.match(/<qrCode>\s*(https?:\/\/[^\s<]+)\s*<\/qrCode>/s);
+            
+            if (qrMatch) {
+              qrCode = qrMatch[1].trim();
+            } else {
+              // Fallback: busca manual
+              const qrStart = resultado.xmlSigned.indexOf('<qrCode>');
+              const qrEnd = resultado.xmlSigned.indexOf('</qrCode>');
+              
+              if (qrStart !== -1 && qrEnd !== -1) {
+                const qrContent = resultado.xmlSigned.substring(qrStart + 8, qrEnd).trim();
+                if (qrContent.startsWith('http')) {
+                  qrCode = qrContent;
+                }
+              }
+            }
+          }
+
+          // ✅ Extrair chave de acesso do XML assinado se necessário
+          let accessKey = resultado.accessKey;
+          if (!accessKey && resultado.xmlSigned) {
+            const keyMatch = resultado.xmlSigned.match(/Id="NFe([0-9]{44})"/);
+            if (keyMatch) {
+              accessKey = keyMatch[1];
+            }
+          }
+
+          // ✅ Extrair protocolo se necessário
+          let protocol = resultado.protocol;
+          if (!protocol && resultado.xmlComplete) {
+            const protocolMatch = resultado.xmlComplete.match(/<nProt>([^<]+)<\/nProt>/);
+            if (protocolMatch) {
+              protocol = protocolMatch[1];
+            }
+          }
+
+          console.log(`✅ NFCe processada - Valor: R$ ${totalValue.toFixed(2)}, QR Code: ${qrCode ? 'OK' : 'FALHA'}`);
+
+          // 6. Salvar NFCe no banco com dados extraídos do XML assinado
           await connection.execute(
             `INSERT INTO invoices (
-              member_id, access_key, number, series, issue_date, total_value, 
+              member_id, access_key, number, cnf, series, issue_date, total_value, 
               status, protocol, environment, operation_nature, recipient_cpf, recipient_name,
-              cnf
-            ) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?)`,
+              xml_content, qr_code
+            ) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               memberData.id,
-              resultado.accessKey,
-              dadosNumeracao.nNF.padStart(9, '0'),  // ✅ Salvar no banco COM zeros à esquerda
+              accessKey,
+              dadosNumeracao.nNF.padStart(9, '0'),
+              dadosNumeracao.cNF,
               nfceData.ide.serie,
-              totalValue,
+              totalValue,  // ✅ Valor extraído do XML assinado
               'authorized',
-              resultado.protocol,
+              protocol,
               environment.toString(),
               nfceData.ide.natOp,
               nfceData.recipient?.cpf || null,
               nfceData.recipient?.xName || null,
-              dadosNumeracao.cNF     // ✅ Salvar cNF gerado automaticamente
+              resultado.xmlSigned,  // ✅ XML assinado (não da resposta SEFAZ)
+              qrCode  // ✅ QR Code extraído do XML assinado
             ]
           );
 
@@ -227,31 +285,67 @@ export class NFCeController {
             success: true,
             message: 'NFCe issued successfully',
             data: {
-              accessKey: resultado.accessKey,
-              protocol: resultado.protocol,
-              number: dadosNumeracao.nNF,    // ✅ Usar nNF gerado automaticamente
+              accessKey: accessKey,
+              protocol: protocol,
+              number: dadosNumeracao.nNF,
               series: nfceData.ide.serie,
+              totalValue: totalValue,  // ✅ Valor do XML
               dateTime: resultado.dateTime,
               status: resultado.cStat,
               reason: resultado.reason,
+              qrCode: qrCode,  // ✅ QR Code do XML
               company: {
                 cnpj: memberData.cnpj,
                 name: memberData.xName
               },
-              numbering: {             // ✅ Incluir dados de numeração na resposta
+              numbering: {
                 nNF: dadosNumeracao.nNF,
                 cNF: dadosNumeracao.cNF
               }
             }
           });
         } else {
-          // 7. Em caso de falha, fazer log para auditoria
-          console.error(`❌ Falha na emissão NFCe - CNPJ: ${memberData.cnpj}, nNF: ${dadosNumeracao.nNF}, Erro: ${resultado.reason || resultado.error}`);
+          // 7. Em caso de falha, calcular valor do JSON
+          const totalValue = nfceData.products.reduce((sum: number, produto: any) => {
+            return sum + parseFloat(produto.vProd || '0');
+          }, 0);
+
+          console.error(`❌ NFCe rejeitada - Valor: R$ ${totalValue.toFixed(2)}, Erro: ${resultado.reason || resultado.error}`);
+
+          // ✅ Salvar NFCe rejeitada no banco para auditoria
+          await connection.execute(
+            `INSERT INTO invoices (
+              member_id, access_key, number, cnf, series, issue_date, total_value, 
+              status, protocol, environment, operation_nature, recipient_cpf, recipient_name,
+              xml_content, rejection_reason
+            ) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              memberData.id,
+              resultado.accessKey || `TEMP_${Date.now()}`,
+              dadosNumeracao.nNF.padStart(9, '0'),
+              dadosNumeracao.cNF,
+              nfceData.ide.serie,
+              totalValue,  // ✅ Valor total correto
+              'denied',
+              resultado.protocol || null,
+              environment.toString(),
+              nfceData.ide.natOp,
+              nfceData.recipient?.cpf || null,
+              nfceData.recipient?.xName || null,
+              resultado.xmlComplete,
+              resultado.reason || resultado.error
+            ]
+          );
           
           reply.status(400).send({
             success: false,
             message: 'Error issuing NFCe',
             error: resultado.reason || resultado.error,
+            data: {
+              totalValue: totalValue,  // ✅ Valor total correto
+              cStat: resultado.cStat,
+              reason: resultado.reason
+            },
             numbering: {             // ✅ Incluir dados de numeração mesmo em caso de erro
               nNF: dadosNumeracao.nNF,
               cNF: dadosNumeracao.cNF
@@ -458,9 +552,101 @@ export class NFCeController {
         justification: justification
       };
 
-      // Cancelamento via service
+      // 1. Cancelamento via service
       const resultado = await this.sefazNfceService.cancelarNFCe(dadosCancelamento, certificate);
-      reply.status(200).send(resultado);
+
+      // 2. ✅ Se cancelamento foi bem-sucedido, atualizar no banco
+      if (resultado.success) {
+        const dbConfig = getDatabaseConfig();
+        const connection = await createDatabaseConnection(dbConfig);
+
+        try {
+          // Verificar se NFCe existe no banco
+          const [rows] = await connection.execute(`
+            SELECT i.id, i.member_id, i.number, i.series, m.cnpj, m.company_name
+            FROM invoices i
+            INNER JOIN member m ON i.member_id = m.id
+            WHERE i.access_key = ?
+          `, [accessKey]);
+
+          if ((rows as any[]).length > 0) {
+            const nfce = (rows as any[])[0];
+
+            // Atualizar status para cancelado
+            await connection.execute(`
+              UPDATE invoices 
+              SET 
+                status = 'cancelled',
+                updated_at = NOW(),
+                rejection_reason = ?
+              WHERE access_key = ?
+            `, [
+              `Cancelamento: ${justification}`,
+              accessKey
+            ]);
+
+            console.log(`✅ NFCe cancelada no banco - ID: ${nfce.id}, CNPJ: ${nfce.cnpj}, Chave: ${accessKey}`);
+
+            // Resposta com dados completos
+            reply.status(200).send({
+              success: true,
+              message: 'NFCe cancelled successfully',
+              data: {
+                accessKey: accessKey,
+                protocol: resultado.protocol,
+                number: nfce.number,
+                series: nfce.series,
+                justification: justification,
+                cancelDate: new Date().toISOString(),
+                company: {
+                  cnpj: nfce.cnpj,
+                  name: nfce.company_name
+                },
+                sefaz: {
+                  cStat: resultado.cStat,
+                  reason: resultado.reason,
+                  protocol: resultado.protocol
+                }
+              }
+            });
+          } else {
+            console.warn(`⚠️ NFCe não encontrada no banco local - Chave: ${accessKey}`);
+            
+            // Cancelamento OK na SEFAZ, mas não encontrada no banco local
+            reply.status(200).send({
+              success: true,
+              message: 'NFCe cancelled successfully in SEFAZ (not found in local database)',
+              data: {
+                accessKey: accessKey,
+                protocol: resultado.protocol,
+                justification: justification,
+                cancelDate: new Date().toISOString(),
+                warning: 'NFCe not found in local database',
+                sefaz: {
+                  cStat: resultado.cStat,
+                  reason: resultado.reason,
+                  protocol: resultado.protocol
+                }
+              }
+            });
+          }
+        } finally {
+          await connection.end();
+        }
+      } else {
+        // ❌ Cancelamento rejeitado pela SEFAZ
+        reply.status(400).send({
+          success: false,
+          message: 'NFCe cancellation rejected by SEFAZ',
+          error: resultado.reason || 'Unknown error',
+          data: {
+            accessKey: accessKey,
+            cStat: resultado.cStat,
+            reason: resultado.reason,
+            justification: justification
+          }
+        });
+      }
 
     } catch (error: any) {
       console.error('Error canceling NFCe:', error);
@@ -842,7 +1028,7 @@ export class NFCeController {
         )
       `;
 
-      // SQL para criar tabela de notas fiscais - COMPLETA COM nNF E cNF
+      // SQL para criar tabela de notas fiscais - COMPLETA COM XML E QR CODE
       const createInvoicesTable = `
         CREATE TABLE IF NOT EXISTS invoices (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -855,7 +1041,9 @@ export class NFCeController {
           total_value DECIMAL(15,2) NOT NULL,
           status VARCHAR(50) NOT NULL,                 -- draft, sent, authorized, denied, cancelled
           protocol VARCHAR(100),
-          xml_content LONGTEXT,
+          xml_content LONGTEXT,                        -- ✅ XML completo da NFCe
+          qr_code TEXT,                                -- ✅ QR Code da NFCe
+          rejection_reason TEXT,                       -- ✅ Motivo de rejeição
           
           -- Dados adicionais da NFCe
           environment VARCHAR(1),                      -- 1=Production, 2=Homologation
@@ -903,6 +1091,82 @@ export class NFCeController {
       reply.status(500).send({
         success: false,
         message: 'Error creating database tables',
+        error: error.message
+      });
+    }
+  }
+
+  async consultarNFCeSalva(request: FastifyRequest<{
+    Params: { accessKey: string }
+  }>, reply: FastifyReply): Promise<void> {
+    try {
+      const { accessKey } = request.params;
+      
+      const dbConfig = getDatabaseConfig();
+      const connection = await createDatabaseConnection(dbConfig);
+      
+      try {
+        const [rows] = await connection.execute(`
+          SELECT 
+            i.*,
+            m.cnpj,
+            m.company_name,
+            m.trade_name
+          FROM invoices i
+          INNER JOIN member m ON i.member_id = m.id
+          WHERE i.access_key = ?
+        `, [accessKey]);
+        
+        if ((rows as any[]).length === 0) {
+          reply.status(404).send({
+            success: false,
+            message: 'NFCe not found in database',
+            error: `No NFCe found with access key: ${accessKey}`
+          });
+          return;
+        }
+        
+        const nfce = (rows as any[])[0];
+        
+        reply.status(200).send({
+          success: true,
+          message: 'NFCe retrieved successfully',
+          data: {
+            id: nfce.id,
+            accessKey: nfce.access_key,
+            number: nfce.number,
+            cnf: nfce.cnf,
+            series: nfce.series,
+            issueDate: nfce.issue_date,
+            totalValue: parseFloat(nfce.total_value),
+            status: nfce.status,
+            protocol: nfce.protocol,
+            qrCode: nfce.qr_code,
+            xmlContent: nfce.xml_content,
+            rejectionReason: nfce.rejection_reason,
+            environment: nfce.environment,
+            operationNature: nfce.operation_nature,
+            recipientCpf: nfce.recipient_cpf,
+            recipientName: nfce.recipient_name,
+            company: {
+              cnpj: nfce.cnpj,
+              name: nfce.company_name,
+              tradeName: nfce.trade_name
+            },
+            createdAt: nfce.created_at,
+            updatedAt: nfce.updated_at
+          }
+        });
+        
+      } finally {
+        await connection.end();
+      }
+      
+    } catch (error: any) {
+      console.error('Error retrieving NFCe:', error);
+      reply.status(500).send({
+        success: false,
+        message: 'Error retrieving NFCe',
         error: error.message
       });
     }

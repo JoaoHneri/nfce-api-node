@@ -122,6 +122,7 @@ export interface SefazResponse {
   dateTime?: string;
   qrCode?: string;
   xmlComplete?: string;
+  xmlSigned?: string;
   error?: string;
 }
 
