@@ -12,7 +12,7 @@ export function validarCertificado(certificado: CertificadoConfig, reply: Fastif
       return false;
     }
 
-    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfx', 'password', 'CSC', 'CSCid'];
+    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfxPath', 'password', 'csc', 'cscId'];
 
     const camposFaltando = camposObrigatorios.filter(campo => !certificado[campo]);
     
@@ -26,11 +26,11 @@ export function validarCertificado(certificado: CertificadoConfig, reply: Fastif
     }
 
     // Validar se arquivo do certificado existe
-    // if (!fs.existsSync(certificado.pfx)) {
+    // if (!fs.existsSync(certificado.pfxPath)) {
     //   reply.status(400).send({
     //     success: false,
     //     message: 'Certificate file not found',
-    //     error: `Invalid path: ${certificado.pfx}`
+    //     error: `Invalid path: ${certificado.pfxPath}`
     //   });
     //   return false;
     // }

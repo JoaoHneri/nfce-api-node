@@ -6,10 +6,10 @@ export class CacheUtils {
 
     static gerarChaveCache(config: CertificadoConfig): string {
         const dadosUnicos = [
-            config.CNPJ || '',
-            config.CSCid || '',
-            config.tpAmb || 2,
-            config.UF || 'SP'
+            config.cnpj || '',
+            config.cscId || '',
+            config.environment || 2,
+            config.uf || 'SP'
         ].join('_');
         
         return crypto.createHash('md5').update(dadosUnicos).digest('hex');

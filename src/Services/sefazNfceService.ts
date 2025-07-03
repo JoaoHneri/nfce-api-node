@@ -45,14 +45,14 @@ export class SefazNfceService {
     private carregarConfigCertificado(certificadoConfig: CertificadoConfig): CertificadoConfig {
 
             return {
-                pfx: certificadoConfig.pfx || '',
+                pfxPath: certificadoConfig.pfxPath || '',
                 password: certificadoConfig.password || '',
-                CSC: certificadoConfig.CSC || '',
-                CSCid: certificadoConfig.CSCid || '',
-                CNPJ: certificadoConfig.CNPJ || '',
-                CPF: certificadoConfig.CPF || '',
-                tpAmb: certificadoConfig.tpAmb || 2, // 1 para produção, 2 para homologação
-                UF: certificadoConfig.UF || '', // Sigla do estado, ex: 'SP', 'RJ'
+                csc: certificadoConfig.csc || '',
+                cscId: certificadoConfig.cscId || '',
+                cnpj: certificadoConfig.cnpj || '',
+                cpf: certificadoConfig.cpf || '',
+                environment: certificadoConfig.environment || 2, // 1 para produção, 2 para homologação
+                uf: certificadoConfig.uf || '', // Sigla do estado, ex: 'SP', 'RJ'
             };
     }
 

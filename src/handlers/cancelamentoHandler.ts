@@ -109,7 +109,7 @@ export class CancelamentoHandler {
                         "@Id": `ID110111${dados.accessKey}${nSeqEvento.toString().padStart(2, '0')}`,
                         "cOrgao": cOrgao,
                         "tpAmb": "2",
-                        "CNPJ": certificadoConfig.CNPJ || "",
+                        "CNPJ": certificadoConfig.cnpj || "",
                         "chNFe": dados.accessKey,
                         "dhEvento": dhEvento, 
                         "tpEvento": "110111",
@@ -131,7 +131,7 @@ export class CancelamentoHandler {
         
         const uf = ufMap[cUF] || 'SP';
 
-        const tpAmb = Number(certificadoConfig?.tpAmb) || 2;
+        const tpAmb = Number(certificadoConfig?.environment) || 2;
         const ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
         const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
         const url = endpoints[uf]?.nfceCancelamento;
@@ -140,15 +140,15 @@ export class CancelamentoHandler {
             throw new Error(`Endpoint de cancelamento não configurado para UF: ${uf}`);
         }
 
-        if (!certificadoConfig.pfx || !certificadoConfig.password) {
+        if (!certificadoConfig.pfxPath || !certificadoConfig.password) {
             throw new Error('Certificado não configurado adequadamente');
         }
 
-        if (!fs.existsSync(certificadoConfig.pfx)) {
-            throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfx}`);
+        if (!fs.existsSync(certificadoConfig.pfxPath)) {
+            throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfxPath}`);
         }
 
-        const certificado = fs.readFileSync(certificadoConfig.pfx);
+        const certificado = fs.readFileSync(certificadoConfig.pfxPath);
 
         return new Promise((resolve, reject) => {
             try {

@@ -1,27 +1,27 @@
 {
   "certificate": {
-    "pfx": "C:/certificados/empresa.pfx",
+    "pfxPath": "C:/certificados/empresa.pfx",
     "password": "senha123",
-    "CSC": "codigo-csc-da-empresa",
-    "CSCid": "1",
-    "CNPJ": "12345678000199",
-    "tpAmb": 2,
-    "UF": "SP"
+    "csc": "codigo-csc-da-empresa",
+    "cscId": "1",
+    "cnpj": "12345678000199",
+    "environment": 2,
+    "uf": "SP"
   },
   "nfceData": {
     "issuer": {
-      "CNPJ": "12345678000199",
-      "xNome": "EMPRESA TESTE LTDA",
-      "IE": "123456789",
-      "CRT": "1",
+      "cnpj": "12345678000199",
+      "xName": "EMPRESA TESTE LTDA",
+      "ie": "123456789",
+      "crt": "1",
       "address": {
-        "xLgr": "RUA TESTE",
-        "nro": "123",
-        "xBairro": "CENTRO",
-        "cMun": "3550308",
-        "xMun": "SAO PAULO",
-        "UF": "SP",
-        "CEP": "01234567"
+        "street": "RUA TESTE",
+        "number": "123",
+        "neighborhood": "CENTRO",
+        "cityCode": "3550308",
+        "city": "SAO PAULO",
+        "state": "SP",
+        "zipCode": "01234567"
       }
     },
     "ide": {
@@ -70,6 +70,9 @@
           "vPag": "10.00"
         }
       ]
+    },
+    "transport": {
+      "mode": "9"
     }
   }
 }

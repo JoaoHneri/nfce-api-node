@@ -1,42 +1,42 @@
 export interface CertificadoConfig {
-  pfx: string;
+  pfxPath: string;     // era pfx
   password: string;
-  CSC: string;
-  CSCid: string;
-  CNPJ?: string;
-  CPF?: string;
-  tpAmb?: number; // '1' para produção, '2' para homologação
-  UF?: string; // Sigla do estado, ex: 'SP', 'RJ'
+  csc: string;         // era CSC
+  cscId: string;       // era CSCid
+  cnpj?: string;       // era CNPJ
+  cpf?: string;        // era CPF
+  environment?: number; // era tpAmb - '1' para produção, '2' para homologação
+  uf?: string;         // era UF - Sigla do estado, ex: 'SP', 'RJ'
 }
 
 export interface NFCeData {
   // Issuer data
   issuer: {
-    CNPJ: string;
-    xNome: string;
+    cnpj: string;        // era CNPJ
+    xName: string;       // era xNome
     xFant?: string;
-    IE: string;
-    CRT: string;
+    ie: string;          // era IE
+    crt: string;         // era CRT
     address: {
-      xLgr: string;
-      nro: string;
-      xBairro: string;
-      cMun: string;
-      xMun: string;
-      UF: string;
-      CEP: string;
+      street: string;        // era xLgr
+      number: string;        // era nro
+      neighborhood: string;  // era xBairro
+      cityCode: string;      // era cMun
+      city: string;          // era xMun
+      state: string;         // era UF
+      zipCode: string;       // era CEP
       cPais?: string;
       xPais?: string;
-      fone?: string;
+      phone?: string;        // era fone
     };
   };
 
   // Recipient data (optional for NFCe)
   recipient?: {
-    CPF?: string;
-    CNPJ?: string;
-    xNome?: string;
-    indIEDest?: string;
+    cpf?: string;        // era CPF
+    cnpj?: string;       // era CNPJ
+    xName?: string;      // era xNome
+    ieInd?: string;      // era indIEDest
   };
 
   // Dados da NFCe
@@ -90,9 +90,9 @@ export interface NFCeData {
 
   technicalResponsible?: {
     CNPJ: string;
-    xContato: string;
+    xContact: string;
     email: string;
-    fone: string;
+    phone: string;
     idCSRT?: string;
     hashCSRT?: string;
   };
@@ -104,12 +104,12 @@ export interface NFCeData {
       tPag: string;
       vPag: string;
     }>;
-    vTroco?: string;
+    change?: string;     // era vTroco
   };
 
   // Transport (optional)
   transport?: {
-    modFrete: string;
+    mode: string;        // era modFrete
   };
 }
 

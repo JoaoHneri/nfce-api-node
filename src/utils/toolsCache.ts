@@ -47,10 +47,10 @@ export class ToolsCache {
             timestamp: agora,
             hits: 1,
             config: {
-                CNPJ: certificadoConfig.CNPJ?.substring(0, 4) + '***',
-                CSCid: certificadoConfig.CSCid,
-                tpAmb: certificadoConfig.tpAmb,
-                UF: certificadoConfig.UF
+                cnpj: certificadoConfig.cnpj?.substring(0, 4) + '***',
+                cscId: certificadoConfig.cscId,
+                environment: certificadoConfig.environment,
+                uf: certificadoConfig.uf
             }
         });
 
@@ -67,19 +67,19 @@ export class ToolsCache {
             const tools = new Tools(
                 {
                     mod: "65",
-                    tpAmb: certificadoConfig.tpAmb || 2,
-                    UF: certificadoConfig.UF || "SP",
+                    tpAmb: certificadoConfig.environment || 2,
+                    UF: certificadoConfig.uf || "SP",
                     versao: "4.00",
-                    CSC: certificadoConfig.CSC,
-                    CSCid: certificadoConfig.CSCid,
+                    CSC: certificadoConfig.csc,
+                    CSCid: certificadoConfig.cscId,
                     timeout: 10000,
                     xmllint: `C:/Users/joaoh/Downloads/windowsLibs/libs/libxml2-2.9.3-win32-x86_64/bin/xmllint.exe`,
                     openssl: "C:/Users/joaoh/Downloads/windowsLibs/libs/openssl-3.5.0.win86/bin/openssl.exe" as any,
-                    CPF: certificadoConfig.CPF || "",
-                    CNPJ: certificadoConfig.CNPJ || "",
+                    CPF: certificadoConfig.cpf || "",
+                    CNPJ: certificadoConfig.cnpj || "",
                 },
                 {
-                    pfx: certificadoConfig.pfx,
+                    pfx: certificadoConfig.pfxPath,
                     senha: certificadoConfig.password,
                 }
             );

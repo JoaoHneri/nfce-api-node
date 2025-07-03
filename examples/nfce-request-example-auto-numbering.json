@@ -1,29 +1,29 @@
 {
   "certificate": {
-    "pfx": "C:/certificados/empresa.pfx",
+    "pfxPath": "C:/certificados/empresa.pfx",
     "password": "senha123",
-    "CSC": "codigo-csc-da-empresa",
-    "CSCid": "1",
-    "CNPJ": "12345678000199",
-    "tpAmb": 2,
-    "UF": "SP"
+    "csc": "codigo-csc-da-empresa",
+    "cscId": "1",
+    "cnpj": "12345678000199",
+    "environment": 2,
+    "uf": "SP"
   },
   "nfceData": {
     "issuer": {
-      "CNPJ": "12345678000199",
-      "xNome": "EMPRESA EXEMPLO LTDA",
+      "cnpj": "12345678000199",
+      "xName": "EMPRESA EXEMPLO LTDA",
       "xFant": "LOJA EXEMPLO",
-      "IE": "123456789",
-      "CRT": "1",
+      "ie": "123456789",
+      "crt": "1",
       "address": {
-        "xLgr": "RUA EXEMPLO",
-        "nro": "123",
-        "xBairro": "CENTRO",
-        "cMun": "3550308",
-        "xMun": "SAO PAULO",
-        "UF": "SP",
-        "CEP": "01234567",
-        "fone": "1199999999"
+        "street": "RUA EXEMPLO",
+        "number": "123",
+        "neighborhood": "CENTRO",
+        "cityCode": "3550308",
+        "city": "SAO PAULO",
+        "state": "SP",
+        "zipCode": "01234567",
+        "phone": "1199999999"
       }
     },
     "ide": {
@@ -74,11 +74,14 @@
         }
       ]
     },
+    "transport": {
+      "mode": "9"
+    },
     "technicalResponsible": {
       "CNPJ": "11222333000181",
-      "xContato": "João Silva - Desenvolvedor",
+      "xContact": "João Silva - Desenvolvedor",
       "email": "joao@empresa.com.br",
-      "fone": "11999887766"
+      "phone": "11999887766"
     }
   }
 }
