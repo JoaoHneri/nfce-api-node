@@ -61,30 +61,16 @@ export class EmissaoNfceHandler {
 
             const resultado = this.processarResposta(xmlResponse);
 
-            // 📊 ATUALIZAR STATUS NO HISTÓRICO
+            // 📊 LOG DO RESULTADO (não precisa atualizar banco adicional, pois invoices já mantém o status)
             if (numeracaoGerada) {
                 if (resultado.success) {
-                    // ✅ Sucesso - marcar como autorizada
-                    await this.numeracaoService.atualizarStatusNumeracao(
-                        configNumeracao,
-                        numeracaoGerada.nNF,
-                        numeracaoGerada.cNF,
-                        'AUTORIZADA',
-                        resultado.accessKey,
-                        resultado.reason,
-                        resultado.protocol
-                    );
+                    // ✅ Sucesso - NFCe autorizada
+                    console.log(`✅ NFCe autorizada - nNF: ${numeracaoGerada.nNF}, cNF: ${numeracaoGerada.cNF}`);
+                    console.log(`📋 Chave: ${resultado.accessKey}, Protocolo: ${resultado.protocol}`);
                 } else {
-                    // ❌ Rejeitada - marcar como rejeitada (manter numeração consumida)
-                    await this.numeracaoService.atualizarStatusNumeracao(
-                        configNumeracao,
-                        numeracaoGerada.nNF,
-                        numeracaoGerada.cNF,
-                        'REJEITADA',
-                        resultado.accessKey,
-                        resultado.reason,
-                        resultado.protocol
-                    );
+                    // ❌ Rejeitada - log do motivo
+                    console.log(`❌ NFCe rejeitada - nNF: ${numeracaoGerada.nNF}, cNF: ${numeracaoGerada.cNF}`);
+                    console.log(`📋 Motivo: ${resultado.reason}`);
                 }
             }
 
@@ -106,13 +92,8 @@ export class EmissaoNfceHandler {
                     console.error('❌ Erro ao liberar numeração:', recoveryError);
                 }
             } else if (numeracaoGerada && configNumeracao) {
-                // Registrar falha para auditoria
-                await this.numeracaoService.registrarFalhaNumeracao(
-                    configNumeracao,
-                    numeracaoGerada.nNF,
-                    numeracaoGerada.cNF,
-                    error.message
-                );
+                // ✅ Log da falha para auditoria
+                console.error(`❌ Falha na emissão - nNF: ${numeracaoGerada.nNF}, cNF: ${numeracaoGerada.cNF}, Erro: ${error.message}`);
             }
 
             return {

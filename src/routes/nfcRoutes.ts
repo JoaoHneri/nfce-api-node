@@ -68,6 +68,11 @@ async function nfcRoutes(fastify: FastifyInstance) {
   fastify.post('/numbering/release', {
     handler: nfcController.liberarNumeracao.bind(nfcController)
   });
+
+  // 🗄️ ROTA DE INICIALIZAÇÃO DE BANCO
+  fastify.post('/database/initialize', {
+    handler: nfcController.criarTabelas.bind(nfcController)
+  });
 }
 
 export default nfcRoutes;

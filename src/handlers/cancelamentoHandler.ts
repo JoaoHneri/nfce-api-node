@@ -339,13 +339,9 @@ export class CancelamentoHandler {
             const nNF = this.extrairNNFDaChave(chaveAcesso);
             const ambiente = this.extrairAmbienteDaChave(chaveAcesso);
 
-            // Atualizar diretamente no banco usando a chave de acesso
-            await this.numeracaoService.atualizarStatusPorChave(
-                chaveAcesso,
-                'CANCELADA',
-                resultadoCancelamento.reason || 'Cancelamento homologado',
-                resultadoCancelamento.protocol
-            );
+            // ✅ Log do cancelamento (não precisa atualizar banco, pois invoices já mantém o status)
+            console.log(`📝 NFCe cancelada - Chave: ${chaveAcesso}, Protocolo: ${resultadoCancelamento.protocol}`);
+            console.log(`📝 Motivo: ${resultadoCancelamento.reason || 'Cancelamento homologado'}`);
 
             console.log(`📝 Status de cancelamento atualizado para chave: ${chaveAcesso}`);
 

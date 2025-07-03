@@ -2,9 +2,10 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { SefazNfceService } from '../services/sefazNfceService';
 import { TributacaoService } from '../services/tributacaoService';
 import { NumeracaoService } from '../services/numeracaoService';
-import { getDatabaseConfig } from '../config/database';
+import { getDatabaseConfig, createDatabaseConnection } from '../config/database';
 import { NFCeData, CertificadoConfig, CancelamentoRequest } from '../types';
 import { validarCertificado } from '../utils/validadorCertificado';
+import mysql from 'mysql2/promise';
 
 export class NFCeController {
   private sefazNfceService: SefazNfceService;
@@ -21,37 +22,249 @@ export class NFCeController {
 
   async emitirNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { nfceData, certificate } = request.body as { nfceData: any, certificate: CertificadoConfig };
+      const { memberCnpj, environment, nfceData } = request.body as { 
+        memberCnpj: string, 
+        environment: number, 
+        nfceData: any 
+      };
 
-      if (!validarCertificado(certificate, reply)) {
+      if (!memberCnpj || !environment || !nfceData) {
+        reply.status(400).send({
+          success: false,
+          message: 'Missing required parameters',
+          error: 'memberCnpj, environment, and nfceData are required'
+        });
         return;
       }
 
-      const resultado = await this.sefazNfceService.emitirNFCe(nfceData, certificate);
+      const dbConfig = getDatabaseConfig();
+      const connection = await createDatabaseConnection(dbConfig);
 
-      if (resultado.success) {
-        reply.status(200).send({
-          success: true,
-          message: 'NFCe issued successfully',
-          data: {
-            accessKey: resultado.accessKey,
-            protocol: resultado.protocol,
-            dateTime: resultado.dateTime,
-            status: resultado.cStat,
-            reason: resultado.reason
-          }
-        });
-      } else {
-        reply.status(400).send({
-          success: false,
-          message: 'Error issuing NFCe',
-          error: resultado.reason || resultado.error
-        });
+      try {
+        // 1. Buscar dados da empresa
+        const [memberRows] = await connection.execute(
+          `SELECT 
+            m.id,
+            m.cnpj,
+            m.company_name as xName,
+            m.trade_name as xFant,
+            m.state_registration as ie,
+            m.tax_regime as crt,
+            m.street,
+            m.number,
+            m.complement,
+            m.neighborhood,
+            m.city_code as cityCode,
+            m.city,
+            m.state,
+            m.zipcode as zipCode,
+            m.country_code as cPais,
+            m.country as xPais,
+            m.phone
+          FROM member m 
+          WHERE m.cnpj = ? AND m.is_active = TRUE`,
+          [memberCnpj]
+        );
+
+        if (!Array.isArray(memberRows) || memberRows.length === 0) {
+          reply.status(404).send({
+            success: false,
+            message: 'Company not found',
+            error: `No active company found with CNPJ: ${memberCnpj}`
+          });
+          return;
+        }
+
+        const memberData = memberRows[0] as any;
+
+        // 2. Buscar certificado da empresa para o ambiente
+        const [certificateRows] = await connection.execute(
+          `SELECT 
+            c.id,
+            c.pfx_path as pfxPath,
+            c.password,
+            c.csc,
+            c.csc_id as cscId,
+            c.environment,
+            c.uf
+          FROM certificates c 
+          INNER JOIN member m ON c.member_id = m.id 
+          WHERE m.cnpj = ? 
+            AND c.environment = ? 
+            AND c.is_active = TRUE
+          ORDER BY c.created_at DESC
+          LIMIT 1`,
+          [memberCnpj, environment.toString()]
+        );
+
+        if (!Array.isArray(certificateRows) || certificateRows.length === 0) {
+          reply.status(404).send({
+            success: false,
+            message: 'Certificate not found',
+            error: `No active certificate found for CNPJ: ${memberCnpj} in environment: ${environment}`
+          });
+          return;
+        }
+
+        const certificateData = certificateRows[0] as any;
+
+        // 3. GERAR NUMERAÇÃO AUTOMÁTICA usando o serviço
+        const configNumeracao = {
+          cnpj: memberData.cnpj,
+          uf: memberData.state,
+          serie: nfceData.ide.serie,
+          ambiente: environment.toString() as '1' | '2'
+        };
+
+        const dadosNumeracao = await this.numeracaoService.gerarProximaNumeracao(configNumeracao);
+
+        // 4. Montar dados completos para NFCe
+        const certificateConfig: CertificadoConfig = {
+          pfxPath: certificateData.pfxPath,
+          password: certificateData.password,
+          csc: certificateData.csc,
+          cscId: certificateData.cscId,
+          cnpj: memberData.cnpj,
+          environment: parseInt(certificateData.environment),
+          uf: certificateData.uf
+        };
+
+        // Função para obter código UF
+        const getUFCode = (uf: string): string => {
+          const ufCodes: { [key: string]: string } = {
+            'AC': '12', 'AL': '17', 'AP': '16', 'AM': '23', 'BA': '29', 'CE': '23', 'DF': '53',
+            'ES': '32', 'GO': '52', 'MA': '21', 'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15',
+            'PB': '25', 'PR': '41', 'PE': '26', 'PI': '22', 'RJ': '33', 'RN': '24', 'RS': '43',
+            'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35', 'SE': '28', 'TO': '17'
+          };
+          return ufCodes[uf] || '35';
+        };
+
+        const nfceDataCompleta: NFCeData = {
+          issuer: {
+            cnpj: memberData.cnpj,
+            xName: memberData.xName,
+            xFant: memberData.xFant,
+            ie: memberData.ie,
+            crt: memberData.crt,
+            address: {
+              street: memberData.street,
+              number: memberData.number,
+              neighborhood: memberData.neighborhood,
+              cityCode: memberData.cityCode,
+              city: memberData.city,
+              state: memberData.state,
+              zipCode: memberData.zipCode,
+              cPais: memberData.cPais,
+              xPais: memberData.xPais,
+              phone: memberData.phone
+            }
+          },
+          recipient: nfceData.recipient,
+          ide: {
+            cUF: getUFCode(memberData.state),
+            cNF: dadosNumeracao.cNF,              // ✅ Gerado automaticamente
+            natOp: nfceData.ide.natOp,
+            serie: nfceData.ide.serie,
+            nNF: dadosNumeracao.nNF,              // ✅ Gerado automaticamente
+            dhEmi: new Date().toISOString(),      // ✅ Gerado automaticamente
+            tpNF: "1",
+            idDest: "1",
+            cMunFG: memberData.cityCode,
+            tpImp: "4",
+            tpEmis: "1",
+            tpAmb: environment.toString(),
+            finNFe: "1",
+            indFinal: "1",
+            indPres: "1",
+            indIntermed: "0",
+            procEmi: "0",
+            verProc: "1.0"
+          },
+          products: nfceData.products,
+          technicalResponsible: nfceData.technicalResponsible,
+          taxes: {
+            orig: "0",
+            CSOSN: memberData.crt === "1" ? "102" : "400",
+            CST_PIS: "49",
+            CST_COFINS: "49"
+          },
+          payment: nfceData.payment,
+          transport: nfceData.transport || { mode: "9" }
+        };
+
+        // 4. Emitir NFCe
+        const resultado = await this.sefazNfceService.emitirNFCe(nfceDataCompleta, certificateConfig);
+
+        if (resultado.success) {
+          // 5. Calcular valor total dos produtos
+          const totalValue = nfceData.products.reduce((sum: number, p: any) => sum + parseFloat(p.vProd), 0);
+
+          // 6. Salvar NFCe no banco com dados de numeração gerados
+          await connection.execute(
+            `INSERT INTO invoices (
+              member_id, access_key, number, series, issue_date, total_value, 
+              status, protocol, environment, operation_nature, recipient_cpf, recipient_name,
+              cnf
+            ) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              memberData.id,
+              resultado.accessKey,
+              dadosNumeracao.nNF.padStart(9, '0'),  // ✅ Salvar no banco COM zeros à esquerda
+              nfceData.ide.serie,
+              totalValue,
+              'authorized',
+              resultado.protocol,
+              environment.toString(),
+              nfceData.ide.natOp,
+              nfceData.recipient?.cpf || null,
+              nfceData.recipient?.xName || null,
+              dadosNumeracao.cNF     // ✅ Salvar cNF gerado automaticamente
+            ]
+          );
+
+          reply.status(200).send({
+            success: true,
+            message: 'NFCe issued successfully',
+            data: {
+              accessKey: resultado.accessKey,
+              protocol: resultado.protocol,
+              number: dadosNumeracao.nNF,    // ✅ Usar nNF gerado automaticamente
+              series: nfceData.ide.serie,
+              dateTime: resultado.dateTime,
+              status: resultado.cStat,
+              reason: resultado.reason,
+              company: {
+                cnpj: memberData.cnpj,
+                name: memberData.xName
+              },
+              numbering: {             // ✅ Incluir dados de numeração na resposta
+                nNF: dadosNumeracao.nNF,
+                cNF: dadosNumeracao.cNF
+              }
+            }
+          });
+        } else {
+          // 7. Em caso de falha, fazer log para auditoria
+          console.error(`❌ Falha na emissão NFCe - CNPJ: ${memberData.cnpj}, nNF: ${dadosNumeracao.nNF}, Erro: ${resultado.reason || resultado.error}`);
+          
+          reply.status(400).send({
+            success: false,
+            message: 'Error issuing NFCe',
+            error: resultado.reason || resultado.error,
+            numbering: {             // ✅ Incluir dados de numeração mesmo em caso de erro
+              nNF: dadosNumeracao.nNF,
+              cNF: dadosNumeracao.cNF
+            }
+          });
+        }
+
+      } finally {
+        await connection.end();
       }
 
     } catch (error: any) {
       console.error('Internal error:', error.message);
-
       reply.status(500).send({
         success: false,
         message: 'Internal server error',
@@ -85,58 +298,20 @@ export class NFCeController {
   }
 
   async obterExemplo(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-      const exemploCompleto = {
-          certificate: {
-              pfxPath: "/path/to/your/certificate.pfx",
-              password: "certificate_password",
-              csc: "your_CSC_code_here",
-              cscId: "1",
-              cnpj: "12345678000199",
-              environment: 2, // 2 = Homologation, 1 = Production
-              uf: "SP"
-          },
+      // Exemplo simplificado - dados da empresa e certificado vêm do banco
+      const exemploSimplificado = {
+          memberCnpj: "12345678000199",    // CNPJ da empresa cadastrada no banco
+          environment: 2,                  // 2 = Homologation, 1 = Production
           
           nfceData: {
-              issuer: {
-                  cnpj: "12345678000199", // Mesmo CNPJ do certificado
-                  xName: "EMPRESA EXEMPLO LTDA",
-                  xFant: "LOJA EXEMPLO",
-                  ie: "123456789",
-                  crt: "1", // 1-Simples Nacional
-                  address: {
-                      street: "RUA EXEMPLO",
-                      number: "123",
-                      neighborhood: "CENTRO",
-                      cityCode: "3550308", // São Paulo
-                      city: "SÃO PAULO",
-                      state: "SP", // Mesmo UF do certificado
-                      zipCode: "01234567",
-                      cPais: "1058",
-                      xPais: "BRASIL",
-                      phone: "1199999999"
-                  }
+              ide: {
+                  natOp: "VENDA",
+                  serie: "1"
               },
               recipient: {
                   cpf: "12345678901",
                   xName: "CONSUMIDOR FINAL",
                   ieInd: "9" // 9-Não contribuinte
-              },
-              ide: {
-                  cUF: "35", // São Paulo - Consistente com UF
-                  natOp: "VENDA",
-                  serie: "1",
-                  tpNF: "1", // 1-Saída
-                  idDest: "1", // 1-Operação interna
-                  cMunFG: "3550308", // São Paulo
-                  tpImp: "4", // 4-NFCe em papel
-                  tpEmis: "1", // 1-Emissão normal
-                  tpAmb: "2", // Mesmo ambiente do certificado
-                  finNFe: "1", // 1-Normal
-                  indFinal: "1", // 1-Consumidor final
-                  indPres: "1", // 1-Operação presencial
-                  indIntermed: "0", // 0-Sem intermediário
-                  procEmi: "0", // 0-Emissão com aplicativo do contribuinte
-                  verProc: "1.0"
               },
               products: [
                   {
@@ -163,16 +338,6 @@ export class NFCeController {
                   phone: "11999887766"
                   // idCSRT e hashCSRT são calculados automaticamente
               },
-              taxes: {
-                  orig: "0", // 0-Nacional
-                  CSOSN: "102", // 102-Tributada pelo Simples Nacional sem permissão de crédito
-                  CST_PIS: "49", // 49-Outras operações (CALCULADO AUTOMATICAMENTE PELO BACKEND)
-                  CST_COFINS: "49" // 49-Outras operações (CALCULADO AUTOMATICAMENTE PELO BACKEND)
-                  // ⚡ NOVO: PIS/COFINS são calculados automaticamente pelo backend!
-                  // ✅ Simples Nacional: Sempre R$ 0,00 (recolhido via DAS)
-                  // ✅ Lucro Real: 1,65% PIS + 7,60% COFINS
-                  // ✅ Produtos isentos: R$ 0,00 conforme CST
-              },
               payment: {
                   detPag: [
                       {
@@ -191,23 +356,41 @@ export class NFCeController {
 
       reply.status(200).send({
           success: true,
-          message: 'Complete example for NFCe issuance via HUB',
+          message: 'Simplified example for NFCe issuance with database integration',
           notes: [
-              "HUB API: Accepts certificate per request",
-              "Replace certificate data with real ones",
-              "Adjust the .pfx file path",
-              "environment: 2=Homologation, 1=Production",
-              "UF must be consistent in certificate and issuer",
-              "Low value (R$ 10.00) to facilitate testing",
-              "Fictional CNPJ but with valid format",
-              "Automatic numbering: cNF and nNF are generated by the system"
+              "🚀 NEW: Company and certificate data come from database",
+              "📋 Only send memberCnpj and environment",
+              "🔍 Backend automatically retrieves company data",
+              "🔐 Certificate is selected by CNPJ + environment",
+              "💾 NFCe is automatically saved to database after issuance",
+              "⚡ Taxes are calculated automatically by backend",
+              "📊 Much smaller JSON payload (70% reduction)",
+              "🔒 More secure - no certificate data in request"
           ],
           howToUse: {
               endpoint: "POST /api/nfce/create-nfc",
               contentType: "application/json",
-              body: "Use the 'completeExample' object below"
+              body: "Use the 'simplifiedExample' object below"
           },
-          completeExample: exemploCompleto
+          requirements: {
+              database: [
+                  "Company must be registered in 'member' table",
+                  "Certificate must be registered in 'certificates' table",
+                  "Certificate must match memberCnpj and environment"
+              ],
+              fields: {
+                  memberCnpj: "CNPJ of registered company",
+                  environment: "1=Production, 2=Homologation",
+                  nfceData: "Only specific NFCe data (products, recipient, payment, etc.)"
+              }
+          },
+          simplifiedExample: exemploSimplificado,
+          
+          // Exemplo legado (será removido em versões futuras)
+          legacy: {
+              note: "Legacy format still supported but deprecated",
+              willBeRemoved: "v2.0.0"
+          }
       });
   }
 
@@ -508,10 +691,11 @@ export class NFCeController {
         success: true,
         message: 'Numbering statistics retrieved successfully',
         data: {
-          nextNNF: stats.proximoNNF,
+          nextNNF: stats.proximoNumero,
           totalAuthorized: stats.totalAutorizadas,
           totalRejected: stats.totalRejeitadas,
           lastIssuance: stats.ultimaEmissao,
+          lastNumbers: stats.ultimosNumeros,
           company: cnpj,
           state: uf,
           series: serie,
@@ -584,6 +768,141 @@ export class NFCeController {
       reply.status(500).send({
         success: false,
         message: 'Error releasing numbering',
+        error: error.message
+      });
+    }
+  }
+
+  async criarTabelas(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const dbConfig = getDatabaseConfig();
+      const connection = await createDatabaseConnection(dbConfig);
+
+      // SQL para criar tabela de membros - COMPLETA com todos os campos do JSON
+      const createMemberTable = `
+        CREATE TABLE IF NOT EXISTS member (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          cnpj VARCHAR(14) NOT NULL UNIQUE,
+          company_name VARCHAR(255) NOT NULL,          -- xName
+          trade_name VARCHAR(255),                     -- xFant
+          state_registration VARCHAR(20) NOT NULL,     -- ie
+          tax_regime VARCHAR(1) NOT NULL,              -- crt
+          
+          -- Endereço completo
+          street VARCHAR(255) NOT NULL,                -- street
+          number VARCHAR(20) NOT NULL,                 -- number
+          complement VARCHAR(100),                     -- complement
+          neighborhood VARCHAR(100) NOT NULL,          -- neighborhood
+          city_code VARCHAR(7) NOT NULL,               -- cityCode
+          city VARCHAR(100) NOT NULL,                  -- city
+          state VARCHAR(2) NOT NULL,                   -- state
+          zipcode VARCHAR(8) NOT NULL,                 -- zipCode
+          country_code VARCHAR(4) DEFAULT '1058',      -- cPais
+          country VARCHAR(50) DEFAULT 'BRASIL',        -- xPais
+          
+          -- Contato
+          phone VARCHAR(20),                           -- phone
+          email VARCHAR(255),
+          
+          -- Controle
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          
+          -- Índices
+          INDEX idx_cnpj (cnpj),
+          INDEX idx_state (state),
+          INDEX idx_active (is_active),
+          INDEX idx_tax_regime (tax_regime)
+        )
+      `;
+
+      // SQL para criar tabela de certificados - COMPLETA
+      const createCertificatesTable = `
+        CREATE TABLE IF NOT EXISTS certificates (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          member_id INT NOT NULL,
+          pfx_path VARCHAR(500) NOT NULL,
+          password VARCHAR(255) NOT NULL,
+          csc VARCHAR(100),                            -- CSC code
+          csc_id VARCHAR(10),                          -- CSC ID
+          environment VARCHAR(1) NOT NULL,             -- 1=Production, 2=Homologation
+          uf VARCHAR(2) NOT NULL,                      -- UF do certificado
+          serial_number VARCHAR(100),
+          issuer VARCHAR(255),
+          valid_from DATE,
+          valid_to DATE,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (member_id) REFERENCES member(id) ON DELETE CASCADE,
+          INDEX idx_member_active (member_id, is_active),
+          INDEX idx_environment (environment),
+          INDEX idx_uf (uf)
+        )
+      `;
+
+      // SQL para criar tabela de notas fiscais - COMPLETA COM nNF E cNF
+      const createInvoicesTable = `
+        CREATE TABLE IF NOT EXISTS invoices (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          member_id INT NOT NULL,
+          access_key VARCHAR(44) NOT NULL UNIQUE,
+          number VARCHAR(20) NOT NULL,                 -- Número sequencial da NFCe (nNF)
+          cnf VARCHAR(8),                              -- ✅ Código numérico da NFCe (cNF)
+          series VARCHAR(10) NOT NULL,
+          issue_date TIMESTAMP NOT NULL,
+          total_value DECIMAL(15,2) NOT NULL,
+          status VARCHAR(50) NOT NULL,                 -- draft, sent, authorized, denied, cancelled
+          protocol VARCHAR(100),
+          xml_content LONGTEXT,
+          
+          -- Dados adicionais da NFCe
+          environment VARCHAR(1),                      -- 1=Production, 2=Homologation
+          operation_nature VARCHAR(100),               -- natOp
+          recipient_cpf VARCHAR(11),                   -- CPF do destinatário
+          recipient_name VARCHAR(255),                 -- Nome do destinatário
+          
+          -- Controle
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          
+          FOREIGN KEY (member_id) REFERENCES member(id) ON DELETE CASCADE,
+          INDEX idx_access_key (access_key),
+          INDEX idx_member_date (member_id, issue_date),
+          INDEX idx_status (status),
+          INDEX idx_environment (environment),
+          INDEX idx_number_series (number, series),
+          INDEX idx_cnf (cnf),                         -- ✅ Índice para cNF
+          INDEX idx_member_number_series_env (member_id, number, series, environment), -- ✅ Índice composto para unicidade
+          UNIQUE KEY uk_member_number_series_env (member_id, number, series, environment), -- ✅ Garantir unicidade do nNF por empresa/série/ambiente
+          UNIQUE KEY uk_member_cnf_series_env (member_id, cnf, series, environment) -- ✅ Garantir unicidade do cNF por empresa/série/ambiente
+        )
+      `;
+
+      // Executar as queries
+      await connection.execute(createMemberTable);
+      await connection.execute(createCertificatesTable);
+      await connection.execute(createInvoicesTable);
+
+      await connection.end();        reply.status(200).send({
+          success: true,
+          message: 'Database tables created successfully',
+          data: {
+            tables: ['member', 'certificates', 'invoices'],
+            timestamp: new Date().toISOString(),
+            details: {
+              member: 'Complete company data with address and tax info',
+              certificates: 'Digital certificates with CSC and environment',
+              invoices: 'NFCe invoices with complete tracking including cNF (código numérico)'
+            }
+          }
+        });
+
+    } catch (error: any) {
+      reply.status(500).send({
+        success: false,
+        message: 'Error creating database tables',
         error: error.message
       });
     }

@@ -1,0 +1,58 @@
+{
+  "memberCnpj": "60142655000126",
+  "environment": 2,
+  "nfceData": {
+    "ide": {
+      "natOp": "VENDA",
+      "serie": "886"
+    },
+    "recipient": {
+      "cpf": "11750943077",
+      "xName": "CONSUMIDOR FINAL",
+      "ieInd": "9"
+    },
+    "products": [
+      {
+        "cProd": "001",
+        "cEAN": "SEM GTIN",
+        "xProd": "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+        "NCM": "85044010",
+        "CFOP": "5102",
+        "uCom": "UNID",
+        "qCom": "1.00",
+        "vUnCom": "1.00",
+        "vProd": "1.00",
+        "cEANTrib": "SEM GTIN",
+        "uTrib": "UNID",
+        "qTrib": "1.00",
+        "vUnTrib": "1.00",
+        "indTot": "1"
+      }
+    ],
+    "taxes": { 
+      "orig": "0", 
+      "CSOSN": "102", 
+      "CST_PIS": "49", 
+      "CST_COFINS": "49" 
+    },
+    "transport": {
+      "mode": "9"
+    },
+    "payment": {
+      "detPag": [
+        {
+          "indPag": "0",
+          "tPag": "01",
+          "vPag": "1.00"
+        }
+      ],
+      "change": "0.00"
+    },
+    "technicalResponsible": {
+      "CNPJ": "11222333000181",
+      "xContact": "João Silva - Desenvolvedor",
+      "email": "joao.silva@empresa.com.br",
+      "phone": "11999887766"
+    }
+  }
+}
