@@ -28,6 +28,20 @@ export class EmissaoNfceHandler {
         this.memberService = new MemberService();
     }
 
+    /**
+     * Valida e formata o número da nota fiscal para evitar erros de schema
+     * Remove zeros à esquerda e valida range (1-999999999)
+     */
+    private validarFormatoNumeroNota(numeroNota: number | string): string {
+        const numero = typeof numeroNota === 'string' ? parseInt(numeroNota, 10) : numeroNota;
+        
+        if (isNaN(numero) || numero < 1 || numero > 999999999) {
+            throw new Error(`Número da nota inválido: ${numeroNota}. Deve estar entre 1 e 999999999`);
+        }
+        
+        // Retorna o número sem zeros à esquerda (conforme schema TNF da SEFAZ)
+        return numero.toString();
+    }
     
     async processarEmissaoCompleta(memberCnpj: string, environment: number, nfceData: any, sefazService: any): Promise<{
         success: boolean;
@@ -310,11 +324,14 @@ export class EmissaoNfceHandler {
 
             numeracaoGerada = await this.numeracaoService.gerarProximaNumeracao(configNumeracao);
 
+            // 🔧 Validar formato do número gerado (garantia adicional)
+            const numeroValidado = this.validarFormatoNumeroNota(numeracaoGerada.nNF);
+            
             // Atribui nNF e cNF gerados automaticamente
-            dados.ide.nNF = numeracaoGerada.nNF;
+            dados.ide.nNF = numeroValidado;
             dados.ide.cNF = numeracaoGerada.cNF;
 
-            console.log(`📊 Numeração gerada: nNF=${numeracaoGerada.nNF}, cNF=${numeracaoGerada.cNF}`);
+            console.log(`📊 Numeração gerada e validada: nNF=${numeroValidado}, cNF=${numeracaoGerada.cNF}`);
 
             // 🔄 Continuar com o processo normal
             const xmlNFCe = await this.criarXMLNFCe(dados);

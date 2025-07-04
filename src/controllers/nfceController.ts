@@ -31,7 +31,21 @@ export class NFCeController {
     this.consultaHandler = new ConsultaHandler();
   }
 
-  // ✅ MÉTODO SIMPLIFICADO - apenas validação e delegação
+  /**
+   * Valida e formata o número da nota fiscal para evitar erros de schema
+   * Remove zeros à esquerda e valida range (1-999999999)
+   */
+  private validarEFormatarNumeroNota(numeroNota: number | string): string {
+    const numero = typeof numeroNota === 'string' ? parseInt(numeroNota, 10) : numeroNota;
+    
+    if (isNaN(numero) || numero < 1 || numero > 999999999) {
+      throw new Error(`Número da nota inválido: ${numeroNota}. Deve estar entre 1 e 999999999`);
+    }
+    
+    // Retorna o número sem zeros à esquerda (conforme schema TNF da SEFAZ)
+    return numero.toString();
+  }
+
   async emitirNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { memberCnpj, environment, nfceData } = request.body as { 
@@ -40,7 +54,6 @@ export class NFCeController {
         nfceData: any 
       };
 
-      // ✅ Validação de entrada
       if (!memberCnpj || !environment || !nfceData) {
         reply.status(400).send({
           success: false,
@@ -50,7 +63,20 @@ export class NFCeController {
         return;
       }
 
-      // ✅ Delegar TODA a lógica para o handler
+      // 🔧 Validar e formatar número da nota se fornecido
+      if (nfceData.ide && nfceData.ide.nNF) {
+        try {
+          nfceData.ide.nNF = this.validarEFormatarNumeroNota(nfceData.ide.nNF);
+        } catch (error: any) {
+          reply.status(400).send({
+            success: false,
+            message: 'Invalid note number format',
+            error: error.message
+          });
+          return;
+        }
+      }
+
       const resultado = await this.emissaoHandler.processarEmissaoCompleta(
         memberCnpj, 
         environment, 
@@ -58,7 +84,6 @@ export class NFCeController {
         this.sefazNfceService
       );
 
-      // ✅ Apenas retornar resposta HTTP
       if (resultado.success) {
         reply.status(200).send({
           success: true,
@@ -205,7 +230,6 @@ export class NFCeController {
       });
   }
 
-  // ✅ NOVO MÉTODO - Consulta por CNPJ (GET)
   async consultarNFCePorCNPJ(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { accessKey, memberCnpj, environment } = request.params as { 
@@ -214,7 +238,6 @@ export class NFCeController {
         environment: string;
       };
 
-      // ✅ Validação de entrada
       if (!accessKey || !memberCnpj || !environment) {
         reply.status(400).send({
           success: false,
@@ -268,7 +291,6 @@ export class NFCeController {
     }
   }
 
-  // ✅ MÉTODO ANTIGO - Mantido para compatibilidade (DEPRECATED)
   async consultarNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { accessKey } = request.params as { accessKey: string };
@@ -310,7 +332,6 @@ export class NFCeController {
     }
   }
 
-  // ✅ MÉTODO SIMPLIFICADO - apenas validação e delegação
   async cancelarNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { memberCnpj, environment, accessKey, protocol, justification } = request.body as {
