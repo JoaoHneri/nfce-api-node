@@ -1,5 +1,4 @@
 // src/handlers/emissaoNfceHandler.ts
-import { SefazResponseParser } from "../parsers/sefazResponseParsers";
 import { NFCeData, CertificadoConfig, SefazResponse } from "../types";
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO } from '../config/sefaz-endpoints';
 import { obterConfigSOAP, obterNamespaceSOAP } from '../config/soap-config';
@@ -15,13 +14,39 @@ import fs from 'fs';
 import path from 'path';
 
 export class EmissaoNfceHandler {
-    private parser: SefazResponseParser;
     private numeracaoService: NumeracaoService;
     private memberService: MemberService;
 
-    constructor() {
-        this.parser = new SefazResponseParser();
+    // UF code mapping - moved to class level to avoid recreation
+    private static readonly UF_CODES: { [key: string]: string } = {
+        'AC': '12', 'AL': '17', 'AP': '16', 'AM': '23', 'BA': '29', 'CE': '23', 'DF': '53',
+        'ES': '32', 'GO': '52', 'MA': '21', 'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15',
+        'PB': '25', 'PR': '41', 'PE': '26', 'PI': '22', 'RJ': '33', 'RN': '24', 'RS': '43',
+        'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35', 'SE': '28', 'TO': '17'
+    };
 
+    // Payment type mapping - moved to class level to avoid recreation
+    private static readonly PAYMENT_TYPES: { [key: string]: string } = {
+        '01': 'Cash',
+        '02': 'Check',
+        '03': 'Credit Card',
+        '04': 'Debit Card',
+        '05': 'Store Credit',
+        '10': 'Food Voucher',
+        '11': 'Meal Voucher',
+        '12': 'Gift Card',
+        '13': 'Fuel Voucher',
+        '14': 'Promissory Note',
+        '15': 'Bank Slip',
+        '16': 'Bank Deposit',
+        '17': 'Instant Payment (PIX)',
+        '18': 'Bank Transfer',
+        '19': 'Loyalty Program',
+        '90': 'No Payment',
+        '99': 'Others'
+    };
+
+    constructor() {
         // Inicializa o service de numeração com configuração do banco
         const dbConfig = getDatabaseConfig();
         this.numeracaoService = new NumeracaoService(dbConfig);
@@ -112,16 +137,6 @@ export class EmissaoNfceHandler {
 
 
     private montarDadosNFCe(memberData: any, nfceData: any, dadosNumeracao: any, environment: number): NFCeData {
-        const getUFCode = (uf: string): string => {
-            const ufCodes: { [key: string]: string } = {
-                'AC': '12', 'AL': '17', 'AP': '16', 'AM': '23', 'BA': '29', 'CE': '23', 'DF': '53',
-                'ES': '32', 'GO': '52', 'MA': '21', 'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15',
-                'PB': '25', 'PR': '41', 'PE': '26', 'PI': '22', 'RJ': '33', 'RN': '24', 'RS': '43',
-                'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35', 'SE': '28', 'TO': '17'
-            };
-            return ufCodes[uf] || '35';
-        };
-
         return {
             issuer: {
                 cnpj: memberData.cnpj,
@@ -144,7 +159,7 @@ export class EmissaoNfceHandler {
             },
             recipient: nfceData.recipient,
             ide: {
-                cUF: getUFCode(memberData.state),
+                cUF: EmissaoNfceHandler.UF_CODES[memberData.state] || '35',
                 cNF: dadosNumeracao.cNF,
                 natOp: nfceData.ide.natOp,
                 serie: nfceData.ide.serie,
@@ -381,31 +396,10 @@ export class EmissaoNfceHandler {
                 const xPagMatch = pagamentoXML.match(/<xPag>([^<]+)<\/xPag>/);
                 const vPagMatch = pagamentoXML.match(/<vPag>([^<]+)<\/vPag>/);
 
-                // Mapear código do tipo de pagamento para descrição
-                const paymentTypes: { [key: string]: string } = {
-                    '01': 'Cash',
-                    '02': 'Check',
-                    '03': 'Credit Card',
-                    '04': 'Debit Card',
-                    '05': 'Store Credit',
-                    '10': 'Food Voucher',
-                    '11': 'Meal Voucher',
-                    '12': 'Gift Card',
-                    '13': 'Fuel Voucher',
-                    '14': 'Promissory Note',
-                    '15': 'Bank Slip',
-                    '16': 'Bank Deposit',
-                    '17': 'Instant Payment (PIX)',
-                    '18': 'Bank Transfer',
-                    '19': 'Loyalty Program',
-                    '90': 'No Payment',
-                    '99': 'Others'
-                };
-
                 payments.push({
                     indPag: indPagMatch?.[1] || '0',
                     tPag: tPagMatch?.[1] || '',
-                    paymentType: paymentTypes[tPagMatch?.[1] || ''] || 'Not Informed',
+                    paymentType: EmissaoNfceHandler.PAYMENT_TYPES[tPagMatch?.[1] || ''] || 'Not Informed',
                     description: xPagMatch?.[1] || '',
                     amount: parseFloat(vPagMatch?.[1] || '0')
                 });
@@ -520,10 +514,6 @@ export class EmissaoNfceHandler {
             };
         }
 
-        if (totalValue === 0) {
-            totalValue = this.calcularTotalValue(nfceData);
-        }
-
         // Retornar dados básicos + dados completos para impressão
         return { 
             totalValue, 
@@ -536,12 +526,14 @@ export class EmissaoNfceHandler {
     }
 
     private calcularTotalValue(nfceData: any): number {
-        if (nfceData.products && Array.isArray(nfceData.products)) {
-            return nfceData.products.reduce((sum: number, produto: any) => {
-                return sum + parseFloat(produto.vProd || '0');
-            }, 0);
+        if (!nfceData?.products?.length) {
+            return 0;
         }
-        return 0;
+        
+        return nfceData.products.reduce((sum: number, produto: any) => {
+            const valor = parseFloat(produto.vProd || '0');
+            return sum + (isNaN(valor) ? 0 : valor);
+        }, 0);
     }
 
     async emitirNFCe(tools: any, certificadoConfig: CertificadoConfig, dados: NFCeData): Promise<SefazResponse> {
@@ -566,7 +558,10 @@ export class EmissaoNfceHandler {
             dados.ide.nNF = numeroValidado;
             dados.ide.cNF = numeracaoGerada.cNF;
 
-            console.log(`📊 Numeração gerada e validada: nNF=${numeroValidado}, cNF=${numeracaoGerada.cNF}`);
+            // Log generation info only in development
+            if (process.env.NODE_ENV !== 'production') {
+                console.log(`📊 Numeração gerada e validada: nNF=${numeroValidado}, cNF=${numeracaoGerada.cNF}`);
+            }
 
             // 🔄 Continuar com o processo normal
             const xmlNFCe = await this.criarXMLNFCe(dados);
@@ -583,14 +578,12 @@ export class EmissaoNfceHandler {
 
             const resultado = this.processarResposta(xmlResponse);
 
-            // 📊 LOG DO RESULTADO (não precisa atualizar banco adicional, pois invoices já mantém o status)
-            if (numeracaoGerada) {
+            // Log results only in development
+            if (numeracaoGerada && process.env.NODE_ENV !== 'production') {
                 if (resultado.success) {
-                    // ✅ Sucesso - NFCe autorizada
                     console.log(`✅ NFCe autorizada - nNF: ${numeracaoGerada.nNF}, cNF: ${numeracaoGerada.cNF}`);
                     console.log(`📋 Chave: ${resultado.accessKey}, Protocolo: ${resultado.protocol}`);
                 } else {
-                    // ❌ Rejeitada - log do motivo
                     console.log(`❌ NFCe rejeitada - nNF: ${numeracaoGerada.nNF}, cNF: ${numeracaoGerada.cNF}`);
                     console.log(`📋 Motivo: ${resultado.reason}`);
                 }
@@ -612,7 +605,9 @@ export class EmissaoNfceHandler {
                         numeracaoGerada.nNF,
                         `Falha técnica: ${error.message}`
                     );
-                    console.log(`🔄 Numeração ${numeracaoGerada.nNF} liberada automaticamente`);
+                    if (process.env.NODE_ENV !== 'production') {
+                        console.log(`🔄 Numeração ${numeracaoGerada.nNF} liberada automaticamente`);
+                    }
                 } catch (recoveryError) {
                     console.error('❌ Erro ao liberar numeração:', recoveryError);
                 }
@@ -978,6 +973,11 @@ export class EmissaoNfceHandler {
     }
 
     private async salvarArquivoDebug(conteudo: string, nome: string): Promise<void> {
+        // Only save debug files in development environment
+        if (process.env.NODE_ENV === 'production') {
+            return;
+        }
+        
         try {
             const pastaDebug = path.join(process.cwd(), 'debug');
 
@@ -991,35 +991,26 @@ export class EmissaoNfceHandler {
 
             fs.writeFileSync(caminhoCompleto, conteudo, { encoding: 'utf-8' });
         } catch (error) {
-            console.log('⚠️ Erro ao salvar debug:', error);
+            // Silent fail for debug files
         }
     }
 
+    // Technical error patterns - moved to class level constant
+    private static readonly TECHNICAL_ERROR_PATTERNS = [
+        'econnreset', 'etimedout', 'certificate', 'soap', 'network',
+        'timeout', 'connection', 'ssl', 'tls', 'socket', 'enotfound', 'econnrefused'
+    ];
+
     /**
-     * Identificar se é falha técnica (pode recuperar numeração) ou rejeição SEFAZ (manter consumida)
+     * Check if error is technical (can recover numbering) or SEFAZ rejection (keep consumed)
      */
     private isFalhaTecnica(error: any): boolean {
-        const falhaTecnica = [
-            'ECONNRESET',
-            'ETIMEDOUT',
-            'certificate',
-            'SOAP',
-            'Network',
-            'timeout',
-            'connection',
-            'SSL',
-            'TLS',
-            'socket',
-            'ENOTFOUND',
-            'ECONNREFUSED'
-        ];
-
         const errorMessage = error.message?.toLowerCase() || '';
         const errorCode = error.code?.toLowerCase() || '';
+        const searchText = `${errorMessage} ${errorCode}`;
 
-        return falhaTecnica.some(tipo =>
-            errorMessage.includes(tipo.toLowerCase()) ||
-            errorCode.includes(tipo.toLowerCase())
+        return EmissaoNfceHandler.TECHNICAL_ERROR_PATTERNS.some(pattern =>
+            searchText.includes(pattern)
         );
     }
 }

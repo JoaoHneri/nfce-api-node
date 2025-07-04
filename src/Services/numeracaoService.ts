@@ -54,7 +54,10 @@ export class NumeracaoService {
       // 3. Commit da transação
       await connection.commit();
       
-      console.log(`✅ Próximo número: ${proximoNumero} para CNPJ: ${config.cnpj}, Série: ${config.serie}, Ambiente: ${config.ambiente}`);
+      // Log only in development
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`✅ Próximo número: ${proximoNumero} para CNPJ: ${config.cnpj}, Série: ${config.serie}, Ambiente: ${config.ambiente}`);
+      }
       
       // ✅ Retornar SEM zeros à esquerda para o XML (schema da SEFAZ)
       return proximoNumero.toString();
@@ -110,7 +113,9 @@ export class NumeracaoService {
           // 3. Gerar cNF único
           const cNF = await this.gerarCodigoNumericoSeguro(config);
           
-          console.log(`✅ Numeração gerada - nNF: ${nNF}, cNF: ${cNF} (tentativa ${tentativa})`);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log(`✅ Numeração gerada - nNF: ${nNF}, cNF: ${cNF} (tentativa ${tentativa})`);
+          }
           
           return { nNF, cNF };
         }
@@ -218,7 +223,9 @@ export class NumeracaoService {
    * Confirma que a numeração foi usada (não faz nada, pois será inserida na tabela invoices)
    */
   async confirmarNumeracaoUsada(config: ConfiguracaoNumeracao, numero: string): Promise<void> {
-    console.log(`✅ Numeração ${numero} confirmada para ${config.cnpj}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ Numeração ${numero} confirmada para ${config.cnpj}`);
+    }
   }
 
   /**
@@ -229,7 +236,9 @@ export class NumeracaoService {
     numero: string,
     motivo: string
   ): Promise<void> {
-    console.log(`⚠️ Numeração ${numero} liberada para ${config.cnpj}: ${motivo}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`⚠️ Numeração ${numero} liberada para ${config.cnpj}: ${motivo}`);
+    }
     // Não precisa fazer nada, pois o próximo número será calculado dinamicamente
   }
 
@@ -279,7 +288,10 @@ export class NumeracaoService {
    * Inicializa as tabelas necessárias (não faz nada, pois usa tabelas existentes)
    */
   async inicializarTabelas(): Promise<void> {
-    console.log('✅ Usando tabelas existentes: member, certificates, invoices');
+    // Log only in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Usando tabelas existentes: member, certificates, invoices');
+    }
   }
 
   /**

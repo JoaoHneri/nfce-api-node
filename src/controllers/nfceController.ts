@@ -31,20 +31,7 @@ export class NFCeController {
     this.consultaHandler = new ConsultaHandler();
   }
 
-  /**
-   * Valida e formata o número da nota fiscal para evitar erros de schema
-   * Remove zeros à esquerda e valida range (1-999999999)
-   */
-  private validarEFormatarNumeroNota(numeroNota: number | string): string {
-    const numero = typeof numeroNota === 'string' ? parseInt(numeroNota, 10) : numeroNota;
-    
-    if (isNaN(numero) || numero < 1 || numero > 999999999) {
-      throw new Error(`Número da nota inválido: ${numeroNota}. Deve estar entre 1 e 999999999`);
-    }
-    
-    // Retorna o número sem zeros à esquerda (conforme schema TNF da SEFAZ)
-    return numero.toString();
-  }
+
 
   async emitirNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
@@ -63,19 +50,7 @@ export class NFCeController {
         return;
       }
 
-      // 🔧 Validar e formatar número da nota se fornecido
-      if (nfceData.ide && nfceData.ide.nNF) {
-        try {
-          nfceData.ide.nNF = this.validarEFormatarNumeroNota(nfceData.ide.nNF);
-        } catch (error: any) {
-          reply.status(400).send({
-            success: false,
-            message: 'Invalid note number format',
-            error: error.message
-          });
-          return;
-        }
-      }
+      // Note: Number validation is handled in the emission handler
 
       const resultado = await this.emissaoHandler.processarEmissaoCompleta(
         memberCnpj, 
