@@ -177,7 +177,6 @@ export class SefazResponseParser {
             }
 
         } catch (error: any) {
-            console.error('Error parsing cancellation:', error);
             return {
                 success: false,
                 status: "parser_error",
@@ -214,7 +213,6 @@ export class SefazResponseParser {
             // Se não tem envelope SOAP, retornar como está
             return xmlResponse;
         } catch (error) {
-            console.warn('Error extracting XML from SOAP, using original XML:', error);
             return xmlResponse;
         }
     }
@@ -386,14 +384,16 @@ export class SefazResponseParser {
             return;
         }
 
-        console.log(`${prefixo}Object structure:`);
-        for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                const tipo = typeof obj[key];
-                console.log(`${prefixo}  ${key}: ${tipo}`);
-                
-                if (tipo === 'object' && obj[key] && maxDepth > 1) {
-                    this.debugEstrutura(obj[key], prefixo + '    ', maxDepth - 1);
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`${prefixo}Object structure:`);
+            for (const key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    const tipo = typeof obj[key];
+                    console.log(`${prefixo}  ${key}: ${tipo}`);
+                    
+                    if (tipo === 'object' && obj[key] && maxDepth > 1) {
+                        this.debugEstrutura(obj[key], prefixo + '    ', maxDepth - 1);
+                    }
                 }
             }
         }

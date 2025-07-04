@@ -75,7 +75,6 @@ export class NFCeController {
       }
 
     } catch (error: any) {
-      console.error('❌ Erro no controller:', error);
       reply.status(500).send({
         success: false,
         message: 'Internal server error',
@@ -257,7 +256,6 @@ export class NFCeController {
       }
 
     } catch (error: any) {
-      console.error('❌ Erro na consulta:', error);
       reply.status(500).send({
         success: false,
         message: 'Internal server error',
@@ -270,9 +268,6 @@ export class NFCeController {
     try {
       const { accessKey } = request.params as { accessKey: string };
       const { certificate } = request.body as { certificate: CertificadoConfig };
-
-      // ⚠️ Aviso de deprecação
-      console.warn('⚠️ DEPRECATED: consultarNFCe with certificate in body. Use consultarNFCePorCNPJ instead.');
 
       if (!validarCertificado(certificate, reply)) {
         return; // Resposta já foi enviada pela função
@@ -354,7 +349,6 @@ export class NFCeController {
       }
 
     } catch (error: any) {
-      console.error('❌ Erro no controller:', error);
       reply.status(500).send({
         success: false,
         message: 'Internal server error',

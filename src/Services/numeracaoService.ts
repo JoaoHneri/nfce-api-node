@@ -56,7 +56,10 @@ export class NumeracaoService {
       
       // Log only in development
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`✅ Próximo número: ${proximoNumero} para CNPJ: ${config.cnpj}, Série: ${config.serie}, Ambiente: ${config.ambiente}`);
+        // Só loga em desenvolvimento
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`✅ Próximo número: ${proximoNumero} para CNPJ: ${config.cnpj}, Série: ${config.serie}, Ambiente: ${config.ambiente}`);
+        }
       }
       
       // ✅ Retornar SEM zeros à esquerda para o XML (schema da SEFAZ)
@@ -65,7 +68,7 @@ export class NumeracaoService {
     } catch (error) {
       // Rollback em caso de erro
       await connection.rollback();
-      console.error('❌ Erro ao obter próximo número:', error);
+      console.error('❌ Erro crítico ao obter próximo número:', error);
       throw error;
     } finally {
       connection.release();
@@ -87,14 +90,14 @@ export class NumeracaoService {
         const cNF = await this.gerarCodigoNumericoSeguro(config);
         
         if (process.env.NODE_ENV !== 'production') {
-          console.log(`✅ Numeração gerada - nNF: ${nNF}, cNF: ${cNF} (tentativa ${tentativa})`);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log(`✅ Numeração gerada - nNF: ${nNF}, cNF: ${cNF} (tentativa ${tentativa})`);
+          }
         }
         
         return { nNF, cNF };
         
       } catch (error) {
-        console.error(`❌ Erro na tentativa ${tentativa}:`, error);
-        
         if (tentativa === maxTentativas) {
           throw error;
         }
@@ -130,7 +133,9 @@ export class NumeracaoService {
         return codigoGerado;
       }
       
-      console.warn(`⚠️ cNF duplicado detectado: ${codigoGerado} (tentativa ${tentativa})`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`⚠️ cNF duplicado detectado: ${codigoGerado} (tentativa ${tentativa})`);
+      }
       await this.delay(tentativa * 10);
     }
     
@@ -195,7 +200,9 @@ export class NumeracaoService {
     motivo: string
   ): Promise<void> {
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`⚠️ Numeração ${numero} liberada para ${config.cnpj}: ${motivo}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`⚠️ Numeração ${numero} liberada para ${config.cnpj}: ${motivo}`);
+      }
     }
     // Não precisa fazer nada, pois o próximo número será calculado dinamicamente
   }

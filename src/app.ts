@@ -47,7 +47,9 @@ async function registerPlugins() {
 
   // Logging middleware
   app.addHook('onRequest', async (request: any, reply: any) => {
-    console.log(`${new Date().toISOString()} - ${request.method} ${request.url}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`${new Date().toISOString()} - ${request.method} ${request.url}`);
+    }
   });
 
   // Registrar rotas da NFCe
@@ -65,7 +67,9 @@ app.setNotFoundHandler((request: any, reply: any) => {
 
 // Handler de erro global
 app.setErrorHandler((error: any, request: any, reply: any) => {
-  console.error('Erro não tratado:', error);
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('Erro não tratado:', error);
+  }
   
   reply.status(500).send({
     success: false,
@@ -86,7 +90,9 @@ async function start() {
       host: '0.0.0.0' 
     });
     
-    console.log(`API NFCe rodando`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`API NFCe rodando`);
+    }
     
   } catch (err) {
     app.log.error(err);
@@ -96,13 +102,17 @@ async function start() {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\nParando servidor...');
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('\nParando servidor...');
+  }
   await app.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\nParando servidor...');
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('\nParando servidor...');
+  }
   await app.close();
   process.exit(0);
 });

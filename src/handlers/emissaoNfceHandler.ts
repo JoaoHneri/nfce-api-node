@@ -558,11 +558,6 @@ export class EmissaoNfceHandler {
             dados.ide.nNF = numeroValidado;
             dados.ide.cNF = numeracaoGerada.cNF;
 
-            // Log generation info only in development
-            if (process.env.NODE_ENV !== 'production') {
-                console.log(`📊 Numeração gerada e validada: nNF=${numeroValidado}, cNF=${numeracaoGerada.cNF}`);
-            }
-
             // 🔄 Continuar com o processo normal
             const xmlNFCe = await this.criarXMLNFCe(dados);
 
@@ -578,25 +573,12 @@ export class EmissaoNfceHandler {
 
             const resultado = this.processarResposta(xmlResponse);
 
-            // Log results only in development
-            if (numeracaoGerada && process.env.NODE_ENV !== 'production') {
-                if (resultado.success) {
-                    console.log(`✅ NFCe autorizada - nNF: ${numeracaoGerada.nNF}, cNF: ${numeracaoGerada.cNF}`);
-                    console.log(`📋 Chave: ${resultado.accessKey}, Protocolo: ${resultado.protocol}`);
-                } else {
-                    console.log(`❌ NFCe rejeitada - nNF: ${numeracaoGerada.nNF}, cNF: ${numeracaoGerada.cNF}`);
-                    console.log(`📋 Motivo: ${resultado.reason}`);
-                }
-            }
-
             // 🔄 Adicionar o XML assinado ao resultado
             resultado.xmlSigned = xmlAssinado;
 
             return resultado;
 
         } catch (error: any) {
-            console.error('❌ Erro na emissão:', error);
-
             // � RECUPERAÇÃO: Liberar numeração em caso de falha técnica
             if (numeracaoGerada && configNumeracao && this.isFalhaTecnica(error)) {
                 try {
@@ -605,15 +587,9 @@ export class EmissaoNfceHandler {
                         numeracaoGerada.nNF,
                         `Falha técnica: ${error.message}`
                     );
-                    if (process.env.NODE_ENV !== 'production') {
-                        console.log(`🔄 Numeração ${numeracaoGerada.nNF} liberada automaticamente`);
-                    }
                 } catch (recoveryError) {
                     console.error('❌ Erro ao liberar numeração:', recoveryError);
                 }
-            } else if (numeracaoGerada && configNumeracao) {
-                // ✅ Log da falha para auditoria
-                console.error(`❌ Falha na emissão - nNF: ${numeracaoGerada.nNF}, cNF: ${numeracaoGerada.cNF}, Erro: ${error.message}`);
             }
 
             return {
@@ -847,18 +823,18 @@ export class EmissaoNfceHandler {
                                         resolve(data);
                                     }
                                 } catch (endError) {
-                                    console.error(`Erro no processamento final:`, endError);
+                                    console.error(`❌ Erro no processamento final:`, endError);
                                     reject(endError);
                                 }
                             });
 
                             res.on('error', (resError) => {
-                                console.error(`Erro na resposta:`, resError);
+                                console.error(`❌ Erro na resposta:`, resError);
                                 reject(resError);
                             });
 
                         } catch (responseError) {
-                            console.error(`Erro ao processar resposta:`, responseError);
+                            console.error(`❌ Erro ao processar resposta:`, responseError);
                             reject(responseError);
                         }
                     });

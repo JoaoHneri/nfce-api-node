@@ -9,6 +9,7 @@ import { ConsultaHandler } from "../handlers/consultaNfceHandlers";
 import { CancelamentoHandler } from "../handlers/cancelamentoHandler";
 import { EmissaoNfceHandler } from "../handlers/emissaoNfceHandler";
 import { ToolsCache } from "../utils/toolsCache";
+
 export class SefazNfceService {
     private emissaoHandler: EmissaoNfceHandler;
     private consultaHandler: ConsultaHandler;

@@ -126,10 +126,6 @@ export class CancelamentoHandler {
                     'cancelled', 
                     `Cancelamento: ${justification}`
                 );
-                
-                console.log(`✅ NFCe ${accessKey} marcada como CANCELADA no banco via MemberService`);
-            } else {
-                console.warn(`⚠️ NFCe ${accessKey} não encontrada no banco local`);
             }
         } catch (error) {
             console.error('❌ Erro ao atualizar status no banco:', error);
@@ -174,7 +170,6 @@ export class CancelamentoHandler {
 
             if (resultado.success && resultado.cStat === '135') { // 135 = Cancelamento homologado
                 await this.atualizarStatusCancelamento(dados.accessKey, resultado);
-                console.log(`✅ NFCe ${dados.accessKey} marcada como CANCELADA no banco`);
             }
 
             return resultado;
@@ -312,22 +307,17 @@ export class CancelamentoHandler {
                                     resolve(xmlLimpo);
                                 } catch (xmlError) {
                                     resolve(data);
+                                }                                } catch (endError) {
+                                    console.error(`❌ Erro no processamento final:`, endError);
+                                    reject(endError);
                                 }
-                            } catch (endError) {
-                                console.error(`❌ Erro no processamento final:`, endError);
-                                reject(endError);
-                            }
-                        });
-
-                        res.on('error', (resError) => {
-                            console.error(`❌ Erro na resposta:`, resError);
-                            reject(resError);
-                        });
-
-                    } catch (responseError) {
-                        console.error(`❌ Erro ao processar resposta:`, responseError);
-                        reject(responseError);
-                    }
+                        });                            res.on('error', (resError) => {
+                                console.error(`❌ Erro na resposta:`, resError);
+                                reject(resError);
+                            });                        } catch (responseError) {
+                            console.error(`❌ Erro ao processar resposta:`, responseError);
+                            reject(responseError);
+                        }
                 });
 
                 req.on('error', (err) => {
@@ -342,12 +332,9 @@ export class CancelamentoHandler {
                 req.setTimeout(30000);
                 
                 req.write(soapEnvelope);
-                req.end();
-
-            } catch (promiseError) {
-                console.error(`❌ Erro na Promise:`, promiseError);
-                reject(promiseError);
-            }
+                req.end();                } catch (promiseError) {
+                    reject(promiseError);
+                }
         });
 
     } catch (methodError) {
@@ -454,12 +441,6 @@ export class CancelamentoHandler {
             const serie = this.extrairSerieDaChave(chaveAcesso);
             const nNF = this.extrairNNFDaChave(chaveAcesso);
             const ambiente = this.extrairAmbienteDaChave(chaveAcesso);
-
-            // ✅ Log do cancelamento (não precisa atualizar banco, pois invoices já mantém o status)
-            console.log(`📝 NFCe cancelada - Chave: ${chaveAcesso}, Protocolo: ${resultadoCancelamento.protocol}`);
-            console.log(`📝 Motivo: ${resultadoCancelamento.reason || 'Cancelamento homologado'}`);
-
-            console.log(`📝 Status de cancelamento atualizado para chave: ${chaveAcesso}`);
 
         } catch (error) {
             console.error('❌ Erro ao atualizar status de cancelamento:', error);

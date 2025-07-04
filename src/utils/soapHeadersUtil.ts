@@ -72,11 +72,8 @@ export class SoapHeadersUtil {
             'Connection': 'close'
         };
 
-        console.log(`🎯 Configurando headers de cancelamento para UF: ${uf}`);
-
         switch (uf) {
             case 'SP': // São Paulo
-                console.log(`📋 Usando headers SOAP 1.2 para cancelamento SP`);
                 return {
                     ...baseHeaders,
                     'Content-Type': 'application/soap+xml; charset=utf-8',
@@ -84,7 +81,6 @@ export class SoapHeadersUtil {
                 };
 
             case 'PR': // Paraná
-                console.log(`📋 Usando headers SOAP 1.1 para cancelamento PR`);
                 return {
                     ...baseHeaders,
                     'Content-Type': 'text/xml; charset=utf-8',
@@ -92,7 +88,6 @@ export class SoapHeadersUtil {
                 };
 
             case 'RS': // Rio Grande do Sul
-                console.log(`📋 Usando headers SOAP 1.1 específicos para cancelamento RS`);
                 return {
                     ...baseHeaders,
                     'Content-Type': 'text/xml; charset=utf-8',
@@ -100,7 +95,6 @@ export class SoapHeadersUtil {
                 };
                 
             case 'SC': // Santa Catarina
-                console.log(`📋 Usando headers SOAP 1.1 para cancelamento SC`);
                 return {
                     ...baseHeaders,
                     'Content-Type': 'text/xml; charset=utf-8',
@@ -108,7 +102,6 @@ export class SoapHeadersUtil {
                 };
 
             case 'MG': // Minas Gerais
-                console.log(`📋 Usando headers SOAP 1.2 para cancelamento MG`);
                 return {
                     ...baseHeaders,
                     'Content-Type': 'application/soap+xml; charset=utf-8',
@@ -116,7 +109,6 @@ export class SoapHeadersUtil {
                 };
 
             case 'RJ': // Rio de Janeiro
-                console.log(`📋 Usando headers SOAP 1.1 para cancelamento RJ`);
                 return {
                     ...baseHeaders,
                     'Content-Type': 'text/xml; charset=utf-8',
@@ -124,7 +116,6 @@ export class SoapHeadersUtil {
                 };
 
             default: // Fallback para outros estados
-                console.log(`📋 Usando headers SOAP 1.1 padrão para cancelamento ${uf}`);
                 return {
                     ...baseHeaders,
                     'Content-Type': 'text/xml; charset=utf-8',
