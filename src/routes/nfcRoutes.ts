@@ -42,16 +42,6 @@ async function nfcRoutes(fastify: FastifyInstance) {
     handler: nfcController.listarRegimes.bind(nfcController)
   });
 
-  // ADVANCED TAX ROUTES
-  
-  fastify.get('/tax/simulate/:crt/:cstpis/:cstcofins/:valor', {
-    handler: nfcController.simularCalculoTributario.bind(nfcController)
-  });
-
-  fastify.get('/tax/report', {
-    handler: nfcController.obterRelatorioAliquotas.bind(nfcController)
-  });
-
   fastify.get('/tax/validate-cst/:cst', {
     handler: nfcController.validarCST.bind(nfcController)
   });

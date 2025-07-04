@@ -3,7 +3,7 @@ import { SefazNfceService } from '../services/sefazNfceService';
 import { TributacaoService } from '../services/tributacaoService';
 import { NumeracaoService } from '../services/numeracaoService';
 import { getDatabaseConfig, createDatabaseConnection } from '../config/database';
-import { NFCeData, CertificadoConfig, CancelamentoRequest } from '../types';
+import { CertificadoConfig } from '../types';
 import { validarCertificado } from '../utils/validadorCertificado';
 import { MemberService } from '../services/memberService';
 import { EmissaoNfceHandler } from '../handlers/emissaoNfceHandler';
@@ -474,49 +474,6 @@ export class NFCeController {
       reply.status(500).send({
         success: false,
         message: 'Error listing regimes',
-        error: error.message
-      });
-    }
-  }
-
-  async simularCalculoTributario(request: FastifyRequest<{
-    Params: { crt: string; cstpis: string; cstcofins: string; valor: string }
-  }>, reply: FastifyReply): Promise<void> {
-    try {
-      const { crt, cstpis, cstcofins, valor } = request.params;
-      const valorNumerico = parseFloat(valor);
-      
-      const simulacao = TributacaoService.simularCalculoCompleto(crt, cstpis, cstcofins, valorNumerico);
-      
-      reply.status(200).send({
-        success: true,
-        message: 'Tax calculation simulation completed successfully',
-        data: simulacao
-      });
-      
-    } catch (error: any) {
-      reply.status(400).send({
-        success: false,
-        message: 'Error simulating tax calculation',
-        error: error.message
-      });
-    }
-  }
-
-  async obterRelatorioAliquotas(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    try {
-      const relatorio = TributacaoService.obterRelatorioAliquotas();
-      
-      reply.status(200).send({
-        success: true,
-        message: 'Tax rates report generated successfully',
-        data: relatorio
-      });
-      
-    } catch (error: any) {
-      reply.status(500).send({
-        success: false,
-        message: 'Error getting tax rates report',
         error: error.message
       });
     }

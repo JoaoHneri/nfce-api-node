@@ -73,29 +73,6 @@ export class NumeracaoService {
   }
 
   /**
-   * Verifica se número já foi usado (validação extra)
-   */
-  async verificarNumeroUsado(config: ConfiguracaoNumeracao, numero: string): Promise<boolean> {
-    const connection = await this.connectionPool.getConnection();
-    
-    try {
-      const [rows] = await connection.execute(`
-        SELECT 1 FROM invoices i
-        INNER JOIN member m ON i.member_id = m.id
-        WHERE m.cnpj = ? 
-          AND i.series = ? 
-          AND i.environment = ?
-          AND i.number = ?
-        LIMIT 1
-      `, [config.cnpj, config.serie, config.ambiente, numero]);
-
-      return (rows as any[]).length > 0;
-    } finally {
-      connection.release();
-    }
-  }
-
-  /**
    * Gera numeração completa com validação
    */
   async gerarProximaNumeracao(config: ConfiguracaoNumeracao): Promise<DadosNumeracao> {
@@ -103,27 +80,17 @@ export class NumeracaoService {
     
     for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
       try {
-        // 1. Obter próximo nNF
+        // 1. Obter próximo nNF (já é atômico e seguro)
         const nNF = await this.obterProximoNumeroSeguro(config);
         
-        // 2. Verificar se não foi usado (validação extra)
-        const jaUsado = await this.verificarNumeroUsado(config, nNF);
+        // 2. Gerar cNF único
+        const cNF = await this.gerarCodigoNumericoSeguro(config);
         
-        if (!jaUsado) {
-          // 3. Gerar cNF único
-          const cNF = await this.gerarCodigoNumericoSeguro(config);
-          
-          if (process.env.NODE_ENV !== 'production') {
-            console.log(`✅ Numeração gerada - nNF: ${nNF}, cNF: ${cNF} (tentativa ${tentativa})`);
-          }
-          
-          return { nNF, cNF };
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`✅ Numeração gerada - nNF: ${nNF}, cNF: ${cNF} (tentativa ${tentativa})`);
         }
         
-        console.warn(`⚠️ Número ${nNF} já foi usado, tentando novamente... (tentativa ${tentativa})`);
-        
-        // Aguardar antes da próxima tentativa
-        await this.delay(tentativa * 100);
+        return { nNF, cNF };
         
       } catch (error) {
         console.error(`❌ Erro na tentativa ${tentativa}:`, error);
@@ -220,15 +187,6 @@ export class NumeracaoService {
   }
 
   /**
-   * Confirma que a numeração foi usada (não faz nada, pois será inserida na tabela invoices)
-   */
-  async confirmarNumeracaoUsada(config: ConfiguracaoNumeracao, numero: string): Promise<void> {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`✅ Numeração ${numero} confirmada para ${config.cnpj}`);
-    }
-  }
-
-  /**
    * Libera numeração em caso de erro
    */
   async liberarNumeracaoReservada(
@@ -281,16 +239,6 @@ export class NumeracaoService {
       };
     } finally {
       connection.release();
-    }
-  }
-
-  /**
-   * Inicializa as tabelas necessárias (não faz nada, pois usa tabelas existentes)
-   */
-  async inicializarTabelas(): Promise<void> {
-    // Log only in development
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('✅ Usando tabelas existentes: member, certificates, invoices');
     }
   }
 
