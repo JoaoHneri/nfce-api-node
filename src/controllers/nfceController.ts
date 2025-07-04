@@ -1,6 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SefazNfceService } from '../services/sefazNfceService';
-import { TributacaoService } from '../services/tributacaoService';
 import { NumeracaoService } from '../services/numeracaoService';
 import { getDatabaseConfig, createDatabaseConnection } from '../config/database';
 import { CertificadoConfig } from '../types';
@@ -392,113 +391,6 @@ export class NFCeController {
       }
   }
 
-  async consultarTributacao(request: FastifyRequest<{
-    Params: { crt: string; cst: string }
-  }>, reply: FastifyReply): Promise<void> {
-    try {
-      const { crt, cst } = request.params;
-      
-      const aliquotas = TributacaoService.obterAliquotas(crt, cst);
-      const regime = TributacaoService.consultarRegime(crt);
-      
-      reply.status(200).send({
-        success: true,
-        message: 'Tax consultation completed successfully',
-        data: {
-          input: { crt, cst },
-          result: aliquotas,
-          regime: regime,
-          explanation: {
-            crt: crt === "1" ? "Simples Nacional" : "Normal Regime",
-            automatic: true,
-            note: "Values calculated automatically by backend"
-          }
-        }
-      });
-      
-    } catch (error: any) {
-      reply.status(400).send({
-        success: false,
-        message: 'Error consulting taxation',
-        error: error.message
-      });
-    }
-  }
-
-  async listarRegimes(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    try {
-      reply.status(200).send({
-        success: true,
-        message: 'Tax regimes listed successfully',
-        data: {
-          regimes: [
-            {
-              crt: "1",
-              name: "Simples Nacional",
-              pis: "0.00%",
-              cofins: "0.00%",
-              note: "Collected via DAS"
-            },
-            {
-              crt: "3", 
-              name: "Lucro Real",
-              pis: "1.65%",
-              cofins: "7.60%",
-              note: "For normal companies - calculated automatically"
-            }
-          ],
-          examples: {
-            simples_nacional: {
-              crt: "1",
-              cst_pis: "49",
-              cst_cofins: "49",
-              result: "PIS and COFINS = R$ 0.00"
-            },
-            lucro_real: {
-              crt: "3",
-              cst_pis: "01", 
-              cst_cofins: "01",
-              result: "PIS = 1.65% and COFINS = 7.60% of value"
-            }
-          }
-        }
-      });
-      
-    } catch (error: any) {
-      reply.status(500).send({
-        success: false,
-        message: 'Error listing regimes',
-        error: error.message
-      });
-    }
-  }
-
-  async validarCST(request: FastifyRequest<{
-    Params: { cst: string }
-  }>, reply: FastifyReply): Promise<void> {
-    try {
-      const { cst } = request.params;
-      
-      const validacao = TributacaoService.validarCST(cst);
-      
-      reply.status(200).send({
-        success: true,
-        message: 'CST validation completed successfully',
-        data: {
-          cst: cst,
-          validation: validacao
-        }
-      });
-      
-    } catch (error: any) {
-      reply.status(400).send({
-        success: false,
-        message: 'Error validating CST',
-        error: error.message
-      });
-    }
-  }
-
   async obterEstatisticasNumeracao(request: FastifyRequest<{
     Querystring: { cnpj: string; uf: string; serie: string; ambiente: '1' | '2' }
   }>, reply: FastifyReply): Promise<void> {
@@ -650,29 +542,46 @@ export class NFCeController {
           is_active BOOLEAN DEFAULT TRUE,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          
           FOREIGN KEY (member_id) REFERENCES member(id) ON DELETE CASCADE,
-          INDEX idx_member_active (member_id, is_active),
-          INDEX idx_environment (environment),
-          INDEX idx_uf (uf)
+          INDEX idx_member_environment (member_id, environment),
+          INDEX idx_active (is_active),
+          INDEX idx_valid_to (valid_to)
         )
       `;
 
-      // SQL para criar tabela de notas fiscais - COMPLETA COM XML E QR CODE
+      // SQL para criar tabela de NFCe - COMPLETA com todos os campos
       const createInvoicesTable = `
         CREATE TABLE IF NOT EXISTS invoices (
           id INT AUTO_INCREMENT PRIMARY KEY,
           member_id INT NOT NULL,
-          access_key VARCHAR(44) NOT NULL UNIQUE,
-          number VARCHAR(20) NOT NULL,                 -- Número sequencial da NFCe (nNF)
-          cnf VARCHAR(8),                              -- ✅ Código numérico da NFCe (cNF)
-          series VARCHAR(10) NOT NULL,
-          issue_date TIMESTAMP NOT NULL,
-          total_value DECIMAL(15,2) NOT NULL,
-          status VARCHAR(50) NOT NULL,                 -- draft, sent, authorized, denied, cancelled
-          protocol VARCHAR(100),
-          xml_content LONGTEXT,                        -- ✅ XML completo da NFCe
-          qr_code TEXT,                                -- ✅ QR Code da NFCe
-          rejection_reason TEXT,                       -- ✅ Motivo de rejeição
+          
+          -- Dados da NFCe
+          access_key VARCHAR(44) NOT NULL UNIQUE,      -- Chave de acesso completa (44 caracteres)
+          number INT NOT NULL,                         -- nNF - número da nota
+          cnf VARCHAR(8) NOT NULL,                     -- cNF - código numérico da NF
+          series VARCHAR(3) NOT NULL DEFAULT '001',    -- série da nota
+          issue_date DATETIME NOT NULL,                -- dhEmi - data/hora de emissão
+          
+          -- Status da NFCe
+          status VARCHAR(20) DEFAULT 'pending',        -- pending, authorized, rejected, canceled
+          protocol VARCHAR(20),                        -- nProt - protocolo da SEFAZ
+          authorization_date DATETIME,                 -- dhRecbto - data autorização
+          
+          -- Valores totais da NFCe
+          total_value DECIMAL(15,2) NOT NULL,          -- vNF - valor total da nota
+          discount_value DECIMAL(15,2) DEFAULT 0.00,   -- vDesc - valor desconto
+          products_value DECIMAL(15,2) NOT NULL,       -- vProd - valor produtos
+          
+          -- Impostos
+          icms_value DECIMAL(15,2) DEFAULT 0.00,       -- vICMS
+          pis_value DECIMAL(15,2) DEFAULT 0.00,        -- vPIS
+          cofins_value DECIMAL(15,2) DEFAULT 0.00,     -- vCOFINS
+          
+          -- XML e dados técnicos
+          xml_content LONGTEXT,                        -- XML completo da NFCe
+          qr_code TEXT,                                -- QR Code da NFCe
+          rejection_reason TEXT,                       -- xMotivo em caso de rejeição
           
           -- Dados adicionais da NFCe
           environment VARCHAR(1),                      -- 1=Production, 2=Homologation
@@ -702,19 +611,21 @@ export class NFCeController {
       await connection.execute(createCertificatesTable);
       await connection.execute(createInvoicesTable);
 
-      await connection.end();        reply.status(200).send({
-          success: true,
-          message: 'Database tables created successfully',
-          data: {
-            tables: ['member', 'certificates', 'invoices'],
-            timestamp: new Date().toISOString(),
-            details: {
-              member: 'Complete company data with address and tax info',
-              certificates: 'Digital certificates with CSC and environment',
-              invoices: 'NFCe invoices with complete tracking including cNF (código numérico)'
-            }
+      await connection.end();
+      
+      reply.status(200).send({
+        success: true,
+        message: 'Database tables created successfully',
+        data: {
+          tables: ['member', 'certificates', 'invoices'],
+          timestamp: new Date().toISOString(),
+          details: {
+            member: 'Complete company data with address and tax info',
+            certificates: 'Digital certificates with CSC and environment',
+            invoices: 'NFCe invoices with complete tracking including cNF (código numérico)'
           }
-        });
+        }
+      });
 
     } catch (error: any) {
       reply.status(500).send({
@@ -724,5 +635,5 @@ export class NFCeController {
       });
     }
   }
-
 }
+

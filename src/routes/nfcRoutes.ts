@@ -33,19 +33,6 @@ async function nfcRoutes(fastify: FastifyInstance) {
     handler: nfcController.limparCacheManual.bind(nfcController)
   });
 
-  // TAX ROUTES: Tax consultation and calculation
-  fastify.get('/tax/:crt/:cst', {
-    handler: nfcController.consultarTributacao.bind(nfcController)
-  });
-
-  fastify.get('/tax/regimes', {
-    handler: nfcController.listarRegimes.bind(nfcController)
-  });
-
-  fastify.get('/tax/validate-cst/:cst', {
-    handler: nfcController.validarCST.bind(nfcController)
-  });
-
   fastify.get('/numbering/stats', {
     handler: nfcController.obterEstatisticasNumeracao.bind(nfcController)
   });

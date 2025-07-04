@@ -20,15 +20,13 @@ app.get('/', async (request: any, reply: any) => {
       'POST /api/nfce/create-nfc': 'Issue NFCe',
       'GET /api/nfce/test': 'Connectivity test',
       'GET /api/nfce/example': 'Get data example',
-      'POST /api/nfce/consult/:accessKey': 'Query NFCe by access key',
+      'GET /api/nfce/consult/:accessKey/:memberCnpj/:environment': 'Query NFCe by access key',
       'POST /api/nfce/cancel-nfc': 'Cancel NFCe',
       'GET /api/nfce/cache/stats': 'Cache statistics',
       'DELETE /api/nfce/cache/clear': 'Clear cache',
-      'GET /api/nfce/tax/:crt/:cst': 'Tax consultation',
-      'GET /api/nfce/tax/regimes': 'List tax regimes',
-      'GET /api/nfce/tax/simulate/:crt/:cstpis/:cstcofins/:valor': 'Tax simulation',
-      'GET /api/nfce/tax/report': 'Tax report',
-      'GET /api/nfce/tax/validate-cst/:cst': 'Validate CST'
+      'GET /api/nfce/numbering/stats': 'Numbering statistics',
+      'POST /api/nfce/numbering/release': 'Release numbering',
+      'POST /api/nfce/database/initialize': 'Initialize database tables'
     }
   };
 });
