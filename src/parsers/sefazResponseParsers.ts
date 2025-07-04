@@ -376,26 +376,5 @@ export class SefazResponseParser {
         return null;
     }
 
-    /**
-     * Debug: Imprime estrutura do XML para análise
-     */
-    private debugEstrutura(obj: any, prefixo: string = '', maxDepth: number = 3): void {
-        if (maxDepth <= 0 || !obj || typeof obj !== 'object') {
-            return;
-        }
 
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`${prefixo}Object structure:`);
-            for (const key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    const tipo = typeof obj[key];
-                    console.log(`${prefixo}  ${key}: ${tipo}`);
-                    
-                    if (tipo === 'object' && obj[key] && maxDepth > 1) {
-                        this.debugEstrutura(obj[key], prefixo + '    ', maxDepth - 1);
-                    }
-                }
-            }
-        }
-    }
 }

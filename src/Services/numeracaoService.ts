@@ -54,14 +54,6 @@ export class NumeracaoService {
       // 3. Commit da transação
       await connection.commit();
       
-      // Log only in development
-      if (process.env.NODE_ENV !== 'production') {
-        // Só loga em desenvolvimento
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`✅ Próximo número: ${proximoNumero} para CNPJ: ${config.cnpj}, Série: ${config.serie}, Ambiente: ${config.ambiente}`);
-        }
-      }
-      
       // ✅ Retornar SEM zeros à esquerda para o XML (schema da SEFAZ)
       return proximoNumero.toString();
       
@@ -90,9 +82,6 @@ export class NumeracaoService {
         const cNF = await this.gerarCodigoNumericoSeguro(config);
         
         if (process.env.NODE_ENV !== 'production') {
-          if (process.env.NODE_ENV !== 'production') {
-            console.log(`✅ Numeração gerada - nNF: ${nNF}, cNF: ${cNF} (tentativa ${tentativa})`);
-          }
         }
         
         return { nNF, cNF };
@@ -133,9 +122,6 @@ export class NumeracaoService {
         return codigoGerado;
       }
       
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(`⚠️ cNF duplicado detectado: ${codigoGerado} (tentativa ${tentativa})`);
-      }
       await this.delay(tentativa * 10);
     }
     
@@ -199,11 +185,6 @@ export class NumeracaoService {
     numero: string,
     motivo: string
   ): Promise<void> {
-    if (process.env.NODE_ENV !== 'production') {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`⚠️ Numeração ${numero} liberada para ${config.cnpj}: ${motivo}`);
-      }
-    }
     // Não precisa fazer nada, pois o próximo número será calculado dinamicamente
   }
 

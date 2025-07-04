@@ -45,13 +45,6 @@ async function registerPlugins() {
   // Helmet para segurança
   await app.register(require('@fastify/helmet'));
 
-  // Logging middleware
-  app.addHook('onRequest', async (request: any, reply: any) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`${new Date().toISOString()} - ${request.method} ${request.url}`);
-    }
-  });
-
   // Registrar rotas da NFCe
   await app.register(nfcRoutes, { prefix: '/api/nfce' });
 }
@@ -89,11 +82,6 @@ async function start() {
       port: Number(PORT), 
       host: '0.0.0.0' 
     });
-    
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`API NFCe rodando`);
-    }
-    
   } catch (err) {
     app.log.error(err);
     process.exit(1);
@@ -102,17 +90,11 @@ async function start() {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('\nParando servidor...');
-  }
   await app.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('\nParando servidor...');
-  }
   await app.close();
   process.exit(0);
 });
