@@ -223,7 +223,9 @@ export class EmissaoNfceHandler {
                 numbering: {
                     nNF: dadosNumeracao.nNF,
                     cNF: dadosNumeracao.cNF
-                }
+                },
+                // 🎯 DADOS COMPLETOS PARA IMPRESSÃO
+                nfcData: dadosExtraidos.nfcData
             };
         } else {
             // ❌ NFCe rejeitada - salvar como denied
@@ -262,42 +264,275 @@ export class EmissaoNfceHandler {
 
     private extrairDadosXML(resultado: SefazResponse, nfceData: any): any {
         let totalValue = 0;
+        let dadosCompletos: any = {};
+
         if (resultado.xmlSigned) {
-            const vNFMatch = resultado.xmlSigned.match(/<vNF>([\d.,]+)<\/vNF>/);
+            const xml = resultado.xmlSigned;
+            
+            // ===== DADOS BÁSICOS DA NFCe =====
+            const vNFMatch = xml.match(/<vNF>([\d.,]+)<\/vNF>/);
             if (vNFMatch) {
                 totalValue = parseFloat(vNFMatch[1]);
             }
+
+            // ===== EXTRAIR DADOS PARA IMPRESSÃO =====
+            
+            // 📋 Dados de Identificação
+            const nNFMatch = xml.match(/<nNF>(\d+)<\/nNF>/);
+            const serieMatch = xml.match(/<serie>(\d+)<\/serie>/);
+            const dhEmiMatch = xml.match(/<dhEmi>([^<]+)<\/dhEmi>/);
+            const cNFMatch = xml.match(/<cNF>(\d+)<\/cNF>/);
+            
+            // 🏢 Dados do Emitente
+            const emitCNPJMatch = xml.match(/<emit>[\s\S]*?<CNPJ>([^<]+)<\/CNPJ>/);
+            const emitXNomeMatch = xml.match(/<emit>[\s\S]*?<xNome>([^<]+)<\/xNome>/);
+            const emitXFantMatch = xml.match(/<emit>[\s\S]*?<xFant>([^<]+)<\/xFant>/);
+            const emitIEMatch = xml.match(/<emit>[\s\S]*?<IE>([^<]+)<\/IE>/);
+            const emitCRTMatch = xml.match(/<emit>[\s\S]*?<CRT>([^<]+)<\/CRT>/);
+            
+            // 📍 Endereço do Emitente
+            const emitXLgrMatch = xml.match(/<enderEmit>[\s\S]*?<xLgr>([^<]+)<\/xLgr>/);
+            const emitNroMatch = xml.match(/<enderEmit>[\s\S]*?<nro>([^<]+)<\/nro>/);
+            const emitXBairroMatch = xml.match(/<enderEmit>[\s\S]*?<xBairro>([^<]+)<\/xBairro>/);
+            const emitCMunMatch = xml.match(/<enderEmit>[\s\S]*?<cMun>([^<]+)<\/cMun>/);
+            const emitXMunMatch = xml.match(/<enderEmit>[\s\S]*?<xMun>([^<]+)<\/xMun>/);
+            const emitUFMatch = xml.match(/<enderEmit>[\s\S]*?<UF>([^<]+)<\/UF>/);
+            const emitCEPMatch = xml.match(/<enderEmit>[\s\S]*?<CEP>([^<]+)<\/CEP>/);
+            const emitFoneMatch = xml.match(/<enderEmit>[\s\S]*?<fone>([^<]+)<\/fone>/);
+
+            // 👤 Dados do Destinatário (se houver)
+            const destCPFMatch = xml.match(/<dest>[\s\S]*?<CPF>([^<]+)<\/CPF>/);
+            const destCNPJMatch = xml.match(/<dest>[\s\S]*?<CNPJ>([^<]+)<\/CNPJ>/);
+            const destXNomeMatch = xml.match(/<dest>[\s\S]*?<xNome>([^<]+)<\/xNome>/);
+
+            // 📦 Produtos - Extrair todos os produtos
+            const produtos: any[] = [];
+            const produtosRegex = /<det nItem="(\d+)">([\s\S]*?)<\/det>/g;
+            let produtoMatch;
+            
+            while ((produtoMatch = produtosRegex.exec(xml)) !== null) {
+                const nItem = produtoMatch[1];
+                const produtoXML = produtoMatch[2];
+                
+                const cProdMatch = produtoXML.match(/<cProd>([^<]+)<\/cProd>/);
+                const cEANMatch = produtoXML.match(/<cEAN>([^<]+)<\/cEAN>/);
+                const xProdMatch = produtoXML.match(/<xProd>([^<]+)<\/xProd>/);
+                const NCMMatch = produtoXML.match(/<NCM>([^<]+)<\/NCM>/);
+                const CFOPMatch = produtoXML.match(/<CFOP>([^<]+)<\/CFOP>/);
+                const uComMatch = produtoXML.match(/<uCom>([^<]+)<\/uCom>/);
+                const qComMatch = produtoXML.match(/<qCom>([^<]+)<\/qCom>/);
+                const vUnComMatch = produtoXML.match(/<vUnCom>([^<]+)<\/vUnCom>/);
+                const vProdMatch = produtoXML.match(/<vProd>([^<]+)<\/vProd>/);
+                const cEANTribMatch = produtoXML.match(/<cEANTrib>([^<]+)<\/cEANTrib>/);
+                const uTribMatch = produtoXML.match(/<uTrib>([^<]+)<\/uTrib>/);
+                const qTribMatch = produtoXML.match(/<qTrib>([^<]+)<\/qTrib>/);
+                const vUnTribMatch = produtoXML.match(/<vUnTrib>([^<]+)<\/vUnTrib>/);
+                const vDescMatch = produtoXML.match(/<vDesc>([^<]+)<\/vDesc>/);
+
+                produtos.push({
+                    nItem: parseInt(nItem),
+                    cProd: cProdMatch?.[1] || '',
+                    cEAN: cEANMatch?.[1] || '',
+                    description: xProdMatch?.[1] || '',
+                    NCM: NCMMatch?.[1] || '',
+                    CFOP: CFOPMatch?.[1] || '',
+                    unit: uComMatch?.[1] || '',
+                    quantity: parseFloat(qComMatch?.[1] || '0'),
+                    unitPrice: parseFloat(vUnComMatch?.[1] || '0'),
+                    totalPrice: parseFloat(vProdMatch?.[1] || '0'),
+                    cEANTrib: cEANTribMatch?.[1] || '',
+                    uTrib: uTribMatch?.[1] || '',
+                    qTrib: parseFloat(qTribMatch?.[1] || '0'),
+                    vUnTrib: parseFloat(vUnTribMatch?.[1] || '0'),
+                    discount: vDescMatch ? parseFloat(vDescMatch[1]) : 0
+                });
+            }
+
+            // 💰 Totais da NFCe
+            const vBCMatch = xml.match(/<vBC>([^<]+)<\/vBC>/);
+            const vICMSMatch = xml.match(/<vICMS>([^<]+)<\/vICMS>/);
+            const vICMSDesoneMatch = xml.match(/<vICMSDesone>([^<]+)<\/vICMSDesone>/);
+            const vFCPMatch = xml.match(/<vFCP>([^<]+)<\/vFCP>/);
+            const vBCSTMatch = xml.match(/<vBCST>([^<]+)<\/vBCST>/);
+            const vSTMatch = xml.match(/<vST>([^<]+)<\/vST>/);
+            const vFCPSTMatch = xml.match(/<vFCPST>([^<]+)<\/vFCPST>/);
+            const vFCPSTRetMatch = xml.match(/<vFCPSTRet>([^<]+)<\/vFCPSTRet>/);
+            const vProdTotalMatch = xml.match(/<vProd>([^<]+)<\/vProd>/);
+            const vFreteMatch = xml.match(/<vFrete>([^<]+)<\/vFrete>/);
+            const vSegMatch = xml.match(/<vSeg>([^<]+)<\/vSeg>/);
+            const vDescTotalMatch = xml.match(/<vDesc>([^<]+)<\/vDesc>/);
+            const vIIMatch = xml.match(/<vII>([^<]+)<\/vII>/);
+            const vIPIMatch = xml.match(/<vIPI>([^<]+)<\/vIPI>/);
+            const vIPIDevolvMatch = xml.match(/<vIPIDevol>([^<]+)<\/vIPIDevol>/);
+            const vPISMatch = xml.match(/<vPIS>([^<]+)<\/vPIS>/);
+            const vCOFINSMatch = xml.match(/<vCOFINS>([^<]+)<\/vCOFINS>/);
+            const vOutroMatch = xml.match(/<vOutro>([^<]+)<\/vOutro>/);
+
+            // 💳 Formas de Pagamento
+            const payments: any[] = [];
+            const pagamentosRegex = /<detPag>([\s\S]*?)<\/detPag>/g;
+            let pagamentoMatch;
+            
+            while ((pagamentoMatch = pagamentosRegex.exec(xml)) !== null) {
+                const pagamentoXML = pagamentoMatch[1];
+                
+                const indPagMatch = pagamentoXML.match(/<indPag>([^<]+)<\/indPag>/);
+                const tPagMatch = pagamentoXML.match(/<tPag>([^<]+)<\/tPag>/);
+                const xPagMatch = pagamentoXML.match(/<xPag>([^<]+)<\/xPag>/);
+                const vPagMatch = pagamentoXML.match(/<vPag>([^<]+)<\/vPag>/);
+
+                // Mapear código do tipo de pagamento para descrição
+                const paymentTypes: { [key: string]: string } = {
+                    '01': 'Cash',
+                    '02': 'Check',
+                    '03': 'Credit Card',
+                    '04': 'Debit Card',
+                    '05': 'Store Credit',
+                    '10': 'Food Voucher',
+                    '11': 'Meal Voucher',
+                    '12': 'Gift Card',
+                    '13': 'Fuel Voucher',
+                    '14': 'Promissory Note',
+                    '15': 'Bank Slip',
+                    '16': 'Bank Deposit',
+                    '17': 'Instant Payment (PIX)',
+                    '18': 'Bank Transfer',
+                    '19': 'Loyalty Program',
+                    '90': 'No Payment',
+                    '99': 'Others'
+                };
+
+                payments.push({
+                    indPag: indPagMatch?.[1] || '0',
+                    tPag: tPagMatch?.[1] || '',
+                    paymentType: paymentTypes[tPagMatch?.[1] || ''] || 'Not Informed',
+                    description: xPagMatch?.[1] || '',
+                    amount: parseFloat(vPagMatch?.[1] || '0')
+                });
+            }
+
+            // 💸 Troco
+            const vTrocoMatch = xml.match(/<vTroco>([^<]+)<\/vTroco>/);
+
+            // 📱 QR Code
+            let qrCode = null;
+            const qrMatch = xml.match(/<qrCode>\s*(https?:\/\/[^\s<]+)\s*<\/qrCode>/s);
+            if (qrMatch) {
+                qrCode = qrMatch[1].trim();
+            }
+
+            // 🔑 Chave de Acesso
+            let accessKey = resultado.accessKey;
+            if (!accessKey && xml) {
+                const keyMatch = xml.match(/Id="NFe([0-9]{44})"/);
+                if (keyMatch) {
+                    accessKey = keyMatch[1];
+                }
+            }
+
+            // 📋 Protocolo
+            let protocol = resultado.protocol;
+            if (!protocol && resultado.xmlComplete) {
+                const protocolMatch = resultado.xmlComplete.match(/<nProt>([^<]+)<\/nProt>/);
+                if (protocolMatch) {
+                    protocol = protocolMatch[1];
+                }
+            }
+
+            // 🏛️ Informações do Ambiente
+            const tpAmbMatch = xml.match(/<tpAmb>([^<]+)<\/tpAmb>/);
+            const environment = tpAmbMatch?.[1] === '1' ? 'Production' : 'Homologation';
+
+            // ⏰ Data/Hora de Emissão formatada
+            const issueDate = dhEmiMatch?.[1] ? new Date(dhEmiMatch[1]).toLocaleString('pt-BR') : '';
+
+            // 🔢 Formar dados completos para impressão
+            dadosCompletos = {
+                // Identification da NFCe
+                identification: {
+                    accessKey: accessKey,
+                    number: nNFMatch?.[1] || '',
+                    series: serieMatch?.[1] || '',
+                    cNF: cNFMatch?.[1] || '',
+                    issueDate: issueDate,
+                    environment: environment,
+                    protocol: protocol
+                },
+
+                // Company (Emitente)
+                company: {
+                    cnpj: emitCNPJMatch?.[1] || '',
+                    corporateName: emitXNomeMatch?.[1] || '',
+                    tradeName: emitXFantMatch?.[1] || '',
+                    stateRegistration: emitIEMatch?.[1] || '',
+                    crt: emitCRTMatch?.[1] || '',
+                    address: {
+                        street: emitXLgrMatch?.[1] || '',
+                        number: emitNroMatch?.[1] || '',
+                        district: emitXBairroMatch?.[1] || '',
+                        cityCode: emitCMunMatch?.[1] || '',
+                        city: emitXMunMatch?.[1] || '',
+                        state: emitUFMatch?.[1] || '',
+                        zipCode: emitCEPMatch?.[1] || '',
+                        phone: emitFoneMatch?.[1] || ''
+                    }
+                },
+
+                // Customer (Destinatário) - optional
+                customer: (destCPFMatch || destCNPJMatch) ? {
+                    cpf: destCPFMatch?.[1] || '',
+                    cnpj: destCNPJMatch?.[1] || '',
+                    name: destXNomeMatch?.[1] || ''
+                } : null,
+
+                // Products List
+                products: produtos,
+
+                // NFCe Totals
+                totals: {
+                    icmsCalculationBase: parseFloat(vBCMatch?.[1] || '0'),
+                    icmsValue: parseFloat(vICMSMatch?.[1] || '0'),
+                    icmsExemptValue: parseFloat(vICMSDesoneMatch?.[1] || '0'),
+                    fcpValue: parseFloat(vFCPMatch?.[1] || '0'),
+                    stCalculationBase: parseFloat(vBCSTMatch?.[1] || '0'),
+                    stValue: parseFloat(vSTMatch?.[1] || '0'),
+                    fcpSTValue: parseFloat(vFCPSTMatch?.[1] || '0'),
+                    fcpSTRetainedValue: parseFloat(vFCPSTRetMatch?.[1] || '0'),
+                    productsTotal: parseFloat(vProdTotalMatch?.[1] || '0'),
+                    freight: parseFloat(vFreteMatch?.[1] || '0'),
+                    insurance: parseFloat(vSegMatch?.[1] || '0'),
+                    discount: parseFloat(vDescTotalMatch?.[1] || '0'),
+                    importTax: parseFloat(vIIMatch?.[1] || '0'),
+                    ipiValue: parseFloat(vIPIMatch?.[1] || '0'),
+                    ipiReturnedValue: parseFloat(vIPIDevolvMatch?.[1] || '0'),
+                    pisValue: parseFloat(vPISMatch?.[1] || '0'),
+                    cofinsValue: parseFloat(vCOFINSMatch?.[1] || '0'),
+                    otherExpenses: parseFloat(vOutroMatch?.[1] || '0'),
+                    invoiceTotal: totalValue
+                },
+
+                // Payment Methods
+                payments: payments,
+                change: vTrocoMatch ? parseFloat(vTrocoMatch[1]) : 0,
+
+                // QR Code and URL
+                qrCode: qrCode
+            };
         }
 
         if (totalValue === 0) {
             totalValue = this.calcularTotalValue(nfceData);
         }
 
-        let qrCode = null;
-        if (resultado.xmlSigned) {
-            const qrMatch = resultado.xmlSigned.match(/<qrCode>\s*(https?:\/\/[^\s<]+)\s*<\/qrCode>/s);
-            if (qrMatch) {
-                qrCode = qrMatch[1].trim();
-            }
-        }
-
-        let accessKey = resultado.accessKey;
-        if (!accessKey && resultado.xmlSigned) {
-            const keyMatch = resultado.xmlSigned.match(/Id="NFe([0-9]{44})"/);
-            if (keyMatch) {
-                accessKey = keyMatch[1];
-            }
-        }
-
-        let protocol = resultado.protocol;
-        if (!protocol && resultado.xmlComplete) {
-            const protocolMatch = resultado.xmlComplete.match(/<nProt>([^<]+)<\/nProt>/);
-            if (protocolMatch) {
-                protocol = protocolMatch[1];
-            }
-        }
-
-        return { totalValue, qrCode, accessKey, protocol };
+        // Retornar dados básicos + dados completos para impressão
+        return { 
+            totalValue, 
+            qrCode: dadosCompletos.qrCode, 
+            accessKey: dadosCompletos.identification?.accessKey, 
+            protocol: dadosCompletos.identification?.protocol,
+            // 🎯 NOVOS DADOS PARA IMPRESSÃO
+            nfcData: dadosCompletos
+        };
     }
 
     private calcularTotalValue(nfceData: any): number {
