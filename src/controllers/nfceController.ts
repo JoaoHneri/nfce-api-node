@@ -137,7 +137,6 @@ export class NFCeController {
                       uTrib: "UNID",
                       qTrib: "1.00",
                       vUnTrib: "10.00",
-                      vDesc: "0.00",
                       indTot: "1"
                   }
               ],
