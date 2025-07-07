@@ -535,18 +535,13 @@ export class NFCeController {
           csc_id VARCHAR(10),                          -- CSC ID
           environment VARCHAR(1) NOT NULL,             -- 1=Production, 2=Homologation
           uf VARCHAR(2) NOT NULL,                      -- UF do certificado
-          serial_number VARCHAR(100),
-          issuer VARCHAR(255),
-          valid_from DATE,
-          valid_to DATE,
           is_active BOOLEAN DEFAULT TRUE,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           
           FOREIGN KEY (member_id) REFERENCES member(id) ON DELETE CASCADE,
           INDEX idx_member_environment (member_id, environment),
-          INDEX idx_active (is_active),
-          INDEX idx_valid_to (valid_to)
+          INDEX idx_active (is_active)
         )
       `;
 
