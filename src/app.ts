@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import fastify, { FastifyRequest, FastifyReply } from 'fastify';
-import nfcRoutes from './routes/nfcRoutes';
+import routes from './routes/routes';
 
 // Criar instância do Fastify
 const app = fastify({ 
@@ -13,20 +13,26 @@ const app = fastify({
 // Rota principal - registrada diretamente na instância principal
 app.get('/', async (request: any, reply: any) => {
   return {
-    message: 'API NFCe - SEFAZ',
-    version: '1.0.0',
+    message: 'API NFCe - SEFAZ (Unified)',
+    version: '2.0.0',
     framework: 'Fastify',
+    note: '🆕 Now using unified routes for all note types',
     endpoints: {
-      'POST /api/nfce/create-nfc': 'Issue NFCe',
-      'GET /api/nfce/test': 'Connectivity test',
-      'GET /api/nfce/example': 'Get data example',
-      'GET /api/nfce/consult/:accessKey/:memberCnpj/:environment': 'Query NFCe by access key',
-      'POST /api/nfce/cancel-nfc': 'Cancel NFCe',
-      'GET /api/nfce/cache/stats': 'Cache statistics',
-      'DELETE /api/nfce/cache/clear': 'Clear cache',
-      'GET /api/nfce/numbering/stats': 'Numbering statistics',
-      'POST /api/nfce/numbering/release': 'Release numbering',
-      'POST /api/nfce/database/initialize': 'Initialize database tables'
+      'POST /api/notes/:type/issue': 'Issue notes (nfce, nfe, nfse)',
+      'GET /api/notes/:type/consult/:accessKey/:memberCnpj/:environment': 'Query notes by access key',
+      'POST /api/notes/:type/cancel': 'Cancel notes',
+      'GET /api/notes/types': 'Get supported note types',
+      'GET /api/notes/:type/example': 'Get example payload for note type',
+      'GET /api/notes/test': 'Connectivity test',
+      'GET /api/notes/cache/stats': 'Cache statistics',
+      'DELETE /api/notes/cache/clear': 'Clear cache',
+      'GET /api/notes/numbering/stats': 'Numbering statistics',
+      'POST /api/notes/numbering/release': 'Release numbering',
+      'POST /api/notes/database/initialize': 'Initialize database tables'
+    },
+    supportedTypes: {
+      available: ['nfce'],
+      comingSoon: ['nfe', 'nfse']
     }
   };
 });
@@ -43,8 +49,8 @@ async function registerPlugins() {
   // Helmet para segurança
   await app.register(require('@fastify/helmet'));
 
-  // Registrar rotas da NFCe
-  await app.register(nfcRoutes, { prefix: '/api/nfce' });
+  // Registrar rotas unificadas
+  await app.register(routes, { prefix: '/api' });
 }
 
 // Handler para rotas não encontradas

@@ -31,52 +31,457 @@ export class NFCeController {
   }
 
 
-
-  async emitirNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async emitirNota(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { memberCnpj, environment, nfceData } = request.body as { 
-        memberCnpj: string, 
-        environment: number, 
-        nfceData: any 
+      const { type = 'nfce' } = request.params as { type?: string };
+      const { memberCnpj, environment, noteData } = request.body as {
+        memberCnpj: string;
+        environment: number;
+        noteData: any;
       };
 
-      if (!memberCnpj || !environment || !nfceData) {
+      if (!memberCnpj || !environment || !noteData) {
         reply.status(400).send({
           success: false,
           message: 'Missing required parameters',
-          error: 'memberCnpj, environment, and nfceData are required'
+          error: 'memberCnpj, environment, and noteData are required'
         });
         return;
       }
 
-      // Note: Number validation is handled in the emission handler
-
-      const resultado = await this.emissaoHandler.processarEmissaoCompleta(
-        memberCnpj, 
-        environment, 
-        nfceData, 
-        this.sefazNfceService
-      );
-
-      if (resultado.success) {
-        reply.status(200).send({
-          success: true,
-          message: 'NFCe issued successfully',
-          data: resultado
-        });
-      } else {
+      const tiposSuportados = ['nfce', 'nfe', 'nfse'];
+      if (!tiposSuportados.includes(type.toLowerCase())) {
         reply.status(400).send({
           success: false,
-          message: 'Error issuing NFCe',
-          error: resultado.error,
-          data: resultado
+          message: 'Invalid note type',
+          error: `Supported types: ${tiposSuportados.join(', ')}. Received: ${type}`
         });
+        return;
+      }
+
+      switch (type.toLowerCase()) {
+        case 'nfce':
+          try {
+            if (!memberCnpj || !environment || !noteData) {
+              reply.status(400).send({
+                success: false,
+                message: 'Missing required parameters',
+                error: 'memberCnpj, environment, and noteData are required'
+              });
+              return;
+            }
+
+            const resultado = await this.emissaoHandler.processarEmissaoCompleta(
+              memberCnpj, 
+              environment, 
+              noteData, // noteData já vem como nfceData
+              this.sefazNfceService
+            );
+
+            if (resultado.success) {
+              reply.status(200).send({
+                success: true,
+                message: 'NFCe issued successfully',
+                data: resultado
+              });
+            } else {
+              reply.status(400).send({
+                success: false,
+                message: 'Error issuing NFCe',
+                error: resultado.error,
+                data: resultado
+              });
+            }
+          } catch (error: any) {
+            reply.status(500).send({
+              success: false,
+              message: 'Internal server error',
+              error: error.message
+            });
+          }
+          return;
+          
+        case 'nfe':
+          reply.status(501).send({
+            success: false,
+            message: 'NFe not implemented yet',
+            error: 'This feature will be available in future version',
+            data: {
+              type: 'nfe',
+              status: 'coming_soon',
+              estimatedRelease: 'Q2 2025'
+            }
+          });
+          return;
+          
+        case 'nfse':
+          reply.status(501).send({
+            success: false,
+            message: 'NFSe not implemented yet',
+            error: 'This feature will be available in future version',
+            data: {
+              type: 'nfse',
+              status: 'coming_soon',
+              estimatedRelease: 'Q3 2025'
+            }
+          });
+          return;
+          
+        default:
+          reply.status(400).send({
+            success: false,
+            message: 'Invalid note type',
+            error: `Supported types: ${tiposSuportados.join(', ')}. Received: ${type}`
+          });
+          return;
       }
 
     } catch (error: any) {
       reply.status(500).send({
         success: false,
         message: 'Internal server error',
+        error: error.message
+      });
+    }
+  }
+
+  async consultarNota(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const { type = 'nfce', accessKey, memberCnpj, environment } = request.params as {
+        type?: string;
+        accessKey: string;
+        memberCnpj: string;
+        environment: string;
+      };
+
+      const tiposSuportados = ['nfce', 'nfe', 'nfse'];
+      if (!tiposSuportados.includes(type.toLowerCase())) {
+        reply.status(400).send({
+          success: false,
+          message: 'Invalid note type',
+          error: `Supported types: ${tiposSuportados.join(', ')}. Received: ${type}`
+        });
+        return;
+      }
+
+      switch (type.toLowerCase()) {
+        case 'nfce':
+          try {
+            
+            if (!accessKey || !memberCnpj || !environment) {
+              reply.status(400).send({
+                success: false,
+                message: 'Missing required parameters',
+                error: 'accessKey, memberCnpj, and environment are required'
+              });
+              return;
+            }
+
+            const environmentNumber = parseInt(environment);
+            if (environmentNumber !== 1 && environmentNumber !== 2) {
+              reply.status(400).send({
+                success: false,
+                message: 'Invalid environment',
+                error: 'environment must be 1 (Production) or 2 (Homologation)'
+              });
+              return;
+            }
+
+            const resultado = await this.consultaHandler.consultarNFCePorCNPJ(
+              accessKey,
+              memberCnpj,
+              environmentNumber,
+              this.sefazNfceService
+            );
+
+            if (resultado.success) {
+              reply.status(200).send({
+                success: true,
+                message: 'NFCe consulted successfully',
+                data: resultado.data
+              });
+            } else {
+              reply.status(400).send({
+                success: false,
+                message: 'Error consulting NFCe',
+                error: resultado.error,
+                data: resultado.data
+              });
+            }
+          } catch (error: any) {
+            reply.status(500).send({
+              success: false,
+              message: 'Internal server error',
+              error: error.message
+            });
+          }
+          return;
+          
+        case 'nfe':
+          reply.status(501).send({
+            success: false,
+            message: 'NFe consultation not implemented yet',
+            error: 'This feature will be available in future version',
+            data: {
+              type: 'nfe',
+              status: 'coming_soon'
+            }
+          });
+          return;
+          
+        case 'nfse':
+          reply.status(501).send({
+            success: false,
+            message: 'NFSe consultation not implemented yet',
+            error: 'This feature will be available in future version',
+            data: {
+              type: 'nfse',
+              status: 'coming_soon'
+            }
+          });
+          return;
+          
+        default:
+          reply.status(400).send({
+            success: false,
+            message: 'Invalid note type',
+            error: `Supported types: ${tiposSuportados.join(', ')}. Received: ${type}`
+          });
+          return;
+      }
+
+    } catch (error: any) {
+      reply.status(500).send({
+        success: false,
+        message: 'Internal server error',
+        error: error.message
+      });
+    }
+  }
+
+  async cancelarNota(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const { type = 'nfce' } = request.params as { type?: string };
+      const { memberCnpj, environment, accessKey, protocol, justification } = request.body as {
+        memberCnpj: string;
+        environment: number;
+        accessKey: string;
+        protocol: string;
+        justification: string;
+      };
+
+      // ✅ Validar tipo suportado
+      const tiposSuportados = ['nfce', 'nfe', 'nfse'];
+      if (!tiposSuportados.includes(type.toLowerCase())) {
+        reply.status(400).send({
+          success: false,
+          message: 'Invalid note type',
+          error: `Supported types: ${tiposSuportados.join(', ')}. Received: ${type}`
+        });
+        return;
+      }
+
+      // ✅ Rotear baseado no tipo
+      switch (type.toLowerCase()) {
+        case 'nfce':
+          try {
+            // 🎯 Lógica direta para cancelamento NFCe
+            if (!memberCnpj || !environment || !accessKey || !protocol || !justification) {
+              reply.status(400).send({
+                success: false,
+                message: 'Missing required parameters',
+                error: 'memberCnpj, environment, accessKey, protocol and justification are required'
+              });
+              return;
+            }
+
+            const resultado = await this.cancelamentoHandler.processarCancelamentoPorCNPJ(
+              memberCnpj,
+              environment,
+              accessKey,
+              protocol,
+              justification,
+              this.sefazNfceService
+            );
+
+            if (resultado.success) {
+              reply.status(200).send({
+                success: true,
+                message: 'NFCe cancelled successfully',
+                data: resultado.data
+              });
+            } else {
+              reply.status(400).send({
+                success: false,
+                message: 'Error cancelling NFCe',
+                error: resultado.error,
+                data: resultado.data
+              });
+            }
+          } catch (error: any) {
+            reply.status(500).send({
+              success: false,
+              message: 'Internal server error',
+              error: error.message
+            });
+          }
+          return;
+          
+        case 'nfe':
+          reply.status(501).send({
+            success: false,
+            message: 'NFe cancellation not implemented yet',
+            error: 'This feature will be available in future version',
+            data: {
+              type: 'nfe',
+              status: 'coming_soon'
+            }
+          });
+          return;
+          
+        case 'nfse':
+          reply.status(501).send({
+            success: false,
+            message: 'NFSe cancellation not implemented yet',
+            error: 'This feature will be available in future version',
+            data: {
+              type: 'nfse',
+              status: 'coming_soon'
+            }
+          });
+          return;
+          
+        default:
+          reply.status(400).send({
+            success: false,
+            message: 'Invalid note type',
+            error: `Supported types: ${tiposSuportados.join(', ')}. Received: ${type}`
+          });
+          return;
+      }
+
+    } catch (error: any) {
+      reply.status(500).send({
+        success: false,
+        message: 'Internal server error',
+        error: error.message
+      });
+    }
+  }
+
+
+  async obterExemploUnificado(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const { type = 'nfce' } = request.params as { type?: string };
+
+      switch (type.toLowerCase()) {
+        case 'nfce':
+          // 🎯 Usar exemplo NFCe existente mas adaptar para formato unificado
+          const exemploNFCe = {
+            type: 'nfce',
+            memberCnpj: "12345678000199",
+            environment: 2,
+            noteData: {
+              ide: {
+                natOp: "VENDA",
+                serie: "1"
+              },
+              recipient: {
+                cpf: "12345678901",
+                xName: "CONSUMIDOR FINAL",
+                ieInd: "9"
+              },
+              products: [
+                {
+                  cProd: "001",
+                  cEAN: "SEM GTIN",
+                  xProd: "PRODUTO EXEMPLO - AMBIENTE HOMOLOGAÇÃO",
+                  NCM: "85044010",
+                  CFOP: "5102",
+                  uCom: "UNID",
+                  qCom: "1.00",
+                  vUnCom: "10.00",
+                  vProd: "10.00",
+                  cEANTrib: "SEM GTIN",
+                  uTrib: "UNID",
+                  qTrib: "1.00",
+                  vUnTrib: "10.00",
+                  indTot: "1"
+                }
+              ],
+              technicalResponsible: {
+                CNPJ: "11222333000181",
+                xContact: "João Silva - Desenvolvedor",
+                email: "joao.silva@empresa.com.br",
+                phone: "11999887766"
+              },
+              payment: {
+                detPag: [{
+                  indPag: "0",
+                  tPag: "01",
+                  vPag: "10.00"
+                }],
+                change: "0.00"
+              },
+              transport: {
+                mode: "9"
+              }
+            }
+          };
+
+          reply.status(200).send({
+            success: true,
+            message: 'Unified example for NFCe issuance',
+            type: 'nfce',
+            status: 'available',
+            endpoint: 'POST /api/notes/nfce/issue',
+            example: exemploNFCe,
+            compatibility: {
+              unifiedFormat: exemploNFCe,
+              specificFormat: {
+                endpoint: 'POST /api/nfce/create-nfc',
+                body: {
+                  memberCnpj: exemploNFCe.memberCnpj,
+                  environment: exemploNFCe.environment,
+                  nfceData: exemploNFCe.noteData
+                }
+              }
+            }
+          });
+          break;
+
+        case 'nfe':
+          reply.status(501).send({
+            success: false,
+            message: 'NFe example not available yet',
+            type: 'nfe',
+            status: 'coming_soon',
+            estimatedRelease: 'Q2 2025'
+          });
+          break;
+
+        case 'nfse':
+          reply.status(501).send({
+            success: false,
+            message: 'NFSe example not available yet',
+            type: 'nfse',
+            status: 'coming_soon',
+            estimatedRelease: 'Q3 2025'
+          });
+          break;
+
+        default:
+          reply.status(400).send({
+            success: false,
+            message: 'Invalid note type',
+            error: 'Supported types: nfce, nfe, nfse'
+          });
+      }
+
+    } catch (error: any) {
+      reply.status(500).send({
+        success: false,
+        message: 'Error getting unified example',
         error: error.message
       });
     }
@@ -101,256 +506,6 @@ export class NFCeController {
       reply.status(500).send({
         success: false,
         message: 'Error in connectivity test',
-        error: error.message
-      });
-    }
-  }
-
-  async obterExemplo(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-      // Exemplo simplificado - dados da empresa e certificado vêm do banco
-      const exemploSimplificado = {
-          memberCnpj: "12345678000199",    // CNPJ da empresa cadastrada no banco
-          environment: 2,                  // 2 = Homologation, 1 = Production
-          
-          nfceData: {
-              ide: {
-                  natOp: "VENDA",
-                  serie: "1"
-              },
-              recipient: {
-                  cpf: "12345678901",
-                  xName: "CONSUMIDOR FINAL",
-                  ieInd: "9" // 9-Não contribuinte
-              },
-              products: [
-                  {
-                      cProd: "001",
-                      cEAN: "SEM GTIN",
-                      xProd: "PRODUTO EXEMPLO - AMBIENTE HOMOLOGAÇÃO",
-                      NCM: "85044010",
-                      CFOP: "5102",
-                      uCom: "UNID",
-                      qCom: "1.00",
-                      vUnCom: "10.00",
-                      vProd: "10.00",
-                      cEANTrib: "SEM GTIN",
-                      uTrib: "UNID",
-                      qTrib: "1.00",
-                      vUnTrib: "10.00",
-                      indTot: "1"
-                  }
-              ],
-              technicalResponsible: {
-                  CNPJ: "11222333000181", // CNPJ da empresa desenvolvedora/responsável
-                  xContact: "João Silva - Desenvolvedor",
-                  email: "joao.silva@empresa.com.br",
-                  phone: "11999887766"
-                  // idCSRT e hashCSRT são calculados automaticamente
-              },
-              payment: {
-                  detPag: [
-                      {
-                          indPag: "0", // 0-Pagamento à vista
-                          tPag: "01", // 01-Dinheiro
-                          vPag: "10.00"
-                      }
-                  ],
-                  change: "0.00"
-              },
-              transport: {
-                  mode: "9" // 9-Sem ocorrência de transporte
-              }
-          }
-      };
-
-      reply.status(200).send({
-          success: true,
-          message: 'Simplified example for NFCe issuance with database integration',
-          notes: [
-              "🚀 NEW: Company and certificate data come from database",
-              "📋 Only send memberCnpj and environment",
-              "🔍 Backend automatically retrieves company data",
-              "🔐 Certificate is selected by CNPJ + environment",
-              "💾 NFCe is automatically saved to database after issuance",
-              "⚡ Taxes are calculated automatically by backend",
-              "📊 Much smaller JSON payload (70% reduction)",
-              "🔒 More secure - no certificate data in request"
-          ],
-          howToUse: {
-              endpoint: "POST /api/nfce/create-nfc",
-              contentType: "application/json",
-              body: "Use the 'simplifiedExample' object below"
-          },
-          requirements: {
-              database: [
-                  "Company must be registered in 'member' table",
-                  "Certificate must be registered in 'certificates' table",
-                  "Certificate must match memberCnpj and environment"
-              ],
-              fields: {
-                  memberCnpj: "CNPJ of registered company",
-                  environment: "1=Production, 2=Homologation",
-                  nfceData: "Only specific NFCe data (products, recipient, payment, etc.)"
-              }
-          },
-          simplifiedExample: exemploSimplificado,
-          
-          // Exemplo legado (será removido em versões futuras)
-          legacy: {
-              note: "Legacy format still supported but deprecated",
-              willBeRemoved: "v2.0.0"
-          }
-      });
-  }
-
-  async consultarNFCePorCNPJ(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    try {
-      const { accessKey, memberCnpj, environment } = request.params as { 
-        accessKey: string;
-        memberCnpj: string;
-        environment: string;
-      };
-
-      if (!accessKey || !memberCnpj || !environment) {
-        reply.status(400).send({
-          success: false,
-          message: 'Missing required parameters',
-          error: 'accessKey, memberCnpj, and environment are required'
-        });
-        return;
-      }
-
-      const environmentNumber = parseInt(environment);
-      if (environmentNumber !== 1 && environmentNumber !== 2) {
-        reply.status(400).send({
-          success: false,
-          message: 'Invalid environment',
-          error: 'environment must be 1 (Production) or 2 (Homologation)'
-        });
-        return;
-      }
-
-      // ✅ Delegar TODA a lógica para o handler
-      const resultado = await this.consultaHandler.consultarNFCePorCNPJ(
-        accessKey,
-        memberCnpj,
-        environmentNumber,
-        this.sefazNfceService
-      );
-
-      // ✅ Apenas retornar resposta HTTP
-      if (resultado.success) {
-        reply.status(200).send({
-          success: true,
-          message: 'NFCe consulted successfully',
-          data: resultado.data
-        });
-      } else {
-        reply.status(400).send({
-          success: false,
-          message: 'Error consulting NFCe',
-          error: resultado.error,
-          data: resultado.data
-        });
-      }
-
-    } catch (error: any) {
-      reply.status(500).send({
-        success: false,
-        message: 'Internal server error',
-        error: error.message
-      });
-    }
-  }
-
-  async consultarNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    try {
-      const { accessKey } = request.params as { accessKey: string };
-      const { certificate } = request.body as { certificate: CertificadoConfig };
-
-      if (!validarCertificado(certificate, reply)) {
-        return; // Resposta já foi enviada pela função
-      }
-
-      if (!accessKey) {
-        reply.status(400).send({
-          success: false,
-          message: 'Access key is required',
-          error: 'Access key parameter is missing'
-        });
-        return;
-      }
-
-      const resultado = await this.sefazNfceService.consultarNFCe(accessKey, certificate);
-
-      reply.status(200).send({ 
-        result: resultado,
-        warning: 'This endpoint is deprecated. Use GET /api/nfce/consultar/{accessKey}/{memberCnpj}/{environment} instead.'
-      });
-
-    } catch (error: any) {
-      reply.status(500).send({
-        success: false,
-        message: 'Internal server error',
-        error: 'Unexpected error when consulting NFCe',
-        details: {
-          error: error.message,
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-  }
-
-  async cancelarNFCe(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    try {
-      const { memberCnpj, environment, accessKey, protocol, justification } = request.body as {
-        memberCnpj: string;
-        environment: number;
-        accessKey: string;
-        protocol: string;
-        justification: string;
-      };
-
-      // ✅ Validação de entrada
-      if (!memberCnpj || !environment || !accessKey || !protocol || !justification) {
-        reply.status(400).send({
-          success: false,
-          message: 'Missing required parameters',
-          error: 'memberCnpj, environment, accessKey, protocol and justification are required'
-        });
-        return;
-      }
-
-      // ✅ Delegar TODA a lógica para o handler
-      const resultado = await this.cancelamentoHandler.processarCancelamentoPorCNPJ(
-        memberCnpj,
-        environment,
-        accessKey,
-        protocol,
-        justification,
-        this.sefazNfceService
-      );
-
-      // ✅ Apenas retornar resposta HTTP
-      if (resultado.success) {
-        reply.status(200).send({
-          success: true,
-          message: 'NFCe cancelled successfully',
-          data: resultado.data
-        });
-      } else {
-        reply.status(400).send({
-          success: false,
-          message: 'Error cancelling NFCe',
-          error: resultado.error,
-          data: resultado.data
-        });
-      }
-
-    } catch (error: any) {
-      reply.status(500).send({
-        success: false,
-        message: 'Internal server error',
         error: error.message
       });
     }
@@ -630,5 +785,5 @@ export class NFCeController {
       });
     }
   }
-}
 
+}
