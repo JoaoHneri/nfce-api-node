@@ -32,6 +32,7 @@ API robusta e **totalmente unificada** para emissão, consulta e cancelamento de
 - **🏗️ ARQUITETURA LIMPA**: Controllers + Handlers + Services separados
 - **🗄️ BANCO INTEGRADO**: MySQL com controle de empresas, certificados e notas
 - **📈 ESCALABILIDADE**: Preparado para expansão futura (NFe, NFSe)
+- **🤖 TRIBUTAÇÃO INTELIGENTE**: Autodetecção do modo tributário, sem necessidade de configuração manual
 
 ---
 
@@ -84,9 +85,9 @@ POST /api/notes/database/initialize    # Inicializar banco
 
 ---
 
-## 💡 **Exemplos Práticos - Sistema Autodetectado**
+## 💡 **Exemplos Práticos - Sistema de Tributação Autodetectado**
 
-### **� 1. Produto Simples (Autodetecção - Automático)**
+### **🔥 1. Produto Simples (Tributação Automática)**
 ```bash
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
@@ -103,22 +104,42 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
       "products": [{
         "cProd": "001",
         "cEAN": "SEM GTIN",
-        "xProd": "CAMISETA BÁSICA",
-        "NCM": "62019000",
+        "xProd": "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+        "NCM": "85044010",
         "CFOP": "5102",
         "uCom": "UNID",
         "qCom": "1.00",
-        "vUnCom": "29.90",
-        "vProd": "29.90",
+        "vUnCom": "1.00",
+        "vProd": "1.00",
         "cEANTrib": "SEM GTIN",
         "uTrib": "UNID",
         "qTrib": "1.00",
-        "vUnTrib": "29.90",
+        "vUnTrib": "1.00",
+        "vDesc": "0.10",
         "indTot": "1"
-        // ✅ SEM campo "taxes" = tributação automática
       }],
+      "taxes": {
+        "orig": "0",
+        "CSOSN": "102",
+        "CST_PIS": "49",
+        "CST_COFINS": "49"
+      },
+      "transport": { "mode": "9" },
       "payment": {
-        "detPag": [{ "indPag": "0", "tPag": "01", "vPag": "29.90" }]
+        "detPag": [
+          {
+            "indPag": "0",
+            "tPag": "01",
+            "vPag": "1.00"
+          }
+        ],
+        "change": "0.10"
+      },
+      "technicalResponsible": {
+        "CNPJ": "11222333000181",
+        "xContact": "João Silva - Desenvolvedor",
+        "email": "joao.silva@empresa.com.br",
+        "phone": "11999887766"
       }
     }
   }'
@@ -146,7 +167,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 </COFINS>
 ```
 
-### **🏷️ 2. Produto Isento (Autodetecção - CSTs Específicos)**
+### **🏷️ 2. Produto com Tributação Específica (CSTs Customizados)**
 ```bash
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
@@ -155,27 +176,36 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
     "environment": 2,
     "noteData": {
       "ide": { "natOp": "VENDA", "serie": "884" },
-      "recipient": {
-        "cpf": "11750943077",
-        "xName": "CONSUMIDOR FINAL",
-        "ieInd": "9"
-      },
       "products": [{
         "cProd": "002",
+        "cEAN": "SEM GTIN",
         "xProd": "PRODUTO ISENTO",
         "NCM": "85044010",
         "CFOP": "5102",
+        "uCom": "UNID",
+        "qCom": "1.00",
+        "vUnCom": "50.00",
         "vProd": "50.00",
-        "taxes": {
-          "orig": "0",        // Nacional
-          "CSOSN": "102",     // Simples - Sem tributação
-          "cstPis": "07",     // Isento
-          "cstCofins": "07"   // Isento
-          // ✅ Sistema detecta: modo automático com CSTs específicos
-        }
+        "cEANTrib": "SEM GTIN",
+        "uTrib": "UNID",
+        "qTrib": "1.00",
+        "vUnTrib": "50.00",
+        "indTot": "1"
       }],
+      "taxes": {
+        "orig": "0",
+        "CSOSN": "102",
+        "CST_PIS": "07",
+        "CST_COFINS": "07"
+      },
       "payment": {
-        "detPag": [{ "indPag": "0", "tPag": "01", "vPag": "50.00" }]
+        "detPag": [
+          {
+            "indPag": "0",
+            "tPag": "01",
+            "vPag": "50.00"
+          }
+        ]
       }
     }
   }'
@@ -201,7 +231,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 </COFINS>
 ```
 
-### **💰 3. Produto Tributado (Autodetecção - Manual)**
+### **💰 3. Produto Tributado (Cálculo por Percentual)**
 ```bash
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
@@ -210,29 +240,38 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
     "environment": 2,
     "noteData": {
       "ide": { "natOp": "VENDA", "serie": "1" },
-      "recipient": {
-        "cpf": "11750943077",
-        "xName": "CLIENTE PESSOA FÍSICA",
-        "ieInd": "9"
-      },
       "products": [{
         "cProd": "003",
+        "cEAN": "SEM GTIN",
         "xProd": "NOTEBOOK GAMER",
         "NCM": "84713012",
         "CFOP": "5102",
+        "uCom": "UNID",
+        "qCom": "1.00",
+        "vUnCom": "2500.00",
         "vProd": "2500.00",
-        "taxes": {
-          "orig": "0",
-          "CSOSN": "400",
-          "cstPis": "01",           // Tributado
-          "pisPercent": "1.65",     // 1,65%
-          "cstCofins": "01",        // Tributado
-          "cofinsPercent": "7.60"   // 7,60%
-          // ✅ Sistema detecta: modo automático com cálculo percentual
-        }
+        "cEANTrib": "SEM GTIN",
+        "uTrib": "UNID",
+        "qTrib": "1.00",
+        "vUnTrib": "2500.00",
+        "indTot": "1"
       }],
+      "taxes": {
+        "orig": "0",
+        "CSOSN": "400",
+        "cstPis": "01",
+        "pisPercent": "1.65",
+        "cstCofins": "01",
+        "cofinsPercent": "7.60"
+      },
       "payment": {
-        "detPag": [{ "indPag": "0", "tPag": "03", "vPag": "2500.00" }]
+        "detPag": [
+          {
+            "indPag": "0",
+            "tPag": "03",
+            "vPag": "2500.00"
+          }
+        ]
       }
     }
   }'
@@ -264,7 +303,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 </COFINS>
 ```
 
-### **🔧 4. Produto com Valores Fixos (Autodetecção - Manual)**
+### **🔧 4. Produto com Valores Fixos**
 ```bash
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
@@ -275,42 +314,42 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
       "ide": { "natOp": "VENDA", "serie": "1" },
       "products": [{
         "cProd": "004",
+        "cEAN": "SEM GTIN",
         "xProd": "PRODUTO COM VALORES FIXOS",
+        "NCM": "85044010",
+        "CFOP": "5102",
+        "uCom": "UNID",
+        "qCom": "1.00",
+        "vUnCom": "200.00",
         "vProd": "200.00",
-        "taxes": {
-          "orig": "0",
-          "CSOSN": "400",
-          "cstPis": "99",         // Outras operações
-          "pisValue": "5.00",     // Valor fixo R$ 5,00
-          "cstCofins": "99",      // Outras operações
-          "cofinsValue": "15.00"  // Valor fixo R$ 15,00
-          // ✅ Sistema detecta: modo manual (tem pisValue/cofinsValue)
-        }
+        "cEANTrib": "SEM GTIN",
+        "uTrib": "UNID",
+        "qTrib": "1.00",
+        "vUnTrib": "200.00",
+        "indTot": "1"
       }],
+      "taxes": {
+        "orig": "0",
+        "CSOSN": "400",
+        "cstPis": "99",
+        "pisValue": "5.00",
+        "cstCofins": "99",
+        "cofinsValue": "15.00"
+      },
       "payment": {
-        "detPag": [{ "indPag": "0", "tPag": "01", "vPag": "200.00" }]
+        "detPag": [
+          {
+            "indPag": "0",
+            "tPag": "01",
+            "vPag": "200.00"
+          }
+        ]
       }
     }
   }'
 ```
 
-**🎯 Resultado dos Valores Fixos:**
-```xml
-<PIS>
-  <PISOutr>
-    <CST>99</CST>          <!-- Outras operações -->
-    <vPIS>5.00</vPIS>      <!-- Valor fixo R$ 5,00 -->
-  </PISOutr>
-</PIS>
-<COFINS>
-  <COFINSOutr>
-    <CST>99</CST>          <!-- Outras operações -->
-    <vCOFINS>15.00</vCOFINS> <!-- Valor fixo R$ 15,00 -->
-  </COFINSOutr>
-</COFINS>
-```
-
-### **⚡ 5. Combustível - Tributação por Quantidade (Autodetecção - Manual)**
+### **⚡ 5. Combustível - Tributação por Quantidade**
 ```bash
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
@@ -321,1073 +360,164 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
       "ide": { "natOp": "VENDA", "serie": "1" },
       "products": [{
         "cProd": "005",
+        "cEAN": "SEM GTIN",
         "xProd": "GASOLINA COMUM",
         "NCM": "27101259",
         "CFOP": "5102",
-        "qCom": "50.000",        // 50 litros
-        "vProd": "300.00",       // R$ 6,00 por litro
-        "taxes": {
-          "orig": "0",
-          "CSOSN": "400",
-          "cstPis": "03",               // Tributação por quantidade
-          "pisQuantity": "50.0000",     // 50 litros
-          "pisQuantityValue": "0.15",   // R$ 0,15 por litro
-          "cstCofins": "03",            // Tributação por quantidade
-          "cofinsQuantity": "50.0000",  // 50 litros
-          "cofinsQuantityValue": "0.45" // R$ 0,45 por litro
-          // ✅ Sistema detecta: modo manual (tem pisQuantity/cofinsQuantity)
-        }
+        "uCom": "LT",
+        "qCom": "50.000",
+        "vUnCom": "6.00",
+        "vProd": "300.00",
+        "cEANTrib": "SEM GTIN",
+        "uTrib": "LT",
+        "qTrib": "50.000",
+        "vUnTrib": "6.00",
+        "indTot": "1"
       }],
-      "payment": {
-        "detPag": [{ "indPag": "0", "tPag": "01", "vPag": "300.00" }]
-      }
-    }
-  }'
-```
-
-**🎯 Resultado da Tributação por Quantidade:**
-```xml
-<PIS>
-  <PISQtde>
-    <CST>03</CST>                <!-- Tributação por quantidade -->
-    <qBCProd>50.0000</qBCProd>   <!-- Quantidade: 50 litros -->
-    <vAliqProd>0.15</vAliqProd>  <!-- Alíquota: R$ 0,15/litro -->
-    <vPIS>7.50</vPIS>            <!-- Valor: 50 × 0,15 = R$ 7,50 -->
-  </PISQtde>
-</PIS>
-<COFINS>
-  <COFINSQtde>
-    <CST>03</CST>                <!-- Tributação por quantidade -->
-    <qBCProd>50.0000</qBCProd>   <!-- Quantidade: 50 litros -->
-    <vAliqProd>0.45</vAliqProd>  <!-- Alíquota: R$ 0,45/litro -->
-    <vCOFINS>22.50</vCOFINS>     <!-- Valor: 50 × 0,45 = R$ 22,50 -->
-  </COFINSQtde>
-</COFINS>
-```
-
-### **🌐 6. Produto Importado (Autodetecção - Origem Estrangeira)**
-```bash
-curl -X POST http://localhost:3000/api/notes/nfce/issue \
-  -H "Content-Type: application/json" \
-  -d '{
-    "memberCnpj": "44444444000155",
-    "environment": 2,
-    "noteData": {
-      "ide": { "natOp": "VENDA", "serie": "1" },
-      "products": [{
-        "cProd": "IMP001",
-        "xProd": "SMARTPHONE IMPORTADO",
-        "NCM": "85171200",
-        "CFOP": "5102",
-        "vProd": "1200.00",
-        "taxes": {
-          "orig": "1",              // Estrangeira - Importação direta
-          "CSOSN": "400",
-          "cstPis": "01",
-          "pisPercent": "1.65",
-          "cstCofins": "01", 
-          "cofinsPercent": "7.60"
-          // ✅ Sistema detecta: modo automático com origem importada
-        }
-      }],
-      "payment": {
-        "detPag": [{ "indPag": "0", "tPag": "03", "vPag": "1200.00" }]
-      }
-    }
-  }'
-```
-
-**🎯 Resultado do Produto Importado:**
-```xml
-<ICMS>
-  <ICMSSN400>
-    <orig>1</orig>         <!-- Estrangeira - Importação direta -->
-    <CSOSN>400</CSOSN>
-  </ICMSSN400>
-</ICMS>
-<PIS>
-  <PISAliq>
-    <CST>01</CST>
-    <vBC>1200.00</vBC>     <!-- Base = valor do produto -->
-    <pPIS>1.65</pPIS>      <!-- 1,65% -->
-    <vPIS>19.80</vPIS>     <!-- R$ 19,80 -->
-  </PISAliq>
-</PIS>
-<COFINS>
-  <COFINSAliq>
-    <CST>01</CST>
-    <vBC>1200.00</vBC>     <!-- Base = valor do produto -->
-    <pCOFINS>7.60</pCOFINS> <!-- 7,60% -->
-    <vCOFINS>91.20</vCOFINS> <!-- R$ 91,20 -->
-  </COFINSAliq>
-</COFINS>
-```
-
-### **🔄 7. Mix de Produtos (Autodetecção - Híbrido)**
-```bash
-curl -X POST http://localhost:3000/api/notes/nfce/issue \
-  -H "Content-Type: application/json" \
-  -d '{
-    "memberCnpj": "11111111000122",
-    "environment": 2,
-    "noteData": {
-      "ide": { "natOp": "VENDA", "serie": "1" },
-      "products": [
-        {
-          "cProd": "001",
-          "xProd": "PRODUTO AUTOMÁTICO",
-          "vProd": "50.00"
-          // ✅ Autodetecção: automático (sem taxes)
-        },
-        {
-          "cProd": "002",
-          "xProd": "PRODUTO HÍBRIDO",
-          "vProd": "100.00",
-          "taxes": {
-            "cstPis": "01",
-            "pisPercent": "1.65"
-            // ✅ Autodetecção: automático com PIS customizado
-          }
-        },
-        {
-          "cProd": "003", 
-          "xProd": "PRODUTO MANUAL",
-          "vProd": "75.00",
-          "taxes": {
-            "orig": "0",
-            "CSOSN": "400",
-            "cstPis": "99",
-            "pisValue": "3.00",       // Valor fixo
-            "cstCofins": "07"         // Isento
-            // ✅ Autodetecção: manual (tem pisValue)
-          }
-        }
-      ],
-      "payment": {
-        "detPag": [{ "indPag": "0", "tPag": "01", "vPag": "225.00" }]
-      }
-    }
-  }'
-```
-
-### **🔍 Consulta NFCe**
-```bash
-curl -X GET "http://localhost:3000/api/notes/nfce/consult/44123456789012345678901234567890123456789012/12345678000199/2"
-```
-
-### **❌ Cancelamento NFCe**
-```bash
-curl -X POST http://localhost:3000/api/notes/nfce/cancel \
-  -H "Content-Type: application/json" \
-  -d '{
-    "memberCnpj": "12345678000199",
-    "environment": 2,
-    "accessKey": "44123456789012345678901234567890123456789012",
-    "protocol": "135200000000123",
-    "justification": "Cancelamento por erro de digitação no produto"
-  }'
-```
-
-### **📋 Verificar Tipos Suportados**
-```bash
-curl -X GET http://localhost:3000/api/notes/types
-```
-
----
-
-## 🏗️ **Arquitetura Moderna**
-
-### **⚡ Alta Performance:**
-- **~30,000 req/s** - Performance empresarial com Fastify
-- **Startup <100ms** - Inicialização otimizada  
-- **Cache inteligente** - Tools reutilizados por 30min
-- **Connection pool** - MySQL otimizado
-
-### **🔧 Componentes:**
-- **Controllers** - Validação HTTP e roteamento unificado
-- **Handlers** - Lógica de negócio centralizada por tipo
-- **Services** - Integração com SEFAZ e banco de dados
-- **Parsers** - Processamento robusto de respostas XML
-- **Cache Layer** - Performance e reutilização de recursos
-
----
-
-## 🌟 **Recursos Principais**
-
-### 🏢 **Multi-Empresa Inteligente**
-- ✅ **Busca automática**: Certificado localizado por CNPJ + ambiente
-- ✅ **Isolamento total**: Operações independentes por empresa
-- ✅ **Zero config**: Não precisa reiniciar para adicionar empresas
-- ✅ **Escalabilidade**: Uma API serve milhares de clientes
-
-### ⚡ **Cache Inteligente**
-- ✅ **Performance**: Cache de Tools com TTL de 30 minutos  
-- ✅ **Automático**: Limpeza automática a cada 5 minutos
-- ✅ **Controlado**: Máximo 100 empresas em cache
-- ✅ **Monitorado**: Estatísticas em tempo real
-
-### 🛡️ **Segurança Avançada**
-- ✅ **Zero exposure**: Certificados nunca trafegam na rede
-- ✅ **Headers seguros**: Helmet, CORS, rate limiting
-- ✅ **Logs mascarados**: Dados sensíveis protegidos
-- ✅ **Banco seguro**: MySQL com pool de conexões
-
-### 🗄️ **Banco de Dados Integrado**
-- ✅ **Empresas**: Tabela `member` com dados completos
-- ✅ **Certificados**: Tabela `certificates` por ambiente
-- ✅ **Notas**: Tabela `invoices` com numeração automática
-- ✅ **Transações**: Operações atômicas thread-safe
-
----
-
-## 📦 **Estrutura de Produtos com Desconto**
-
-### **⚠️ Campo `vDesc` - Regras Importantes**
-
-O campo `vDesc` (desconto unitário) **só deve ser incluído quando há desconto real**:
-
-```javascript
-// ✅ PRODUTO SEM DESCONTO - vDesc NÃO incluído
-{
-  "cProd": "001",
-  "cEAN": "SEM GTIN", 
-  "xProd": "PRODUTO SEM DESCONTO",
-  "NCM": "85044010",
-  "CFOP": "5102",
-  "uCom": "UNID",
-  "qCom": "1.00",
-  "vUnCom": "10.00",
-  "vProd": "10.00",
-  "cEANTrib": "SEM GTIN",
-  "uTrib": "UNID",
-  "qTrib": "1.00", 
-  "vUnTrib": "10.00",
-  // ❌ NÃO incluir: "vDesc": "0.00"
-  "indTot": "1"
-}
-
-// ✅ PRODUTO COM DESCONTO - vDesc incluído
-{
-  "cProd": "002",
-  "cEAN": "SEM GTIN",
-  "xProd": "PRODUTO COM DESCONTO", 
-  "NCM": "85044010",
-  "CFOP": "5102",
-  "uCom": "UNID",
-  "qCom": "1.00",
-  "vUnCom": "10.00",
-  "vProd": "8.50",         // Valor após desconto
-  "cEANTrib": "SEM GTIN",
-  "uTrib": "UNID",
-  "qTrib": "1.00",
-  "vUnTrib": "10.00", 
-  "vDesc": "1.50",         // ✅ INCLUIR apenas quando > 0
-  "indTot": "1"
-}
-```
-
-### **🔍 Regras do vDesc:**
-
-- ✅ **Incluir apenas** quando desconto > 0
-- ❌ **NÃO incluir** se desconto = 0.00
-- ❌ **NÃO enviar** `"vDesc": "0.00"` ou `"vDesc": "00.00"`
-- ✅ **XML válido**: `<vDesc>1.50</vDesc>` (apenas quando necessário)
-
-### **🔄 Fluxo Correto:**
-
-1. **JSON Produto**: Incluir `vDesc` apenas se > 0
-2. **XML Gerado**: `<vDesc>` aparece apenas quando há desconto
-3. **SEFAZ**: Aceita NFCe com ou sem tag `<vDesc>`
-4. **Resposta**: Campo `discount` sempre presente (0 se não houve desconto)
-
-### **💡 Exemplos de Uso**
-
-#### **Produto SEM desconto (NÃO incluir vDesc):**
-```javascript
-{
-  "cProd": "001",
-  "xProd": "PRODUTO SEM DESCONTO",
-  "vUnCom": "10.00",
-  "vProd": "10.00",
-  "vUnTrib": "10.00"
-  // ❌ Não incluir: "vDesc": "0.00"
-}
-```
-
-#### **Produto COM desconto de R$ 1,50:**
-```javascript
-{
-  "cProd": "002", 
-  "xProd": "PRODUTO COM DESCONTO",
-  "vUnCom": "10.00",
-  "vProd": "8.50",   // Valor já com desconto aplicado
-  "vUnTrib": "10.00",
-  "vDesc": "1.50"    // ✅ Desconto de R$ 1,50
-}
-```
-
-**⚠️ IMPORTANTE**: 
-- O `vProd` deve ser o valor **final** (já com desconto aplicado)
-- O `vDesc` é o valor do desconto unitário
-- **Nunca** incluir `vDesc` quando o valor for 0.00
-
----
-
-## ⚡ **Funcionalidades Automáticas**
-
-### 🔢 **Numeração Automática**
-- **nNF e cNF** gerados automaticamente
-- **Sequencial**: Por empresa + UF + série + ambiente
-- **Thread-safe**: Transações atômicas MySQL
-- **Recuperação**: Falhas não geram buracos na numeração
-
-### 💰 **Sistema de Tributação Flexível**
-
-### **🆕 Sistema de Tributação Autodetectado v2.1**
-
-A API agora suporta **tributação autodetectada** com controle total via campo `taxes` (inglês). O sistema **detecta automaticamente** se deve usar cálculo automático ou valores manuais baseado nos campos informados.
-
-### **🔥 Como Funciona - Sistema Autodetectado:**
-
-#### **🤖 Modo Automático (Autodetectado)**
-```json
-{
-  "cProd": "001",
-  "xProd": "PRODUTO SIMPLES",
-  "vProd": "10.00"
-  // ✅ Sem campo "taxes" = tributos automáticos com valores padrão
-}
-```
-
-#### **📝 Modo Manual (Autodetectado)**
-```json
-{
-  "cProd": "002",
-  "xProd": "PRODUTO COM TRIBUTOS CUSTOMIZADOS",
-  "vProd": "100.00",
-  "taxes": {
-    "orig": "0",                    // Origem da mercadoria (0-8)
-    "CSOSN": "400",                 // Para Simples Nacional
-    "cstPis": "01",                 // CST PIS
-    "pisPercent": "1.65",           // Alíquota % PIS
-    "pisValue": "1.65",             // Valor PIS (calculado ou fixo)
-    "cstCofins": "01",              // CST COFINS
-    "cofinsPercent": "7.60",        // Alíquota % COFINS
-    "cofinsValue": "7.60",          // Valor COFINS (calculado ou fixo)
-    "baseValue": "100.00"           // Base de cálculo customizada (opcional)
-
-  }
-}
-```
-
-### **📊 Campos Disponíveis no `taxes`:**
-
-| **Campo** | **Tipo** | **Descrição** | **Obrigatório** |
-|-----------|----------|---------------|-----------------|
-| `orig` | string | Origem da mercadoria (0-8) | ❌ (padrão: "0") |
-| `CSOSN` | string | CSOSN para Simples Nacional | ❌ (padrão: "400") |
-| `cstPis` | string | CST do PIS | ❌ (padrão: "49") |
-| `pisPercent` | string | Alíquota % do PIS | ❌ |
-| `pisValue` | string | Valor fixo do PIS | ❌ |
-| `pisQuantity` | string | Quantidade para tributação por unidade | ❌ |
-| `pisQuantityValue` | string | Valor por unidade do PIS | ❌ |
-| `cstCofins` | string | CST do COFINS | ❌ (padrão: "49") |
-| `cofinsPercent` | string | Alíquota % do COFINS | ❌ |
-| `cofinsValue` | string | Valor fixo do COFINS | ❌ |
-| `cofinsQuantity` | string | Quantidade para tributação por unidade | ❌ |
-| `cofinsQuantityValue` | string | Valor por unidade do COFINS | ❌ |
-| `baseValue` | string | Base de cálculo customizada | ❌ (padrão: valor do produto) |
-
-
-### **🎯 Todas as Possibilidades:**
-
-#### **🔥 Caso 1: Produto Simples (Automático)**
-```json
-{
-  "cProd": "001",
-  "xProd": "CAMISETA BÁSICA",
-  "vProd": "29.90"
-  // ✅ Automático: PIS/COFINS zerados (CST 49)
-  // ✅ Automático: ICMS com CSOSN 400
-}
-```
-
-#### **🔥 Caso 2: Modo Híbrido (Autodetectado)**
-```json
-{
-  "cProd": "002",
-  "xProd": "PRODUTO SEMI-AUTOMÁTICO",
-  "vProd": "50.00",
-  "taxes": {
-    "cstPis": "01",                 // PIS tributado
-    "pisPercent": "1.65",           // Com alíquota específica
-
-  }
-}
-```
-
-#### **🔥 Caso 3: Regime Normal Tributado (Manual)**
-```json
-{
-  "cProd": "003",
-  "xProd": "PRODUTO TRIBUTADO",
-  "vProd": "100.00",
-  "taxes": {
-    "orig": "0",
-    "CSOSN": "400",
-    "cstPis": "01",                 // Tributado
-    "pisPercent": "1.65",           // 1,65%
-    "pisValue": "1.65",             // R$ 1,65
-    "cstCofins": "01",              // Tributado
-    "cofinsPercent": "7.60",        // 7,60%
-    "cofinsValue": "7.60",          // R$ 7,60
-
-  }
-}
-```
-
-#### **🔥 Caso 4: Produto Isento**
-```json
-{
-  "cProd": "004",
-  "xProd": "PRODUTO ISENTO",
-  "vProd": "75.00",
-  "taxes": {
-    "orig": "0",
-    "CSOSN": "400",
-    "cstPis": "07",                 // Isento
-    "cstCofins": "07",              // Isento
-
-  }
-}
-```
-
-#### **🔥 Caso 5: Tributação com Valores Fixos**
-```json
-{
-  "cProd": "005",
-  "xProd": "PRODUTO COM VALORES FIXOS",
-  "vProd": "200.00",
-  "taxes": {
-    "orig": "0",
-    "CSOSN": "400",
-    "cstPis": "99",                 // Outras operações
-    "pisValue": "5.00",             // Valor fixo R$ 5,00
-    "cstCofins": "99",              // Outras operações
-    "cofinsValue": "15.00",         // Valor fixo R$ 15,00
-
-  }
-}
-```
-
-#### **🔥 Caso 6: Produto Importado**
-```json
-{
-  "cProd": "006",
-  "xProd": "PRODUTO IMPORTADO",
-  "vProd": "150.00",
-  "taxes": {
-    "orig": "1",                    // Estrangeira - Importação direta
-    "CSOSN": "400",
-    "cstPis": "01",
-    "pisPercent": "1.65",
-    "cstCofins": "01",
-    "cofinsPercent": "7.60"
-
-  }
-}
-```
-
-#### **🔥 Caso 7: Tributação por Quantidade**
-```json
-{
-  "cProd": "007",
-  "xProd": "COMBUSTÍVEL (POR QUANTIDADE)",
-  "vProd": "80.00",
-  "taxes": {
-    "orig": "0",
-    "CSOSN": "400",
-    "cstPis": "03",                 // Tributação por quantidade
-    "pisQuantity": "10.0000",       // Quantidade
-    "pisQuantityValue": "0.25",     // R$ 0,25 por unidade
-    "cstCofins": "03",              // Tributação por quantidade
-    "cofinsQuantity": "10.0000",    // Quantidade
-    "cofinsQuantityValue": "0.75",  // R$ 0,75 por unidade
-
-  }
-}
-```
-
-#### **🔥 Caso 8: Base de Cálculo Customizada**
-```json
-{
-  "cProd": "008",
-  "xProd": "PRODUTO COM BASE CUSTOMIZADA",
-  "vProd": "100.00",
-  "taxes": {
-    "orig": "0",
-    "CSOSN": "400",
-    "cstPis": "01",
-    "pisPercent": "1.65",
-    "cstCofins": "01",
-    "cofinsPercent": "7.60",
-    "baseValue": "85.00"           // Base diferente do valor do produto
-
-  }
-}
-```
-
-#### **🔥 Caso 9: Mix Automático + Manual**
-```json
-{
-  "products": [
-    {
-      "cProd": "001",
-      "xProd": "PRODUTO AUTOMÁTICO",
-      "vProd": "10.00"
-      // ✅ Sem taxes = automático
-    },
-    {
-      "cProd": "002",
-      "xProd": "PRODUTO CUSTOMIZADO",
-      "vProd": "20.00",
       "taxes": {
-        "cstPis": "01",
-        "pisPercent": "1.65",
-        "cstCofins": "01",
-        "cofinsPercent": "7.60",
-
-        // ✅ ICMS automático, PIS/COFINS customizado
+        "orig": "0",
+        "CSOSN": "400",
+        "cstPis": "03",
+        "pisQuantity": "50.0000",
+        "pisQuantityValue": "0.15",
+        "cstCofins": "03",
+        "cofinsQuantity": "50.0000",
+        "cofinsQuantityValue": "0.45"
+      },
+      "payment": {
+        "detPag": [
+          {
+            "indPag": "0",
+            "tPag": "01",
+            "vPag": "300.00"
+          }
+        ]
       }
     }
-  ]
-}
+  }'
 ```
 
 ---
 
-## 🧪 **Testando os Exemplos na Prática**
+## 📊 **Estrutura da Resposta da API**
 
-### **⚡ Teste Rápido do Sistema:**
-```bash
-# 1. Verificar se a API está funcionando
-curl http://localhost:3000/api/notes/test
-
-# 2. Ver tipos de notas suportadas
-curl http://localhost:3000/api/notes/types
-
-# 3. Obter exemplo de payload NFCe
-curl http://localhost:3000/api/notes/nfce/example
-```
-
-### **🔧 Executar Testes de Tributação:**
-```bash
-# Executar testes automatizados do sistema de tributação
-cd "c:\Users\joaoh\Desktop\nfce-node-api"
-npx ts-node src/services/tributacaoService.test.ts
-```
-
-**Exemplo de saída dos testes:**
-```
-🧪 Testing New Flexible Taxation System
-=== Automatic Mode - No taxes provided ===
-🔍 Modo detectado: auto { taxes: undefined, productValue: 100 }
-Output: { icms: { orig: "0", CSOSN: "400" }, pis: { CST: "49", vPIS: "0.00" } }
-
-=== Manual Mode - Fixed value PIS/COFINS ===
-🔍 Modo detectado: manual { taxes: {...}, productValue: 100 }
-Output: { pis: { CST: "99", vPIS: "5.00" }, cofins: { CST: "99", vCOFINS: "15.00" } }
-```
-
-### **📋 Checklist de Validação:**
-
-#### **✅ Antes de usar em produção:**
-1. **Teste conectividade**: `GET /api/notes/test` retorna 200
-2. **Teste automático**: Envie produto sem `taxes`, verifique PIS/COFINS zerados  
-3. **Teste manual**: Envie produto com `pisValue`, verifique valor exato
-4. **Teste híbrido**: Envie produto com só `pisPercent`, verifique cálculo
-5. **Teste CSTs**: Envie CST inválido, verifique erro de validação
-6. **Verifique logs**: Console mostra "🔍 Modo detectado: auto/manual"
-
-#### **🎯 Exemplos de Teste por Cenário:**
-
-**Produto Básico:**
-```bash
-# Deve detectar modo automático
-curl -X POST localhost:3000/api/notes/nfce/issue -H "Content-Type: application/json" \
--d '{"memberCnpj":"60142655000126","environment":2,"noteData":{"products":[{"cProd":"001","vProd":"10.00"}]}}'
-```
-
-**Produto Tributado:**
-```bash
-# Deve detectar modo automático com cálculo
-curl -X POST localhost:3000/api/notes/nfce/issue -H "Content-Type: application/json" \
--d '{"memberCnpj":"60142655000126","environment":2,"noteData":{"products":[{"cProd":"002","vProd":"100.00","taxes":{"cstPis":"01","pisPercent":"1.65"}}]}}'
-```
-
-**Produto Manual:**
-```bash
-# Deve detectar modo manual
-curl -X POST localhost:3000/api/notes/nfce/issue -H "Content-Type: application/json" \
--d '{"memberCnpj":"60142655000126","environment":2,"noteData":{"products":[{"cProd":"003","vProd":"100.00","taxes":{"pisValue":"5.00"}}]}}'
-```
-
-### **📊 Monitoramento em Tempo Real:**
-
-**Verificar logs da API:**
-```bash
-# Os logs mostram a autodetecção em tempo real
-tail -f logs/api.log | grep "Modo detectado"
-
-# Exemplo de saída:
-# 🔍 Modo detectado: auto { taxes: undefined, productValue: 29.90 }
-# 🔍 Modo detectado: manual { taxes: { pisValue: '5.00' }, productValue: 100 }
-```
-
-**Verificar estatísticas:**
-```bash
-# Ver estatísticas do cache e performance
-curl http://localhost:3000/api/notes/cache/stats
-curl http://localhost:3000/api/notes/numbering/stats
-```
-
----
-
-## 🚀 **Setup Rápido**
-
-### **1. Instalação**
-```bash
-git clone <repo-url>
-cd nfce-node-api
-npm install
-cp .env.example .env
-# Edite .env com configurações do MySQL
-```
-
-### **2. Banco MySQL**
-```sql
--- Conectar no MySQL
-mysql -u root -p
-
--- Criar banco e usuário
-CREATE DATABASE nfce_api CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'nfce_user'@'localhost' IDENTIFIED BY 'senha_forte';
-GRANT ALL PRIVILEGES ON nfce_api.* TO 'nfce_user'@'localhost';
-FLUSH PRIVILEGES;
-```
-
-### **3. Configurar .env**
-```bash
-# Configurações do banco
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=nfce_user
-DB_PASSWORD=senha_forte
-DB_NAME=nfce_api
-```
-
-### **4. Inicializar e Executar**
-```bash
-# Inicializar tabelas
-npm run dev &
-sleep 3
-curl -X POST http://localhost:3000/api/notes/database/initialize
-
-# API estará rodando em http://localhost:3000
-```
-
-### **5. Testar**
-```bash
-# Teste de conectividade
-curl http://localhost:3000/api/notes/test
-
-# Tipos suportados
-curl http://localhost:3000/api/notes/types
-
-# Exemplo NFCe
-curl http://localhost:3000/api/notes/nfce/example
-```
-
----
-
-## 🎯 **Migração e Compatibilidade**
-
-### **🔄 Breaking Changes v2.0**
-
-A API v2.0 remove **todas as rotas específicas** e mantém **apenas rotas unificadas**:
-
-#### **❌ Rotas Antigas (REMOVIDAS)**
-```bash
-POST /api/nfce/create-nfc          # ❌ Removida
-GET  /api/nfce/consult/:key/...    # ❌ Removida  
-POST /api/nfce/cancel-nfc          # ❌ Removida
-GET  /api/nfce/example             # ❌ Removida
-```
-
-#### **✅ Rotas Novas (ÚNICAS)**
-```bash
-POST /api/notes/nfce/issue                              # ✅ Nova
-GET  /api/notes/nfce/consult/:key/:cnpj/:env           # ✅ Nova
-POST /api/notes/nfce/cancel                            # ✅ Nova
-GET  /api/notes/nfce/example                           # ✅ Nova
-```
-
-### **📝 Como Migrar**
-
-#### **Antes (v1.x):**
-```javascript
-// ❌ Rota específica antiga
-await axios.post('/api/nfce/create-nfc', { 
-  memberCnpj, environment, nfceData 
-});
-```
-
-#### **Agora (v2.0):**
-```javascript
-// ✅ Rota unificada nova
-await axios.post('/api/notes/nfce/issue', { 
-  memberCnpj, environment, noteData 
-});
-```
-
-**Mudanças necessárias:**
-1. **URL**: `/api/nfce/*` → `/api/notes/nfce/*`
-2. **Campo**: `nfceData` → `noteData`
-3. **Estrutura**: Mantida igual (apenas nome do campo muda)
-
----
-
-## 🚀 **Deploy Production**
-
-### **1. Build e Start**
-```bash
-# Gerar build de produção
-npm run build
-
-# Executar aplicação
-npm start
-```
-
-### **2. Configuração Produção**
-```bash
-# .env para produção
-NODE_ENV=production
-DB_HOST=mysql-server-prod
-DB_PASSWORD=senha_super_forte
-```
-
-### **3. Nginx Proxy (Opcional)**
-```nginx
-server {
-    listen 80;
-    server_name api.exemplo.com;
-    
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Host $host;
-    }
-}
-```
-
----
-
-## 🔮 **Roadmap**
-
-### **Q2 2025 - NFe**
-```bash
-POST /api/notes/nfe/issue       # ← Em desenvolvimento
-GET  /api/notes/nfe/consult/... # ← Em desenvolvimento  
-POST /api/notes/nfe/cancel      # ← Em desenvolvimento
-```
-
-### **Q3 2025 - NFSe**
-```bash
-POST /api/notes/nfse/issue      # ← Planejado
-GET  /api/notes/nfse/consult/...# ← Planejado
-POST /api/notes/nfse/cancel     # ← Planejado
-```
-
----
-
-## 📞 **Suporte**
-
-Para dúvidas sobre a API unificada:
-
-1. **Verifique os tipos**: `GET /api/notes/types`
-2. **Obtenha exemplos**: `GET /api/notes/:type/example`
-3. **Teste conectividade**: `GET /api/notes/test`
-
----
-
-**🎉 A API v2.0 está pronta para produção com arquitetura unificada, código limpo, segurança máxima e preparada para expansão futura!**
-
-**Versão**: 2.0.0 (Unificada) | **Compatibilidade**: Exclusivamente rotas unificadas
-
----
-
-## 📊 **Estrutura das Respostas**
-
-### **✅ Resposta de Sucesso - Nova Estrutura v2.0**
+### **✅ Resposta de Sucesso (Estrutura Real Atual)**
 ```json
 {
   "success": true,
   "message": "NFCe issued successfully",
   "data": {
-    "success": true,
-    
-    // ✅ DADOS FISCAIS ESSENCIAIS
+    // 📋 DADOS FISCAIS
     "fiscal": {
-      "accessKey": "35240112345678000199650010000000011123456789",
-      "protocol": "135240000123456",
-      "number": "000000001",
-      "series": "001",
-      "issueDate": "09/01/2025, 14:30:15",
+      "accessKey": "35250760142655000126658840000000261020210008",
+      "protocol": "135250001387032",
+      "number": "26",
+      "series": "884",
+      "status": {
+        "code": "100",
+        "description": "Autorizado o uso da NF-e"
+      },
+      "issueDate": "09/07/2025, 14:50:23",
       "environment": "Homologation"
     },
 
-    // 💰 DADOS FINANCEIROS ESSENCIAIS
+    // 💰 DADOS FINANCEIROS (SEMPRE COM TAXES)
     "financial": {
-      "totalValue": 129.90,
-      "productsTotal": 129.90,
-      "discount": 0.00,
-      "freight": 0.00,
-      "insurance": 0.00,
-      "otherExpenses": 0.00,
-      "change": 10.10
+      "totalValue": 0.90,
+      "productsValue": 1.00,        // ✅ productsValue (não productsTotal)
+      "discount": 0.10,
+      "taxes": {                    // ✅ Campo sempre presente
+        "icms": 0.00,
+        "pis": 0.00,
+        "cofins": 0.00,
+        "total": 0.00
+      }
+      // ❌ NÃO TEM: freight, insurance, otherExpenses, change
     },
 
     // 🏢 DADOS DA EMPRESA
     "company": {
-      "cnpj": "12.345.678/0001-99",
-      "corporateName": "EMPRESA EXEMPLO LTDA",
-      "tradeName": "LOJA EXEMPLO",
-      "stateRegistration": "123456789",
+      "cnpj": "60142655000126",     // ✅ Sem formatação
+      "corporateName": "YELLOWSTONE MINERACAO CRIATIVA LTDA",
+      "tradeName": "YELLOWSTONE",
+      "stateRegistration": "153453205111",
+      "crt": "1",
       "address": {
-        "street": "RUA EXEMPLO",
-        "number": "123",
-        "district": "CENTRO", 
+        "street": "AV GUILHERME CAMPOS",
+        "number": "500",
+        "district": "JARDIM SANTA GENERRA",
         "city": "SÃO PAULO",
         "state": "SP",
-        "zipCode": "01234-567",
-        "phone": "(11) 99999-9999"
+        "zipCode": "13087901",
+        "phone": "11999999999"
       }
     },
 
-    // 👤 DADOS DO CLIENTE (se informado)
+    // 👤 DADOS DO CLIENTE (pode ser null)
     "customer": {
-      "cpf": "123.456.789-00",
-      "name": "CLIENTE EXEMPLO"
+      "cpf": "11750943077",
+      "cnpj": "11222333000181",     // ✅ Do technicalResponsible
+      "name": "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
     },
 
-    // 📦 PRODUTOS
+    // 📦 PRODUTOS (estrutura correta)
     "products": [
       {
-        "nItem": 1,
-        "description": "CAMISETA BÁSICA",
-        "quantity": 1,
-        "unitPrice": 29.90,
-        "totalPrice": 29.90,
-        "unit": "UN",
-        "discount": 0.00
-      },
-      {
-        "nItem": 2,
-        "description": "CALÇA JEANS",
-        "quantity": 1,
-        "unitPrice": 100.00,
-        "totalPrice": 100.00,
-        "unit": "UN",
-        "discount": 0.00
+        "item": 1,                  // ✅ item (não nItem)
+        "code": "001",              // ✅ Código do produto
+        "description": "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+        "ncm": "85044010",          // ✅ NCM presente
+        "cfop": "5102",             // ✅ CFOP presente
+        "quantity": 1,              // ✅ Número inteiro
+        "unitPrice": 1,             // ✅ Número inteiro
+        "totalPrice": 1,            // ✅ Número inteiro
+        "discount": 0.1,            // ✅ Decimal
+        "unit": "UNID"
       }
     ],
 
-    // 💳 PAGAMENTOS
+    // 💳 PAGAMENTO (estrutura correta)
     "payment": {
-      "methods": [
-        {
-          "tPag": "01",
-          "paymentType": "Cash",
-          "amount": 140.00
-        }
-      ],
-      "change": 10.10
-    },
-
-    // 📱 QR CODE E XML
-    "qrCode": "https://www.fazenda.sp.gov.br/nfce/qrcode?p=...",
-    "xmlSigned": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
-  }
-}
-```
-
-### **📋 Campos Removidos na v2.0**
-Os seguintes campos técnicos foram removidos para simplificar a resposta:
-- ❌ `detectedMode` - Autodetecção é transparente
-- ❌ `documents` - Informação técnica desnecessária  
-- ❌ `processing` - Detalhes de processamento interno
-- ❌ `numbering` - Numeração já está em `fiscal.number`
-- ❌ `dateTime` - Data já está formatada em `fiscal.issueDate`
-- ❌ `status` - Status já está em `success`
-- ❌ `reason` - Detalhes técnicos da SEFAZ
-- ❌ `cStat` - Código técnico da SEFAZ
-- ❌ `nfcData` - Dados duplicados reorganizados
-
-### **✅ Resposta de Sucesso - Estrutura Anterior (Compatibilidade)**
-```json
-{
-  "success": true,
-  "message": "NFCe issued successfully",
-  "data": {
-    "accessKey": "35240112345678000199650010000000011123456789",
-    "protocol": "135240000123456",
-    "qrCode": "https://www.fazenda.sp.gov.br/nfce/qrcode?p=...",
-    "urlConsulta": "https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx",
-    "xmlSigned": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...",
-    "xmlBase64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4K...",
-    "number": "1",
-    "series": "001",
-    "totalValue": 15.50,
-    "company": {
-      "cnpj": "12345678000199",
-      "name": "EMPRESA EXEMPLO LTDA"
-    },
-    "numbering": {
-      "nNF": "1",
-      "cNF": "12345678"
-    }
-  }
-}
-```
-
-### **✅ Resposta de Sucesso - Emissão com Autodetecção**
-```json
-{
-  "success": true,
-  "message": "NFCe issued successfully with auto-detected taxation",
-  "data": {
-    "accessKey": "35240160142655000126650880000000011123456789",
-    "protocol": "135240000123456",
-    "qrCode": "https://www.fazenda.sp.gov.br/nfce/qrcode?p=...",
-    "urlConsulta": "https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx",
-    "xmlSigned": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...",
-    "xmlBase64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4K...",
-    "number": "1",
-    "series": "884",
-    "totalValue": 129.90,
-    "company": {
-      "cnpj": "60142655000126",
-      "name": "LOJA EXEMPLO LTDA"
-    },
-    "products": [
-      {
-        "code": "001",
-        "description": "CAMISETA BÁSICA",
-        "quantity": 1,
-        "unitValue": 29.90,
-        "totalValue": 29.90,
-        "taxation": {
-          "detectedMode": "auto",          // 🆕 Modo detectado
-          "icms": {
-            "orig": "0",
-            "CSOSN": "400"
-          },
-          "pis": {
-            "CST": "49",
-            "vPIS": "0.00"               // Valor zerado automaticamente
-          },
-          "cofins": {
-            "CST": "49", 
-            "vCOFINS": "0.00"            // Valor zerado automaticamente
-          }
-        }
+      "method": {                   // ✅ Objeto singular (não methods array)
+        "type": "01",
+        "description": "Dinheiro",  // ✅ description traduzida
+        "amount": 1                 // ✅ Número
       },
-      {
-        "code": "002",
-        "description": "NOTEBOOK GAMER",
-        "quantity": 1,
-        "unitValue": 2500.00,
-        "totalValue": 2500.00,
-        "taxation": {
-          "detectedMode": "auto",          // 🆕 Modo detectado
-          "icms": {
-            "orig": "0",
-            "CSOSN": "400"
-          },
-          "pis": {
-            "CST": "01",
-            "vBC": "2500.00",
-            "pPIS": "1.65",
-            "vPIS": "41.25"              // Calculado automaticamente: 2500 × 1.65%
-          },
-          "cofins": {
-            "CST": "01",
-            "vBC": "2500.00", 
-            "pCOFINS": "7.60",
-            "vCOFINS": "190.00"          // Calculado automaticamente: 2500 × 7.60%
-          }
-        }
-      },
-      {
-        "code": "003",
-        "description": "PRODUTO COM VALORES FIXOS",
-        "quantity": 1,
-        "unitValue": 200.00,
-        "totalValue": 200.00,
-        "taxation": {
-          "detectedMode": "manual",        // 🆕 Modo detectado
-          "icms": {
-            "orig": "0",
-            "CSOSN": "400"
-          },
-          "pis": {
-            "CST": "99",
-            "vPIS": "5.00"               // Valor fixo fornecido
-          },
-          "cofins": {
-            "CST": "99",
-            "vCOFINS": "15.00"           // Valor fixo fornecido
-          }
-        }
-      }
-    ],
-    "taxation": {
-      "summary": {
-        "autoDetected": 2,               // 🆕 Produtos com modo automático
-        "manual": 1,                     // 🆕 Produtos com modo manual
-        "totalPIS": "46.25",             // 0.00 + 41.25 + 5.00
-        "totalCOFINS": "205.00"          // 0.00 + 190.00 + 15.00
-      }
+      "change": 0.1                 // ✅ change está aqui
     },
-    "numbering": {
-      "nNF": "1",
-      "cNF": "12345678"
-    }
+
+    // 📱 QR CODE (AINDA COMO OBJETO - PRECISA CORREÇÃO)
+    "qrCode": {
+      "url": "https://www.homologacao.nfce.fazenda.sp.gov.br/qrcode?p=..."
+    },
+    // ✅ DEVERIA SER: "qrCode": "https://www.homologacao.nfce.fazenda.sp.gov.br/qrcode?p=...",
+
+    // 📄 XML ASSINADO
+    "xmlSigned": "<NFe..."
   }
 }
 ```
 
-### **✅ Resposta de Sucesso - Consulta**
-```json
-{
-  "success": true,
-  "message": "NFCe consulted successfully",
-  "data": {
-    "accessKey": "35240112345678000199650010000000011123456789",
-    "company": {
-      "cnpj": "12345678000199",
-      "name": "EMPRESA EXEMPLO LTDA"
-    },
-    "sefaz": {
-      "cStat": "100",
-      "status": "authorized",
-      "reason": "Autorizado o uso da NF-e",
-      "protocol": "135240000123456",
-      "xmlComplete": "<?xml version=\"1.0\"?>..."
-    }
-  }
-}
-```
+### **🎯 Características da Resposta Atual:**
+
+✅ **Campo `taxes` sempre presente** - Mesmo com valores zero  
+✅ **Resposta limpa** - Sem campos técnicos desnecessários  
+✅ **Estrutura organizada** - fiscal, financial, company, customer, products, payment, qrCode, xmlSigned  
+✅ **Autodetecção transparente** - Sem exposição do modo detectado  
+✅ **Dados reais** - Baseado na implementação atual  
+
+⚠️ **Pendências identificadas:**  
+- `qrCode` ainda como objeto - deveria ser string simples  
+- `customer.name` incorreto - deveria ser do recipient, não technicalResponsible  
+
+❌ **Campos removidos** (presentes em versões anteriores):  
+- `detectedMode` - Autodetecção é interna  
+- `consultUrl` - Desnecessário para o negócio  
+- `documents` - Informação técnica  
+- `processing` - Detalhes internos  
+- `methods` array no payment - Agora `method` objeto singular  
+- `freight`, `insurance`, `otherExpenses` - Campos não implementados  
+- `change` em financial - Movido para payment  
 
 ### **❌ Resposta de Erro**
 ```json
@@ -1413,10 +543,180 @@ Os seguintes campos técnicos foram removidos para simplificar a resposta:
   "data": {
     "cStat": "204",
     "reason": "Duplicidade de NF-e [chNFe: 35240112345678000199650010000000011123456789]",
-    "accessKey": "35240112345678000199650010000000011123456789",
-    "xmlComplete": "<?xml version=\"1.0\"?>..."
+    "accessKey": "35240112345678000199650010000000011123456789"
   }
 }
 ```
 
 ---
+
+## 🤖 **Sistema de Tributação Inteligente**
+
+### **🎯 Autodetecção Transparente**
+
+O sistema detecta automaticamente o modo de tributação baseado nos campos enviados:
+
+**🔄 Tributação Automática (Padrão)**
+- **Quando**: Sem campo `taxes` global
+- **Comportamento**: Aplica CSOSN 400 (Simples) + CST 49 (PIS/COFINS) com valores zero
+- **Ideal para**: Produtos não tributados, isentos, ou quando não há informação específica
+
+**⚙️ Tributação com CSTs Específicos**
+- **Quando**: Campo `taxes` global contendo apenas CSTs (`CST_PIS`, `CST_COFINS`, etc.)
+- **Comportamento**: Usa os CSTs fornecidos, mas sem cálculo de valores
+- **Ideal para**: Produtos isentos, não incidência, outras operações sem valor
+
+**📊 Tributação com Cálculo Percentual**
+- **Quando**: Campo `taxes` global contendo percentuais (`pisPercent`, `cofinsPercent`)
+- **Comportamento**: Calcula automaticamente: `valor_produto × percentual / 100`
+- **Ideal para**: Produtos com alíquotas padrão de PIS/COFINS
+
+**💰 Tributação com Valores Fixos**
+- **Quando**: Campo `taxes` global contendo valores (`pisValue`, `cofinsValue`)
+- **Comportamento**: Usa os valores fornecidos diretamente
+- **Ideal para**: Produtos com tributação fixa independente do valor
+
+**⚡ Tributação por Quantidade**
+- **Quando**: Campo `taxes` global contendo quantidade (`pisQuantity`, `cofinsQuantity`)
+- **Comportamento**: Calcula: `quantidade × valor_por_unidade`
+- **Ideal para**: Combustíveis, bebidas, outros produtos com tributação específica
+
+### **📋 Campos de Tributação Disponíveis**
+
+```typescript
+interface GlobalTaxes {
+  // ICMS
+  orig?: string;           // Origem da mercadoria (0-8)
+  CSOSN?: string;          // Código de Situação da Operação - Simples Nacional
+  
+  // PIS
+  CST_PIS?: string;        // Código de Situação Tributária do PIS
+  cstPis?: string;         // Alternativa para CST do PIS
+  pisPercent?: string;     // Alíquota percentual do PIS
+  pisValue?: string;       // Valor fixo do PIS
+  pisQuantity?: string;    // Quantidade para tributação do PIS
+  pisQuantityValue?: string; // Valor por unidade para PIS
+  
+  // COFINS  
+  CST_COFINS?: string;     // Código de Situação Tributária do COFINS
+  cstCofins?: string;      // Alternativa para CST do COFINS
+  cofinsPercent?: string;  // Alíquota percentual do COFINS
+  cofinsValue?: string;    // Valor fixo do COFINS
+  cofinsQuantity?: string; // Quantidade para tributação do COFINS
+  cofinsQuantityValue?: string; // Valor por unidade para COFINS
+  
+  // Base de cálculo customizada (opcional)
+  baseValue?: string;      // Base diferente do valor do produto
+}
+```
+
+---
+
+## 🔧 **Instalação e Configuração**
+
+### **📋 Pré-requisitos**
+- Node.js 18+
+- MySQL 8+
+- Certificados A1 (.pfx) das empresas
+
+### **⚡ Instalação Rápida**
+```bash
+# Clone o repositório
+git clone https://github.com/seu-usuario/nfce-node-api.git
+cd nfce-node-api
+
+# Instale as dependências
+npm install
+
+# Configure o banco de dados
+npm run database:initialize
+
+# Inicie em modo de desenvolvimento
+npm run dev
+```
+
+### **🗄️ Configuração do Banco**
+```sql
+-- A API cria automaticamente as tabelas necessárias
+-- Execute uma vez para inicializar:
+POST /api/notes/database/initialize
+```
+
+### **🔑 Configuração de Certificados**
+1. Coloque os certificados .pfx na pasta `certificates/`
+2. Nomeie como `{CNPJ}.pfx` (apenas números)
+3. A API busca automaticamente pelo CNPJ da requisição
+
+---
+
+## 📈 **Monitoramento e Cache**
+
+### **📊 Estatísticas do Sistema**
+```bash
+# Cache de certificados
+GET /api/notes/cache/stats
+
+# Controle de numeração
+GET /api/notes/numbering/stats
+
+# Limpar cache (se necessário)
+DELETE /api/notes/cache/clear
+```
+
+### **🎯 Performance**
+- **Cache inteligente** de certificados (1 hora)
+- **Controle de numeração** automático por série
+- **Endpoints GET** totalmente cacheáveis
+- **Validação de certificados** em background
+
+---
+
+## 🚀 **Roadmap da API Unificada**
+
+### **✅ Versão 2.0 (Atual)**
+- ✅ NFCe completa (emissão, consulta, cancelamento)
+- ✅ Arquitetura unificada preparada para expansão
+- ✅ Sistema de tributação autodetectado
+- ✅ Cache inteligente e performance otimizada
+- ✅ Resposta limpa e estruturada
+- ✅ Campo taxes sempre presente
+
+### **🔄 Versão 2.1 (Próxima)**
+- 🔄 NFe (Nota Fiscal Eletrônica)
+- 🔄 Eventos de NFe (Carta de Correção, Cancelamento)
+- 🔄 Suporte a certificados A3 (token/smartcard)
+
+### **🚀 Versão 3.0 (Futuro)**
+- 🚀 NFSe (Nota Fiscal de Serviços Eletrônica)
+- 🚀 Dashboard web para gerenciamento
+- 🚀 API Gateway com autenticação JWT
+- 🚀 Integração com ERPs populares
+
+---
+
+## 📚 **Documentação Técnica**
+
+### **🏗️ Arquitetura**
+```
+src/
+├── controllers/     # Endpoints e validações
+├── handlers/        # Lógica de negócio específica
+├── services/        # Serviços compartilhados
+├── parsers/         # Processamento de XML/respostas
+├── utils/           # Utilitários e cache
+├── config/          # Configurações do sistema
+└── types/           # Definições TypeScript
+```
+
+### **🔍 Fluxo de Processamento**
+1. **Controller** - Recebe requisição, valida dados básicos
+2. **Handler** - Processa regras de negócio específicas do tipo
+3. **Services** - Executam operações (numeração, certificados, SEFAZ)
+4. **Parsers** - Processam respostas XML da SEFAZ
+5. **Response** - Estrutura limpa retornada para o cliente
+
+---
+
+**🎉 A API v2.0 está pronta para produção com arquitetura unificada, tributação inteligente, código limpo, segurança máxima e preparada para expansão futura!**
+
+**Versão**: 2.0.0 (Unificada) | **Compatibilidade**: Exclusivamente rotas unificadas
