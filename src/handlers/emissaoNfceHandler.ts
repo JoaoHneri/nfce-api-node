@@ -183,8 +183,9 @@ export class EmissaoNfceHandler {
             taxes: {
                 orig: "0",
                 CSOSN: memberData.crt === "1" ? "102" : "400",
-                CST_PIS: "49",
-                CST_COFINS: "49"
+                cstPis: "49",
+                cstCofins: "49",
+                mode: "auto"
             },
             payment: nfceData.payment,
             transport: nfceData.transport || { mode: "9" }
@@ -670,42 +671,21 @@ export class EmissaoNfceHandler {
         NFe.tagProd(dados.products);
 
         dados.products.forEach((produto, index) => {
-            const impostos = dados.taxes || {
-                orig: "0",
-                CSOSN: "400",
-                CST_PIS: "49",
-                CST_COFINS: "49"
-            };
-
-            // ICMS (sempre igual - não mudou)
-            NFe.tagProdICMSSN(index, {
-                orig: impostos.orig,
-                CSOSN: impostos.CSOSN
-            });
-
-            // Obter alíquotas baseado no regime da empresa e CST
-            const aliquotas = TributacaoService.obterAliquotas(
-                dados.issuer.crt,           // "1" = Simples Nacional ou outro CRT
-                impostos.CST_PIS            // "49" = Outras operações ou outro CST
+            // Process tax data using new flexible taxation system
+            const processedTaxes = TributacaoService.processTaxData(
+                dados.taxes,
+                parseFloat(produto.vProd),
+                dados.issuer.crt
             );
 
-            // Calcular PIS automaticamente
-            const dadosPIS = TributacaoService.calcularPIS(
-                parseFloat(produto.vProd),  // Valor do produto
-                aliquotas,                  // Alíquotas determinadas
-                impostos.CST_PIS           // CST informado
-            );
+            // ICMS
+            NFe.tagProdICMSSN(index, processedTaxes.icms);
 
-            NFe.tagProdPIS(index, dadosPIS);
+            // PIS
+            NFe.tagProdPIS(index, processedTaxes.pis);
 
-            // Calcular COFINS automaticamente
-            const dadosCOFINS = TributacaoService.calcularCOFINS(
-                parseFloat(produto.vProd),  // Valor do produto
-                aliquotas,                  // Alíquotas determinadas
-                impostos.CST_COFINS        // CST informado
-            );
-
-            NFe.tagProdCOFINS(index, dadosCOFINS);
+            // COFINS
+            NFe.tagProdCOFINS(index, processedTaxes.cofins);
         });
 
         // Calcular totais

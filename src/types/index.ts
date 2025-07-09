@@ -80,12 +80,31 @@ export interface NFCeData {
     indTot: string;
   }>;
 
-  // Taxes (simplified)
+  // Taxes (flexible taxation system)
   taxes?: {
-    orig: string;
-    CSOSN: string;
-    CST_PIS: string;
-    CST_COFINS: string;
+    // ICMS fields
+    orig?: string;
+    CSOSN?: string;
+    
+    // PIS fields
+    cstPis?: string;
+    pisPercent?: string;
+    pisValue?: string;
+    pisQuantity?: string;
+    pisQuantityValue?: string;
+    
+    // COFINS fields
+    cstCofins?: string;
+    cofinsPercent?: string;
+    cofinsValue?: string;
+    cofinsQuantity?: string;
+    cofinsQuantityValue?: string;
+    
+    // Base calculation value (when using percentage)
+    baseValue?: string;
+    
+    // Taxation mode
+    mode?: 'auto' | 'manual';
   };
 
   technicalResponsible?: {
