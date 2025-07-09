@@ -645,9 +645,14 @@ export class EmissaoNfceHandler {
 
         dados.products.forEach((produto, index) => {
             // Process tax data using new flexible taxation system
+            let valorProduto = parseFloat(produto.vProd);
+            if (isNaN(valorProduto)) {
+                valorProduto = 0;
+                console.warn(`Produto com vProd inválido ou ausente (index ${index}):`, produto);
+            }
             const processedTaxes = TributacaoService.processTaxData(
                 dados.taxes,
-                parseFloat(produto.vProd),
+                valorProduto,
                 dados.issuer.crt
             );
 
