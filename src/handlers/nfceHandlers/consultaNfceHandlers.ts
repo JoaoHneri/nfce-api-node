@@ -1,6 +1,6 @@
-import { SefazResponseParser } from "../parsers/sefazResponseParsers";
-import { ConsultaResponse, CertificadoConfig } from "../types";
-import { MemberService } from "../services/memberService";
+import { SefazResponseParser } from "../../parsers/sefazResponseParsers";
+import { ConsultaResponse, CertificadoConfig } from "../../types";
+import { MemberService } from "../../services/memberService";
 
 export class ConsultaHandler {
     private parser: SefazResponseParser;

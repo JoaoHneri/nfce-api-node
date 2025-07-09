@@ -5,9 +5,9 @@ import { getDatabaseConfig, createDatabaseConnection } from '../config/database'
 import { CertificadoConfig } from '../types';
 import { validarCertificado } from '../utils/validadorCertificado';
 import { MemberService } from '../services/memberService';
-import { EmissaoNfceHandler } from '../handlers/emissaoNfceHandler';
-import { CancelamentoHandler } from '../handlers/cancelamentoHandler';
-import { ConsultaHandler } from '../handlers/consultaNfceHandlers';
+import { EmissaoNfceHandler } from '../handlers/nfceHandlers/emissaoNfceHandler';
+import { CancelamentoHandler } from '../handlers/nfceHandlers/cancelamentoHandler';
+import { ConsultaHandler } from '../handlers/nfceHandlers/consultaNfceHandlers';
 
 export class NFCeController {
   private sefazNfceService: SefazNfceService;

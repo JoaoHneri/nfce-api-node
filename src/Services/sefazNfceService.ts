@@ -5,9 +5,9 @@ import path from "path";
 import { v4 as uuidv4 } from 'uuid';
 import { NFCeData, CertificadoConfig, SefazResponse, SefazEndpoints, CancelamentoRequest } from '../types';
 import { ENDPOINTS_HOMOLOGACAO, ENDPOINTS_PRODUCAO} from '../config/sefaz-endpoints';
-import { ConsultaHandler } from "../handlers/consultaNfceHandlers";
-import { CancelamentoHandler } from "../handlers/cancelamentoHandler";
-import { EmissaoNfceHandler } from "../handlers/emissaoNfceHandler";
+import { ConsultaHandler } from "../handlers/nfceHandlers/consultaNfceHandlers";
+import { CancelamentoHandler } from "../handlers/nfceHandlers/cancelamentoHandler";
+import { EmissaoNfceHandler } from "../handlers/nfceHandlers/emissaoNfceHandler";
 import { ToolsCache } from "../utils/toolsCache";
 
 export class SefazNfceService {
