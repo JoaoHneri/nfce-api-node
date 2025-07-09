@@ -630,7 +630,7 @@ export class EmissaoNfceHandler {
             fone: dados.issuer.address.phone
         });
 
-        // Recipient (optional)
+
         if (dados.recipient) {
             NFe.tagDest({
                 CPF: dados.recipient.cpf,
@@ -1004,10 +1004,8 @@ export class EmissaoNfceHandler {
             // 💳 PAGAMENTO (sempre objeto estruturado)
             payment: this.formatarPagamento(nfcData?.payments, nfcData?.change),
 
-            // 📱 QR CODE (sempre objeto estruturado)
-            qrCode: {
-                url: dadosExtraidos.qrCode || ''
-            },
+            // 📱 QR CODE (sempre string)
+            qrCode:  dadosExtraidos.qrCode || '',
 
             // 📄 XML ASSINADO
             xmlSigned: resultadoEmissao.xmlSigned

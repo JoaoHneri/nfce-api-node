@@ -478,6 +478,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 
     // 💳 PAGAMENTO (estrutura correta)
     "payment": {
+
       "method": {                   // ✅ Objeto singular (não methods array)
         "type": "01",
         "description": "Dinheiro",  // ✅ description traduzida
@@ -486,11 +487,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
       "change": 0.1                 // ✅ change está aqui
     },
 
-    // 📱 QR CODE (AINDA COMO OBJETO - PRECISA CORREÇÃO)
-    "qrCode": {
-      "url": "https://www.homologacao.nfce.fazenda.sp.gov.br/qrcode?p=..."
-    },
-    // ✅ DEVERIA SER: "qrCode": "https://www.homologacao.nfce.fazenda.sp.gov.br/qrcode?p=...",
+    // 📱 QR CODE (agora string, conforme implementação)
+    "qrCode": "https://www.homologacao.nfce.fazenda.sp.gov.br/qrcode?p=...",
 
     // 📄 XML ASSINADO
     "xmlSigned": "<NFe..."
