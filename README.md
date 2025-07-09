@@ -92,7 +92,7 @@ POST /api/notes/database/initialize    # Inicializar banco
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
   -d '{
-    "memberCnpj": "60142655000126",
+    "memberCnpj": "12345678000100",
     "environment": 2,
     "noteData": {
       "ide": { "natOp": "VENDA", "serie": "884" },
@@ -172,7 +172,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
   -d '{
-    "memberCnpj": "60142655000126",
+    "memberCnpj": "12345678000100",
     "environment": 2,
     "noteData": {
       "ide": { "natOp": "VENDA", "serie": "884" },
@@ -236,7 +236,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
   -d '{
-    "memberCnpj": "98765432000111",
+    "memberCnpj": "12345678000100",
     "environment": 2,
     "noteData": {
       "ide": { "natOp": "VENDA", "serie": "1" },
@@ -308,7 +308,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
   -d '{
-    "memberCnpj": "22222222000133",
+    "memberCnpj": "12345678000100",
     "environment": 2,
     "noteData": {
       "ide": { "natOp": "VENDA", "serie": "1" },
@@ -354,7 +354,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
   -d '{
-    "memberCnpj": "33333333000144",
+    "memberCnpj": "12345678000100",
     "environment": 2,
     "noteData": {
       "ide": { "natOp": "VENDA", "serie": "1" },
@@ -437,18 +437,18 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 
     // 🏢 DADOS DA EMPRESA
     "company": {
-      "cnpj": "60142655000126",     // ✅ Sem formatação
-      "corporateName": "YELLOWSTONE MINERACAO CRIATIVA LTDA",
-      "tradeName": "YELLOWSTONE",
-      "stateRegistration": "153453205111",
+      "cnpj": "12345678000100",     // ✅ Sem formatação
+      "corporateName": "EMPRESA FICTICIA LTDA",
+      "tradeName": "EMPRESA FICTICIA",
+      "stateRegistration": "123456789000",
       "crt": "1",
       "address": {
-        "street": "AV GUILHERME CAMPOS",
-        "number": "500",
-        "district": "JARDIM SANTA GENERRA",
-        "city": "SÃO PAULO",
+        "street": "RUA FICTICIA",
+        "number": "100",
+        "district": "CENTRO",
+        "city": "CIDADE FICTICIA",
         "state": "SP",
-        "zipCode": "13087901",
+        "zipCode": "00000000",
         "phone": "11999999999"
       }
     },
@@ -456,7 +456,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
     // 👤 DADOS DO CLIENTE (pode ser null)
     "customer": {
       "cpf": "11750943077",
-      "cnpj": "11222333000181",     // ✅ Do technicalResponsible
+      "cnpj": "12345678000100",     // ✅ Do technicalResponsible
       "name": "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
     },
 
@@ -524,11 +524,11 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 {
   "success": false,
   "message": "Error issuing NFCe",
-  "error": "Certificate not found for CNPJ: 12345678000199 in environment: 2",
+  "error": "Certificate not found for CNPJ: 12345678000100 in environment: 2",
   "data": {
     "cStat": "404",
     "reason": "Certificate not configured",
-    "memberCnpj": "12345678000199",
+    "memberCnpj": "12345678000100",
     "environment": 2
   }
 }
@@ -542,8 +542,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
   "error": "Rejeição: Duplicidade de NF-e",
   "data": {
     "cStat": "204",
-    "reason": "Duplicidade de NF-e [chNFe: 35240112345678000199650010000000011123456789]",
-    "accessKey": "35240112345678000199650010000000011123456789"
+    "reason": "Duplicidade de NF-e [chNFe: 35240112345678000100123450000000011123456789]",
+    "accessKey": "35240112345678000100123450000000011123456789"
   }
 }
 ```
