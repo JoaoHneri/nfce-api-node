@@ -121,8 +121,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
       "taxes": {
         "orig": "0",
         "CSOSN": "102",
-        "CST_PIS": "49",
-        "CST_COFINS": "49"
+        "cstPis": "49",
+        "cstCofins": "49"
       },
       "transport": { "mode": "9" },
       "payment": {
@@ -195,8 +195,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
       "taxes": {
         "orig": "0",
         "CSOSN": "102",
-        "CST_PIS": "07",
-        "CST_COFINS": "07"
+        "cstPis": "07",
+        "cstCofins": "07"
       },
       "payment": {
         "detPag": [
@@ -550,6 +550,49 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
 
 ---
 
+
+## 🔗 **Integração com a Biblioteca node-sped-nfe**
+
+O processamento de taxas (tributação) realizado pela API é totalmente compatível e integrado com a biblioteca [node-sped-nfe](https://github.com/akretion/node-sped-nfe), que é responsável pela geração do XML fiscal final.
+
+### 🛠️ **Como funciona a integração**
+
+- **Entrada:** Você envia os campos de tributação no payload da API usando camelCase (ex: `cstPis`, `cstCofins`, `pisPercent`, etc.), conforme os exemplos deste README.
+- **Processamento:** O serviço de tributação interpreta esses campos, valida e calcula os valores necessários (automático ou manual).
+- **Conversão:** Internamente, a API converte os campos camelCase para o padrão exigido pela `node-sped-nfe`, gerando as tags XML corretas:
+  - `ICMS` → `tagProdICMSSN`
+  - `PIS`  → `tagProdPIS`
+  - `COFINS` → `tagProdCOFINS`
+- **Geração do XML:** A biblioteca `node-sped-nfe` recebe os dados já no formato correto e gera o XML fiscal válido para a SEFAZ.
+
+### 📦 **Exemplo de Conversão**
+
+```json
+// Payload enviado para a API
+"taxes": {
+  "orig": "0",
+  "CSOSN": "102",
+  "cstPis": "49",
+  "cstCofins": "49"
+}
+```
+
+**Processamento interno → Conversão para tags node-sped-nfe:**
+
+```js
+{
+  tagProdICMSSN: { orig: '0', CSOSN: '102' },
+  tagProdPIS:    { CST: '49', vPIS: '0.00' },
+  tagProdCOFINS: { CST: '49', vCOFINS: '0.00' }
+}
+```
+
+### ✅ **Vantagens**
+- Você não precisa se preocupar com nomes de campos em caixa alta/baixa ou com o padrão XML.
+- Basta seguir o padrão camelCase da documentação e exemplos.
+- Toda a integração e conversão é feita automaticamente pela API.
+
+---
 ## 🤖 **Sistema de Tributação Inteligente**
 
 ### **🎯 Autodetecção Transparente**
@@ -590,16 +633,14 @@ interface GlobalTaxes {
   CSOSN?: string;          // Código de Situação da Operação - Simples Nacional
   
   // PIS
-  CST_PIS?: string;        // Código de Situação Tributária do PIS
-  cstPis?: string;         // Alternativa para CST do PIS
+  cstPis?: string;         // Código de Situação Tributária do PIS
   pisPercent?: string;     // Alíquota percentual do PIS
   pisValue?: string;       // Valor fixo do PIS
   pisQuantity?: string;    // Quantidade para tributação do PIS
   pisQuantityValue?: string; // Valor por unidade para PIS
   
   // COFINS  
-  CST_COFINS?: string;     // Código de Situação Tributária do COFINS
-  cstCofins?: string;      // Alternativa para CST do COFINS
+  cstCofins?: string;      // Código de Situação Tributária do COFINS
   cofinsPercent?: string;  // Alíquota percentual do COFINS
   cofinsValue?: string;    // Valor fixo do COFINS
   cofinsQuantity?: string; // Quantidade para tributação do COFINS
