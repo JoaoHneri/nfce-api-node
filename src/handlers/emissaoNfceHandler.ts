@@ -1001,8 +1001,7 @@ export class EmissaoNfceHandler {
 
             // 📱 QR CODE (sempre objeto estruturado)
             qrCode: {
-                url: dadosExtraidos.qrCode || '',
-                consultUrl: this.gerarUrlConsulta(memberData.state || 'SP')
+                url: dadosExtraidos.qrCode || ''
             },
 
             // 📄 XML ASSINADO
@@ -1079,17 +1078,5 @@ export class EmissaoNfceHandler {
         };
 
         return paymentTypes[tPag] || "Não identificado";
-    }
-
-    private gerarUrlConsulta(uf: string): string {
-        const baseUrls: { [key: string]: string } = {
-            "SP": "https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx",
-            "RJ": "https://www.nfce.fazenda.rj.gov.br/consulta",
-            "MG": "https://portalsped.fazenda.mg.gov.br/portalnfce",
-            "RS": "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx",
-            "PR": "http://www.fazenda.pr.gov.br/nfce/qrcode"
-        };
-
-        return baseUrls[uf] || baseUrls["SP"];
     }
 }
