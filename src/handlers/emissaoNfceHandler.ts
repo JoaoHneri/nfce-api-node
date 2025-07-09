@@ -220,29 +220,8 @@ export class EmissaoNfceHandler {
                 rejectionReason: null
             });
 
-            return {
-                success: true,
-                accessKey: dadosExtraidos.accessKey,
-                protocol: dadosExtraidos.protocol,
-                qrCode: dadosExtraidos.qrCode,
-                xmlSigned: resultadoEmissao.xmlSigned,
-                number: dadosNumeracao.nNF,
-                series: nfceData.ide.serie,
-                totalValue: dadosExtraidos.totalValue,
-                dateTime: resultadoEmissao.dateTime,
-                status: resultadoEmissao.cStat,
-                reason: resultadoEmissao.reason,
-                company: {
-                    cnpj: memberData.cnpj,
-                    name: memberData.xName
-                },
-                numbering: {
-                    nNF: dadosNumeracao.nNF,
-                    cNF: dadosNumeracao.cNF
-                },
-                // 🎯 DADOS COMPLETOS PARA IMPRESSÃO
-                nfcData: dadosExtraidos.nfcData
-            };
+            // 🎯 NOVA ESTRUTURA DE RESPOSTA - APENAS DADOS ESSENCIAIS
+            return this.formatarRespostaLimpa(dadosExtraidos, memberData, resultadoEmissao);
         } else {
             // ❌ NFCe rejeitada - salvar como denied
             const totalValue = this.calcularTotalValue(nfceData);
@@ -267,13 +246,7 @@ export class EmissaoNfceHandler {
             return {
                 success: false,
                 error: resultadoEmissao.reason || resultadoEmissao.error,
-                totalValue,
-                cStat: resultadoEmissao.cStat,
-                reason: resultadoEmissao.reason,
-                numbering: {
-                    nNF: dadosNumeracao.nNF,
-                    cNF: dadosNumeracao.cNF
-                }
+                message: 'NFCe was rejected by SEFAZ'
             };
         }
     }
@@ -968,5 +941,155 @@ export class EmissaoNfceHandler {
         return EmissaoNfceHandler.TECHNICAL_ERROR_PATTERNS.some(pattern =>
             searchText.includes(pattern)
         );
+    }
+
+    /**
+     * Formata a resposta da API com apenas os dados essenciais para o negócio
+     * Remove campos técnicos como detectedMode, documents, processing
+     */
+    private formatarRespostaLimpa(dadosExtraidos: any, memberData: any, resultadoEmissao: SefazResponse): any {
+        const nfcData = dadosExtraidos.nfcData;
+        
+        return {
+            // ❌ REMOVER: success: true - já está no controller
+            
+            // ✅ DADOS FISCAIS ESSENCIAIS
+            fiscal: {
+                accessKey: dadosExtraidos.accessKey,
+                protocol: dadosExtraidos.protocol,
+                number: nfcData?.identification?.number || '',
+                series: nfcData?.identification?.series || '',
+                status: {
+                    code: resultadoEmissao.cStat || "100",
+                    description: resultadoEmissao.reason || "Autorizado o uso da NF-e"
+                },
+                issueDate: nfcData?.identification?.issueDate || new Date().toISOString(),
+                environment: nfcData?.identification?.environment || 'homologation'
+            },
+
+            // 💰 DADOS FINANCEIROS COM TAXES SEMPRE PRESENTE
+            financial: {
+                totalValue: parseFloat((dadosExtraidos.totalValue || 0).toFixed(2)),
+                productsValue: parseFloat((nfcData?.totals?.productsTotal || 0).toFixed(2)),
+                discount: parseFloat((nfcData?.totals?.discount || 0).toFixed(2)),
+                taxes: {
+                    icms: parseFloat((nfcData?.totals?.icmsValue || 0).toFixed(2)),
+                    pis: parseFloat((nfcData?.totals?.pisValue || 0).toFixed(2)),
+                    cofins: parseFloat((nfcData?.totals?.cofinsValue || 0).toFixed(2)),
+                    total: parseFloat(((nfcData?.totals?.icmsValue || 0) + (nfcData?.totals?.pisValue || 0) + (nfcData?.totals?.cofinsValue || 0)).toFixed(2))
+                }
+            },
+
+            // 🏢 DADOS DA EMPRESA
+            company: {
+                cnpj: nfcData?.company?.cnpj || memberData.cnpj,
+                corporateName: nfcData?.company?.corporateName || memberData.xName,
+                tradeName: nfcData?.company?.tradeName || memberData.xFant,
+                stateRegistration: nfcData?.company?.stateRegistration || memberData.ie || '',
+                crt: memberData.crt,
+                address: this.formatarEndereco(nfcData?.company?.address, memberData)
+            },
+
+            // 👤 DADOS DO CLIENTE (sempre objeto, pode ser null)
+            customer: this.formatarCliente(nfcData?.customer),
+
+            // 📦 PRODUTOS (sempre array, pode ser vazio)
+            products: this.formatarProdutos(nfcData?.products || []),
+
+            // 💳 PAGAMENTO (sempre objeto estruturado)
+            payment: this.formatarPagamento(nfcData?.payments, nfcData?.change),
+
+            // 📱 QR CODE (sempre objeto estruturado)
+            qrCode: {
+                url: dadosExtraidos.qrCode || '',
+                consultUrl: this.gerarUrlConsulta(memberData.state || 'SP')
+            },
+
+            // 📄 XML ASSINADO
+            xmlSigned: resultadoEmissao.xmlSigned
+        };
+    }
+
+    // Métodos auxiliares para garantir estrutura consistente
+    private formatarCliente(customer: any): any {
+        if (!customer) return null;
+        
+        return {
+            cpf: customer.cpf || null,
+            cnpj: customer.cnpj || null,
+            name: customer.name || ''
+        };
+    }
+
+    private formatarProdutos(products: any[]): any[] {
+        return products.map((produto, index) => ({
+            item: index + 1,
+            code: produto.cProd || '',
+            description: produto.description || '',
+            ncm: produto.NCM || '',
+            cfop: produto.CFOP || '',
+            quantity: parseFloat((produto.quantity || 0).toFixed(2)),
+            unitPrice: parseFloat((produto.unitPrice || 0).toFixed(2)),
+            totalPrice: parseFloat((produto.totalPrice || 0).toFixed(2)),
+            discount: parseFloat((produto.discount || 0).toFixed(2)),
+            unit: produto.unit || ''
+        }));
+    }
+
+    private formatarPagamento(payments: any[], change: number = 0): any {
+        const payment = payments?.[0] || {};
+        
+        return {
+            method: {
+                type: payment.tPag || "01",
+                description: this.getPaymentDescription(payment.tPag || "01"),
+                amount: parseFloat((payment.amount || 0).toFixed(2))
+            },
+            change: parseFloat((change || 0).toFixed(2))
+        };
+    }
+
+    private formatarEndereco(address: any, memberData: any): any {
+        return {
+            street: address?.street || memberData.street || '',
+            number: address?.number || memberData.number || '',
+            district: address?.district || memberData.neighborhood || '',
+            city: address?.city || memberData.city || '',
+            state: address?.state || memberData.state || '',
+            zipCode: address?.zipCode || memberData.zipCode || '',
+            phone: address?.phone || memberData.phone || ''
+        };
+    }
+
+    private getPaymentDescription(tPag: string): string {
+        const paymentTypes: { [key: string]: string } = {
+            "01": "Dinheiro",
+            "02": "Cheque",
+            "03": "Cartão de Crédito",
+            "04": "Cartão de Débito",
+            "05": "Cartão da Loja",
+            "10": "Vale Alimentação",
+            "11": "Vale Refeição",
+            "12": "Vale Presente",
+            "13": "Vale Combustível",
+            "15": "Boleto Bancário",
+            "17": "PIX",
+            "90": "Sem Pagamento",
+            "99": "Outros"
+        };
+
+        return paymentTypes[tPag] || "Não identificado";
+    }
+
+    private gerarUrlConsulta(uf: string): string {
+        const baseUrls: { [key: string]: string } = {
+            "SP": "https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx",
+            "RJ": "https://www.nfce.fazenda.rj.gov.br/consulta",
+            "MG": "https://portalsped.fazenda.mg.gov.br/portalnfce",
+            "RS": "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx",
+            "PR": "http://www.fazenda.pr.gov.br/nfce/qrcode"
+        };
+
+        return baseUrls[uf] || baseUrls["SP"];
     }
 }

@@ -1128,7 +1128,112 @@ Para dúvidas sobre a API unificada:
 
 ## 📊 **Estrutura das Respostas**
 
-### **✅ Resposta de Sucesso - Emissão**
+### **✅ Resposta de Sucesso - Nova Estrutura v2.0**
+```json
+{
+  "success": true,
+  "message": "NFCe issued successfully",
+  "data": {
+    "success": true,
+    
+    // ✅ DADOS FISCAIS ESSENCIAIS
+    "fiscal": {
+      "accessKey": "35240112345678000199650010000000011123456789",
+      "protocol": "135240000123456",
+      "number": "000000001",
+      "series": "001",
+      "issueDate": "09/01/2025, 14:30:15",
+      "environment": "Homologation"
+    },
+
+    // 💰 DADOS FINANCEIROS ESSENCIAIS
+    "financial": {
+      "totalValue": 129.90,
+      "productsTotal": 129.90,
+      "discount": 0.00,
+      "freight": 0.00,
+      "insurance": 0.00,
+      "otherExpenses": 0.00,
+      "change": 10.10
+    },
+
+    // 🏢 DADOS DA EMPRESA
+    "company": {
+      "cnpj": "12.345.678/0001-99",
+      "corporateName": "EMPRESA EXEMPLO LTDA",
+      "tradeName": "LOJA EXEMPLO",
+      "stateRegistration": "123456789",
+      "address": {
+        "street": "RUA EXEMPLO",
+        "number": "123",
+        "district": "CENTRO", 
+        "city": "SÃO PAULO",
+        "state": "SP",
+        "zipCode": "01234-567",
+        "phone": "(11) 99999-9999"
+      }
+    },
+
+    // 👤 DADOS DO CLIENTE (se informado)
+    "customer": {
+      "cpf": "123.456.789-00",
+      "name": "CLIENTE EXEMPLO"
+    },
+
+    // 📦 PRODUTOS
+    "products": [
+      {
+        "nItem": 1,
+        "description": "CAMISETA BÁSICA",
+        "quantity": 1,
+        "unitPrice": 29.90,
+        "totalPrice": 29.90,
+        "unit": "UN",
+        "discount": 0.00
+      },
+      {
+        "nItem": 2,
+        "description": "CALÇA JEANS",
+        "quantity": 1,
+        "unitPrice": 100.00,
+        "totalPrice": 100.00,
+        "unit": "UN",
+        "discount": 0.00
+      }
+    ],
+
+    // 💳 PAGAMENTOS
+    "payment": {
+      "methods": [
+        {
+          "tPag": "01",
+          "paymentType": "Cash",
+          "amount": 140.00
+        }
+      ],
+      "change": 10.10
+    },
+
+    // 📱 QR CODE E XML
+    "qrCode": "https://www.fazenda.sp.gov.br/nfce/qrcode?p=...",
+    "xmlSigned": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
+  }
+}
+```
+
+### **📋 Campos Removidos na v2.0**
+Os seguintes campos técnicos foram removidos para simplificar a resposta:
+- ❌ `detectedMode` - Autodetecção é transparente
+- ❌ `documents` - Informação técnica desnecessária  
+- ❌ `processing` - Detalhes de processamento interno
+- ❌ `numbering` - Numeração já está em `fiscal.number`
+- ❌ `dateTime` - Data já está formatada em `fiscal.issueDate`
+- ❌ `status` - Status já está em `success`
+- ❌ `reason` - Detalhes técnicos da SEFAZ
+- ❌ `cStat` - Código técnico da SEFAZ
+- ❌ `nfcData` - Dados duplicados reorganizados
+
+### **✅ Resposta de Sucesso - Estrutura Anterior (Compatibilidade)**
 ```json
 {
   "success": true,
