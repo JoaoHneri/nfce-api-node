@@ -78,7 +78,9 @@ export class NFCeController {
               this.sefazNfceService
             );
 
-            if (resultado.success) {
+            const isSuccess = resultado.fiscal?.status?.code === "100";
+
+            if (isSuccess) {
               reply.status(200).send({
                 success: true,
                 message: 'NFCe issued successfully',
