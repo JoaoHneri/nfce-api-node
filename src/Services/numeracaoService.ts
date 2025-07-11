@@ -207,13 +207,25 @@ export class NumeracaoService {
           COUNT(CASE WHEN i.status = 'authorized' THEN 1 END) as total_autorizadas,
           COUNT(CASE WHEN i.status = 'denied' THEN 1 END) as total_rejeitadas,
           MAX(i.created_at) as ultima_emissao,
-          GROUP_CONCAT(i.number ORDER BY i.created_at DESC LIMIT 10) as ultimos_numeros
+          (
+            SELECT GROUP_CONCAT(sub.number ORDER BY sub.created_at DESC)
+            FROM (
+              SELECT i2.number, i2.created_at
+              FROM invoices i2
+              INNER JOIN member m2 ON i2.member_id = m2.id
+              WHERE m2.cnpj = ? 
+                AND i2.series = ? 
+                AND i2.environment = ?
+              ORDER BY i2.created_at DESC
+              LIMIT 10
+            ) sub
+          ) as ultimos_numeros
         FROM invoices i
         INNER JOIN member m ON i.member_id = m.id
         WHERE m.cnpj = ? 
           AND i.series = ? 
           AND i.environment = ?
-      `, [config.cnpj, config.serie, config.ambiente]);
+      `, [config.cnpj, config.serie, config.ambiente, config.cnpj, config.serie, config.ambiente]);
 
       const stats = (rows as any[])[0];
       const ultimoNumero = stats?.ultimo_numero || 0;
