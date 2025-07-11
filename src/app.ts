@@ -49,6 +49,26 @@ async function registerPlugins() {
   // Helmet para segurança
   await app.register(require('@fastify/helmet'));
 
+  // Swagger/OpenAPI
+  const fastifySwagger = await import('@fastify/swagger');
+  const fastifySwaggerUI = await import('@fastify/swagger-ui');
+  await app.register(fastifySwagger.default, {
+    openapi: {
+      info: {
+        title: 'API Unificada para Notas Fiscais',
+        description: 'API para emissão, consulta, cancelamento e utilitários de NFC-e, NFe, NFSe',
+        version: '2.0.0'
+      }
+    }
+  });
+  await app.register(fastifySwaggerUI.default, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: false
+    }
+  });
+
   // Registrar rotas unificadas
   await app.register(routes, { prefix: '/api' });
 }
