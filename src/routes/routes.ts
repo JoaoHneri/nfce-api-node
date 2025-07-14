@@ -4,7 +4,7 @@ import { NFCeController } from '../controllers/nfceController';
 const noteController = new NFCeController();
 
 async function routes(fastify: FastifyInstance) {
-    
+
 
     fastify.post('/notes/:type/issue', {
         schema: {
@@ -25,138 +25,23 @@ async function routes(fastify: FastifyInstance) {
                     memberCnpj: { type: 'string', description: 'CNPJ da empresa emissora' },
                     environment: { type: 'number', enum: [1, 2], description: '1=Produção, 2=Homologação' },
                     noteData: {
-                        oneOf: [
-                            {
-                                title: 'NFC-e',
-                                type: 'object',
-                                properties: {
-                                    type: { type: 'string', enum: ['nfce'] },
-                                    ide: {
-                                        type: 'object',
-                                        properties: {
-                                            natOp: { type: 'string' },
-                                            serie: { type: 'string' }
-                                        }
-                                    },
-                                    recipient: {
-                                        type: 'object',
-                                        properties: {
-                                            cpf: { type: 'string' },
-                                            xName: { type: 'string' },
-                                            ieInd: { type: 'string' }
-                                        }
-                                    },
-                                    products: {
-                                        type: 'array',
-                                        items: {
-                                            type: 'object',
-                                            properties: {
-                                                cProd: { type: 'string' },
-                                                cEAN: { type: 'string' },
-                                                xProd: { type: 'string' },
-                                                NCM: { type: 'string' },
-                                                CFOP: { type: 'string' },
-                                                uCom: { type: 'string' },
-                                                qCom: { type: 'string' },
-                                                vUnCom: { type: 'string' },
-                                                vProd: { type: 'string' },
-                                                cEANTrib: { type: 'string' },
-                                                uTrib: { type: 'string' },
-                                                qTrib: { type: 'string' },
-                                                vUnTrib: { type: 'string' },
-                                                vDesc: { type: 'string' },
-                                                indTot: { type: 'string' }
-                                            }
-                                        }
-                                    },
-                                    taxes: {
-                                        type: 'object',
-                                        properties: {
-                                            orig: { type: 'string' },
-                                            CSOSN: { type: 'string' },
-                                            cstPis: { type: 'string' },
-                                            cstCofins: { type: 'string' }
-                                        }
-                                    },
-                                    transport: {
-                                        type: 'object',
-                                        properties: {
-                                            mode: { type: 'string' }
-                                        }
-                                    },
-                                    payment: {
-                                        type: 'object',
-                                        properties: {
-                                            detPag: {
-                                                type: 'array',
-                                                items: {
-                                                    type: 'object',
-                                                    properties: {
-                                                        indPag: { type: 'string' },
-                                                        tPag: { type: 'string' },
-                                                        vPag: { type: 'string' }
-                                                    }
-                                                }
-                                            },
-                                            change: { type: 'string' }
-                                        }
-                                    },
-                                    technicalResponsible: {
-                                        type: 'object',
-                                        properties: {
-                                            CNPJ: { type: 'string' },
-                                            xContact: { type: 'string' },
-                                            email: { type: 'string' },
-                                            phone: { type: 'string' }
-                                        }
-                                    }
-                                }
-                            },
-                            {
-                                title: 'NFe',
-                                type: 'object',
-                                properties: {
-                                    type: { type: 'string', enum: ['nfe'] },
-                                    ide: { type: 'object', properties: { natOp: { type: 'string' }, serie: { type: 'string' } } },
-                                    emit: { type: 'object', properties: { cnpj: { type: 'string' }, xName: { type: 'string' } } },
-                                    products: { type: 'array', items: { type: 'object', properties: { cProd: { type: 'string' }, xProd: { type: 'string' } } } }
-                                }
-                            },
-                            {
-                                title: 'NFSe',
-                                type: 'object',
-                                properties: {
-                                    type: { type: 'string', enum: ['nfse'] },
-                                    tomador: { type: 'object', properties: { cpfCnpj: { type: 'string' }, nome: { type: 'string' } } },
-                                    servico: { type: 'object', properties: { descricao: { type: 'string' }, valor: { type: 'string' } } }
-                                }
-                            }
-                        ]
+                        type: 'object',
+                        properties: {
+                            ide: { type: 'object', properties: { natOp: { type: 'string' }, serie: { type: 'string' } }, nullable: true },
+                            recipient: { type: 'object', properties: { cpf: { type: 'string' }, xName: { type: 'string' }, ieInd: { type: 'string' } }, nullable: true },
+                            products: { type: 'array', items: { type: 'object', properties: { cProd: { type: 'string' }, cEAN: { type: 'string' }, xProd: { type: 'string' }, NCM: { type: 'string' }, CFOP: { type: 'string' }, uCom: { type: 'string' }, qCom: { type: 'string' }, vUnCom: { type: 'string' }, vProd: { type: 'string' }, cEANTrib: { type: 'string' }, uTrib: { type: 'string' }, qTrib: { type: 'string' }, vUnTrib: { type: 'string' }, vDesc: { type: 'string' }, indTot: { type: 'string' } } }, nullable: true },
+                            taxes: { type: 'object', properties: { orig: { type: 'string' }, CSOSN: { type: 'string' }, cstPis: { type: 'string' }, cstCofins: { type: 'string' } }, nullable: true },
+                            transport: { type: 'object', properties: { mode: { type: 'string' } }, nullable: true },
+                            payment: { type: 'object', properties: { detPag: { type: 'array', items: { type: 'object', properties: { indPag: { type: 'string' }, tPag: { type: 'string' }, vPag: { type: 'string' } } } }, change: { type: 'string' } }, nullable: true },
+                            technicalResponsible: { type: 'object', properties: { CNPJ: { type: 'string' }, xContact: { type: 'string' }, email: { type: 'string' }, phone: { type: 'string' } }, nullable: true }
+                        }
                     }
                 }
             },
-            response: {
-                200: {
-                    type: 'object',
-                    properties: {
-                        success: { type: 'boolean' },
-                        message: { type: 'string' },
-                        data: { type: 'object' }
-                    }
-                },
-                400: {
-                    type: 'object',
-                    properties: {
-                        success: { type: 'boolean' },
-                        message: { type: 'string' },
-                        error: { type: 'string' }
-                    }
-                }
-            }
         },
         handler: noteController.emitirNota.bind(noteController)
     });
-    
+
     fastify.get('/notes/:type/consult/:accessKey/:memberCnpj/:environment', {
         schema: {
             params: {
@@ -172,7 +57,7 @@ async function routes(fastify: FastifyInstance) {
         },
         handler: noteController.consultarNota.bind(noteController)
     });
-    
+
     fastify.post('/notes/:type/cancel', {
         schema: {
             params: {
@@ -196,9 +81,9 @@ async function routes(fastify: FastifyInstance) {
         },
         handler: noteController.cancelarNota.bind(noteController)
     });
-    
+
     fastify.get('/notes/:type/example', {
-        
+
         schema: {
             description: 'Tipos de notas: nfce, nfe, nfse',
             params: {
@@ -215,17 +100,17 @@ async function routes(fastify: FastifyInstance) {
     fastify.get('/notes/test', {
         handler: noteController.testeConectividade.bind(noteController)
     });
-    
+
 
     fastify.get('/notes/cache/stats', {
         handler: noteController.obterEstatisticasCache.bind(noteController)
     });
-    
+
 
     fastify.delete('/notes/cache/clear', {
         handler: noteController.limparCacheManual.bind(noteController)
     });
-    
+
     fastify.get('/notes/numbering/stats', {
         schema: {
             description: 'Get numbering statistics',
@@ -243,7 +128,7 @@ async function routes(fastify: FastifyInstance) {
         },
         handler: noteController.obterEstatisticasNumeracao.bind(noteController)
     });
-    
+
     fastify.post('/notes/numbering/release', {
         schema: {
             description: 'Release reserved numbering',
@@ -263,7 +148,7 @@ async function routes(fastify: FastifyInstance) {
         },
         handler: noteController.liberarNumeracao.bind(noteController)
     });
-    
+
     fastify.post('/notes/database/initialize', {
         handler: noteController.criarTabelas.bind(noteController)
     });
