@@ -688,8 +688,8 @@ export class NFCeController {
           member_id INT NOT NULL,
           pfx_path VARCHAR(500) NOT NULL,
           password VARCHAR(255) NOT NULL,
-          csc VARCHAR(100),                            -- CSC code
-          csc_id VARCHAR(10),                          -- CSC ID
+          consumer_key VARCHAR(100),                    -- era csc
+          consumer_key_id VARCHAR(10),                   -- era csc_id
           environment VARCHAR(1) NOT NULL,             -- 1=Production, 2=Homologation
           uf VARCHAR(2) NOT NULL,                      -- UF do certificado
           is_active BOOLEAN DEFAULT TRUE,

@@ -31,8 +31,8 @@ export class MemberService {
             // Buscar certificado
             const [certificateRows] = await connection.execute(`
                 SELECT 
-                    c.id, c.pfx_path as pfxPath, c.password, c.csc,
-                    c.csc_id as cscId, c.environment, c.uf
+                    c.id, c.pfx_path as pfxPath, c.password, c.consumer_key,
+                    c.consumer_key_id, c.environment, c.uf
                 FROM certificates c 
                 INNER JOIN member m ON c.member_id = m.id 
                 WHERE m.cnpj = ? AND c.environment = ? AND c.is_active = TRUE
@@ -147,8 +147,8 @@ export class MemberService {
         try {
             const [certificateRows] = await connection.execute(`
                 SELECT 
-                    c.id, c.pfx_path as pfxPath, c.password, c.csc,
-                    c.csc_id as cscId, c.environment, c.uf
+                    c.id, c.pfx_path as pfxPath, c.password, c.consumer_key,
+                    c.consumer_key_id, c.environment, c.uf
                 FROM certificates c 
                 INNER JOIN member m ON c.member_id = m.id 
                 WHERE m.cnpj = ? AND c.environment = ? AND c.is_active = TRUE
