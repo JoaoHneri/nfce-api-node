@@ -91,6 +91,11 @@ POST /api/notes/database/initialize    # Inicializar banco
 
 #### Sobre o campo `ieInd` (`indIEDest`) e `IE` no destinatário (recipient)
 
+O campo `recipient` aceita tanto **CPF** (pessoa física) quanto **CNPJ** (pessoa jurídica):
+
+- Para pessoa física, use o campo `cpf`.
+- Para pessoa jurídica, use o campo `cnpj`.
+
 O campo `ieInd` (ou `indIEDest` no XML) indica a situação do destinatário em relação à Inscrição Estadual (IE):
 
 - **"9" (Consumidor final não contribuinte)**: Não é necessário informar o campo `IE`.
@@ -99,6 +104,27 @@ O campo `ieInd` (ou `indIEDest` no XML) indica a situação do destinatário em 
 
 **Recomendação:** Para NFC-e, normalmente utilize `ieInd: "9"` para vendas ao consumidor final, pois dispensa o preenchimento da IE e evita rejeições de schema.
 
+**Exemplo com CPF (pessoa física):**
+```json
+"recipient": {
+  "cpf": "11750943077",
+  "xName": "CONSUMIDOR FINAL",
+  "ieInd": "9"
+  // Se ieInd for "1", inclua também o campo "IE":
+  // "IE": "123456789"
+}
+```
+
+**Exemplo com CNPJ (pessoa jurídica):**
+```json
+"recipient": {
+  "cnpj": "12345678000100",
+  "xName": "EMPRESA CLIENTE LTDA",
+  "ieInd": "9"
+  // Se ieInd for "1", inclua também o campo "IE":
+  // "IE": "123456789"
+}
+```
 **Exemplo abaixo já está com `ieInd: "9"` (sem IE), mas a API aceita os demais cenários conforme a legislação.**
 ```bash
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
@@ -153,7 +179,6 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
     }
   }'
 ```
-
 **🎯 Resultado da Tributação Automática:**
 ```xml
 <ICMS>
