@@ -3,7 +3,7 @@ import { SefazNfceService } from '../services/sefazNfceService';
 import { NumeracaoService } from '../services/numeracaoService';
 import { getDatabaseConfig, createDatabaseConnection } from '../config/database';
 import { CertificadoConfig } from '../types';
-import { validarCertificado } from '../utils/validadorCertificado';
+import { validarCertificado } from '../utils/validadorCertificadoUtil';
 import { MemberService } from '../services/memberService';
 import { EmissaoNfceHandler } from '../handlers/nfceHandlers/emissaoNfceHandler';
 import { CancelamentoHandler } from '../handlers/nfceHandlers/cancelamentoHandler';

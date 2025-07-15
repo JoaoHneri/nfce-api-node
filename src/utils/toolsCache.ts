@@ -1,7 +1,7 @@
 import { Tools } from 'node-sped-nfe';
 import { CertificadoConfig } from '../types';
 import { CacheEntry, CacheConfig, CacheStats } from '../types/cacheTypes';
-import { CacheUtils } from './cacheUtils';
+import { CacheUtils } from './cacheUtil';
 
 export class ToolsCache {
     private cache: Map<string, CacheEntry> = new Map();

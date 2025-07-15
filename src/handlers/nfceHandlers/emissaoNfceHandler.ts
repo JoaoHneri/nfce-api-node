@@ -625,16 +625,52 @@ export class EmissaoNfceHandler {
 
 
         if (dados.recipient) {
-        NFe.tagDest({
-            CPF: dados.recipient.cpf,
-            xNome: dados.recipient.xName,
-            indIEDest: dados.recipient.ieInd,
-            IE: dados.recipient.ie,
-            email: dados.recipient.email
-        });
-
-
+            NFe.tagDest({
+                CPF: dados.recipient.cpf,
+                xNome: dados.recipient.xName,
+                indIEDest: dados.recipient.ieInd,
+                IE: dados.recipient.ie,
+                email: dados.recipient.email
+            });
         }
+
+        if (dados.recipient) {
+            const destData: Record<string, string> = {};
+
+            // Se veio CNPJ, monta blocos de empresa
+            if (dados.recipient.cnpj) {
+                destData.CNPJ = dados.recipient.cnpj.replace(/\D/g, '');
+                destData.xNome = dados.recipient.xName || "CONSUMIDOR FINAL";
+                destData.indIEDest = dados.recipient.ieInd || "9";
+
+                if (dados.recipient.ie) {
+                destData.IE = dados.recipient.ie;
+                }
+
+            // Se veio CPF, monta blocos de pessoa física
+            } else if (dados.recipient.cpf) {
+                destData.CPF = dados.recipient.cpf.replace(/\D/g, '');
+                destData.xNome = dados.recipient.xName || "CONSUMIDOR FINAL";
+
+                if (dados.recipient.ie) {
+                destData.IE = dados.recipient.ie;
+                destData.indIEDest = dados.recipient.ieInd || "1"; // contribuinte se informar IE
+                } else {
+                destData.indIEDest = "9"; // não contribuinte
+                }
+            }
+
+            // Campos comuns
+            if (dados.recipient.email) {
+                destData.email = dados.recipient.email;
+            }
+
+            // Só adiciona se tiver CPF ou CNPJ válido
+            if (destData.CPF || destData.CNPJ) {
+                NFe.tagDest(destData);
+            }
+        }
+
 
         // Products
         // Adiciona os produtos sem o campo 'taxes'
