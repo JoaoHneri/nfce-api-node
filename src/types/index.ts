@@ -1,8 +1,8 @@
 export interface CertificadoConfig {
   pfxPath: string;     // era pfx
   password: string;
-  csc: string;         // era CSC
-  cscId: string;       // era CSCid
+  consumer_key: string;         // era CSC
+  consumer_key_id: string;       // era CSCid
   cnpj?: string;       // era CNPJ
   cpf?: string;        // era CPF
   environment?: number; // era tpAmb - '1' para produção, '2' para homologação
@@ -78,34 +78,33 @@ export interface NFCeData {
     vUnTrib: string;
     vDesc?: string;
     indTot: string;
+    taxes?: {
+      // ICMS fields
+      orig?: string;
+      CSOSN?: string;
+
+      // PIS fields
+      cstPis?: string;
+      pisPercent?: string;
+      pisValue?: string;
+      pisQuantity?: string;
+      pisQuantityValue?: string;
+
+      // COFINS fields
+      cstCofins?: string;
+      cofinsPercent?: string;
+      cofinsValue?: string;
+      cofinsQuantity?: string;
+      cofinsQuantityValue?: string;
+
+      // Base calculation value (when using percentage)
+      baseValue?: string;
+
+      // Taxation mode
+      mode?: 'auto' | 'manual';
+    };
   }>;
 
-  // Taxes (flexible taxation system)
-  taxes?: {
-    // ICMS fields
-    orig?: string;
-    CSOSN?: string;
-    
-    // PIS fields
-    cstPis?: string;
-    pisPercent?: string;
-    pisValue?: string;
-    pisQuantity?: string;
-    pisQuantityValue?: string;
-    
-    // COFINS fields
-    cstCofins?: string;
-    cofinsPercent?: string;
-    cofinsValue?: string;
-    cofinsQuantity?: string;
-    cofinsQuantityValue?: string;
-    
-    // Base calculation value (when using percentage)
-    baseValue?: string;
-    
-    // Taxation mode
-    mode?: 'auto' | 'manual';
-  };
 
   technicalResponsible?: {
     CNPJ: string;
@@ -115,7 +114,7 @@ export interface NFCeData {
     idCSRT?: string;
     hashCSRT?: string;
   };
-  
+
   // Payment
   payment: {
     detPag: Array<{
@@ -153,30 +152,30 @@ export interface SefazEndpoints {
 }
 
 export interface ConsultaResponse {
-    success: boolean;
-    status: string;
-    cStat: string;
-    reason: string;
-    accessKey: string;
-    protocol?: string;
-    authorizationDate?: string;
-    xmlComplete: string;
-    waitRequired?: boolean;
-    error?: string;
+  success: boolean;
+  status: string;
+  cStat: string;
+  reason: string;
+  accessKey: string;
+  protocol?: string;
+  authorizationDate?: string;
+  xmlComplete: string;
+  waitRequired?: boolean;
+  error?: string;
 }
 export interface CancelamentoRequest {
-    accessKey: string;
-    protocol: string;
-    justification: string;
+  accessKey: string;
+  protocol: string;
+  justification: string;
 }
 
 export interface CancelamentoResponse {
-    success: boolean;
-    status: string;
-    cStat: string;
-    reason: string;
-    accessKey: string;
-    protocol?: string;
-    xmlComplete: string;
-    error?: string;
+  success: boolean;
+  status: string;
+  cStat: string;
+  reason: string;
+  accessKey: string;
+  protocol?: string;
+  xmlComplete: string;
+  error?: string;
 }

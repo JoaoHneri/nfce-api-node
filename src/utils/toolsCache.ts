@@ -48,7 +48,7 @@ export class ToolsCache {
             hits: 1,
             config: {
                 cnpj: certificadoConfig.cnpj?.substring(0, 4) + '***',
-                cscId: certificadoConfig.cscId,
+                consumer_key_id: certificadoConfig.consumer_key_id,
                 environment: certificadoConfig.environment,
                 uf: certificadoConfig.uf
             }
@@ -70,8 +70,8 @@ export class ToolsCache {
                     tpAmb: certificadoConfig.environment || 2,
                     UF: certificadoConfig.uf || "SP",
                     versao: "4.00",
-                    CSC: certificadoConfig.csc,
-                    CSCid: certificadoConfig.cscId,
+                    CSC: certificadoConfig.consumer_key,
+                    CSCid: certificadoConfig.consumer_key_id,
                     timeout: 10000,
                     xmllint: `C:/Users/joaoh/Downloads/windowsLibs/libs/libxml2-2.9.3-win32-x86_64/bin/xmllint.exe`,
                     openssl: "C:/Users/joaoh/Downloads/windowsLibs/libs/openssl-3.5.0.win86/bin/openssl.exe" as any,

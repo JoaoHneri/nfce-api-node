@@ -79,8 +79,8 @@ export class ConsultaHandler {
             const certificateConfig: CertificadoConfig = {
                 pfxPath: certificateData.pfxPath,
                 password: certificateData.password,
-                csc: certificateData.csc,
-                cscId: certificateData.cscId,
+                consumer_key: certificateData.consumer_key,
+                consumer_key_id: certificateData.consumer_key_id,
                 cnpj: memberCnpj,
                 environment: parseInt(certificateData.environment),
                 uf: certificateData.uf

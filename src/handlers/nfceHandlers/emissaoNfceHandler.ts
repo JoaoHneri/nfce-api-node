@@ -99,8 +99,8 @@ export class EmissaoNfceHandler {
             const certificateConfig: CertificadoConfig = {
                 pfxPath: memberData.certificate.pfxPath,
                 password: memberData.certificate.password,
-                csc: memberData.certificate.csc,
-                cscId: memberData.certificate.cscId,
+                consumer_key: memberData.certificate.consumer_key,
+                consumer_key_id: memberData.certificate.consumer_key_id,
                 cnpj: memberData.member.cnpj,
                 environment: parseInt(memberData.certificate.environment),
                 uf: memberData.certificate.uf
@@ -176,17 +176,11 @@ export class EmissaoNfceHandler {
                 indPres: "1",
                 indIntermed: "0",
                 procEmi: "0",
-                verProc: "1.0"
+                verProc: "1.0",
             },
             products: nfceData.products,
             technicalResponsible: nfceData.technicalResponsible,
-            taxes: {
-                orig: "0",
-                CSOSN: memberData.crt === "1" ? "102" : "400",
-                cstPis: "49",
-                cstCofins: "49",
-                mode: "auto"
-            },
+           
             payment: nfceData.payment,
             transport: nfceData.transport || { mode: "9" }
         };
@@ -641,17 +635,21 @@ export class EmissaoNfceHandler {
         }
 
         // Products
-        NFe.tagProd(dados.products);
+
+        // Adiciona os produtos sem o campo 'taxes'
+        NFe.tagProd(
+            dados.products.map(({ taxes, ...produto }) => produto)
+        );
 
         dados.products.forEach((produto, index) => {
-            // Process tax data using new flexible taxation system
+            // Process tax data using taxes from each product
             let valorProduto = parseFloat(produto.vProd);
             if (isNaN(valorProduto)) {
                 valorProduto = 0;
                 console.warn(`Produto com vProd inválido ou ausente (index ${index}):`, produto);
             }
             const processedTaxes = TributacaoService.processTaxData(
-                dados.taxes,
+                produto.taxes,
                 valorProduto,
                 dados.issuer.crt
             );

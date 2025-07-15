@@ -117,13 +117,14 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "vUnTrib": "1.00",
         "vDesc": "0.10",
         "indTot": "1"
-      }],
+      ,
       "taxes": {
         "orig": "0",
         "CSOSN": "102",
         "cstPis": "49",
         "cstCofins": "49"
-      },
+      }
+    }],
       "transport": { "mode": "9" },
       "payment": {
         "detPag": [
@@ -191,13 +192,14 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "qTrib": "1.00",
         "vUnTrib": "50.00",
         "indTot": "1"
-      }],
+      ,
       "taxes": {
         "orig": "0",
         "CSOSN": "102",
         "cstPis": "07",
         "cstCofins": "07"
-      },
+      }
+    }],
       "payment": {
         "detPag": [
           {
@@ -598,34 +600,34 @@ O processamento de taxas (tributação) realizado pela API é totalmente compat�
 O sistema detecta automaticamente o modo de tributação baseado nos campos enviados:
 
 **🔄 Tributação Automática (Padrão)**
-- **Quando**: Sem campo `taxes` global
+- **Quando**: Sem campo `taxes` no produto
 - **Comportamento**: Aplica CSOSN 400 (Simples) + CST 49 (PIS/COFINS) com valores zero
 - **Ideal para**: Produtos não tributados, isentos, ou quando não há informação específica
 
 **⚙️ Tributação com CSTs Específicos**
-- **Quando**: Campo `taxes` global contendo apenas CSTs (`CST_PIS`, `CST_COFINS`, etc.)
+- **Quando**: Campo `taxes` no produto contendo apenas CSTs (`CST_PIS`, `CST_COFINS`, etc.)
 - **Comportamento**: Usa os CSTs fornecidos, mas sem cálculo de valores
 - **Ideal para**: Produtos isentos, não incidência, outras operações sem valor
 
 **📊 Tributação com Cálculo Percentual**
-- **Quando**: Campo `taxes` global contendo percentuais (`pisPercent`, `cofinsPercent`)
+- **Quando**: Campo `taxes` no produto contendo percentuais (`pisPercent`, `cofinsPercent`)
 - **Comportamento**: Calcula automaticamente: `valor_produto × percentual / 100`
 - **Ideal para**: Produtos com alíquotas padrão de PIS/COFINS
 
 **💰 Tributação com Valores Fixos**
-- **Quando**: Campo `taxes` global contendo valores (`pisValue`, `cofinsValue`)
+- **Quando**: Campo `taxes` no produto contendo valores (`pisValue`, `cofinsValue`)
 - **Comportamento**: Usa os valores fornecidos diretamente
 - **Ideal para**: Produtos com tributação fixa independente do valor
 
 **⚡ Tributação por Quantidade**
-- **Quando**: Campo `taxes` global contendo quantidade (`pisQuantity`, `cofinsQuantity`)
+- **Quando**: Campo `taxes` no produto contendo quantidade (`pisQuantity`, `cofinsQuantity`)
 - **Comportamento**: Calcula: `quantidade × valor_por_unidade`
 - **Ideal para**: Combustíveis, bebidas, outros produtos com tributação específica
 
 ### **📋 Campos de Tributação Disponíveis**
 
 ```typescript
-interface GlobalTaxes {
+interface ProdutoTaxes {
   // ICMS
   orig?: string;           // Origem da mercadoria (0-8)
   CSOSN?: string;          // Código de Situação da Operação - Simples Nacional

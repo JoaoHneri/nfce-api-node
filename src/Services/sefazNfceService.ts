@@ -48,8 +48,8 @@ export class SefazNfceService {
             return {
                 pfxPath: certificadoConfig.pfxPath || '',
                 password: certificadoConfig.password || '',
-                csc: certificadoConfig.csc || '',
-                cscId: certificadoConfig.cscId || '',
+                consumer_key: certificadoConfig.consumer_key || '',
+                consumer_key_id: certificadoConfig.consumer_key_id || '',
                 cnpj: certificadoConfig.cnpj || '',
                 cpf: certificadoConfig.cpf || '',
                 environment: certificadoConfig.environment || 2, // 1 para produção, 2 para homologação

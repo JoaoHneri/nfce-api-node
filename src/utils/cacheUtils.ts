@@ -7,7 +7,7 @@ export class CacheUtils {
     static gerarChaveCache(config: CertificadoConfig): string {
         const dadosUnicos = [
             config.cnpj || '',
-            config.cscId || '',
+            config.consumer_key_id || '',
             config.environment || 2,
             config.uf || 'SP'
         ].join('_');
