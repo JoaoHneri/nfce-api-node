@@ -116,15 +116,15 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "qTrib": "1.00",
         "vUnTrib": "1.00",
         "vDesc": "0.10",
-        "indTot": "1"
-      ,
-      "taxes": {
-        "orig": "0",
-        "CSOSN": "102",
-        "cstPis": "49",
-        "cstCofins": "49"
+        "indTot": "1",
+        "taxes": {
+          "orig": "0",
+          "CSOSN": "102",
+          "cstPis": "49",
+          "cstCofins": "49"
+        }
       }
-    }],
+    ],
       "transport": { "mode": "9" },
       "payment": {
         "detPag": [
@@ -136,12 +136,6 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         ],
         "change": "0.10"
       },
-      "technicalResponsible": {
-        "CNPJ": "11222333000181",
-        "xContact": "João Silva - Desenvolvedor",
-        "email": "joao.silva@empresa.com.br",
-        "phone": "11999887766"
-      }
     }
   }'
 ```
@@ -191,15 +185,15 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "UNID",
         "qTrib": "1.00",
         "vUnTrib": "50.00",
-        "indTot": "1"
-      ,
-      "taxes": {
-        "orig": "0",
-        "CSOSN": "102",
-        "cstPis": "07",
-        "cstCofins": "07"
+        "indTot": "1",
+        "taxes": {
+          "orig": "0",
+          "CSOSN": "102",
+          "cstPis": "07",
+          "cstCofins": "07"
+        }
       }
-    }],
+    ],
       "payment": {
         "detPag": [
           {
@@ -256,16 +250,17 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "UNID",
         "qTrib": "1.00",
         "vUnTrib": "2500.00",
-        "indTot": "1"
-      }],
-      "taxes": {
-        "orig": "0",
-        "CSOSN": "400",
-        "cstPis": "01",
-        "pisPercent": "1.65",
-        "cstCofins": "01",
-        "cofinsPercent": "7.60"
-      },
+        "indTot": "1",
+        "taxes": {
+          "orig": "0",
+          "CSOSN": "400",
+          "cstPis": "01",
+          "pisPercent": "1.65",
+          "cstCofins": "01",
+          "cofinsPercent": "7.60"
+        }
+      }
+    ],
       "payment": {
         "detPag": [
           {
@@ -328,16 +323,17 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "UNID",
         "qTrib": "1.00",
         "vUnTrib": "200.00",
-        "indTot": "1"
-      }],
-      "taxes": {
-        "orig": "0",
-        "CSOSN": "400",
-        "cstPis": "99",
-        "pisValue": "5.00",
-        "cstCofins": "99",
-        "cofinsValue": "15.00"
-      },
+        "indTot": "1",
+        "taxes": {
+          "orig": "0",
+          "CSOSN": "400",
+          "cstPis": "99",
+          "pisValue": "5.00",
+          "cstCofins": "99",
+          "cofinsValue": "15.00"
+        }
+      }
+    ],
       "payment": {
         "detPag": [
           {
@@ -374,18 +370,19 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "LT",
         "qTrib": "50.000",
         "vUnTrib": "6.00",
-        "indTot": "1"
-      }],
-      "taxes": {
-        "orig": "0",
-        "CSOSN": "400",
-        "cstPis": "03",
-        "pisQuantity": "50.0000",
-        "pisQuantityValue": "0.15",
-        "cstCofins": "03",
-        "cofinsQuantity": "50.0000",
-        "cofinsQuantityValue": "0.45"
-      },
+        "indTot": "1",
+        "taxes": {
+          "orig": "0",
+          "CSOSN": "400",
+          "cstPis": "03",
+          "pisQuantity": "50.0000",
+          "pisQuantityValue": "0.15",
+          "cstCofins": "03",
+          "cofinsQuantity": "50.0000",
+          "cofinsQuantityValue": "0.45"
+        }
+      }
+    ],
       "payment": {
         "detPag": [
           {
@@ -656,6 +653,15 @@ interface ProdutoTaxes {
 ## 🔧 **Instalação e Configuração**
 
 ### **📋 Pré-requisitos**
+### **🔑 Configuração do Responsável Técnico**
+Os dados do responsável técnico devem ser definidos no arquivo `.env`:
+
+```dotenv
+TECHNICAL_RESPONSIBLE_CNPJ=11222333000181
+TECHNICAL_RESPONSIBLE_CONTACT="João Silva - Developer"
+TECHNICAL_RESPONSIBLE_EMAIL=joao.silva@empresa.com.br
+TECHNICAL_RESPONSIBLE_PHONE=11999887766
+```
 - Node.js 18+
 - MySQL 8+
 - Certificados A1 (.pfx) das empresas
