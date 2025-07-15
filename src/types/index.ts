@@ -106,14 +106,6 @@ export interface NFCeData {
   }>;
 
 
-  technicalResponsible?: {
-    CNPJ: string;
-    xContact: string;
-    email: string;
-    phone: string;
-    idCSRT?: string;
-    hashCSRT?: string;
-  };
 
   // Payment
   payment: {

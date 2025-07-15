@@ -179,7 +179,6 @@ export class EmissaoNfceHandler {
                 verProc: "1.0",
             },
             products: nfceData.products,
-            technicalResponsible: nfceData.technicalResponsible,
            
             payment: nfceData.payment,
             transport: nfceData.transport || { mode: "9" }
@@ -669,7 +668,7 @@ export class EmissaoNfceHandler {
 
         // Transport
         if (dados.transport) {
-            NFe.tagTransp({ modFrete: dados.transport.mode });
+            NFe.tagTransp({ modFrete: dados.transport.mode});
         } else {
             NFe.tagTransp({ modFrete: "9" }); // No transport occurrence
         }
@@ -681,14 +680,12 @@ export class EmissaoNfceHandler {
             NFe.tagTroco(dados.payment.change);
         }
 
-        if (dados.technicalResponsible) {
-            NFe.tagInfRespTec({
-                CNPJ: dados.technicalResponsible.CNPJ,
-                xContato: dados.technicalResponsible.xContact,
-                email: dados.technicalResponsible.email,
-                fone: dados.technicalResponsible.phone,
-            });
-        }
+        NFe.tagInfRespTec({
+            CNPJ: process.env.TECHNICAL_RESPONSIBLE_CNPJ,
+            xContato: process.env.TECHNICAL_RESPONSIBLE_CONTACT,
+            email: process.env.TECHNICAL_RESPONSIBLE_EMAIL,
+            fone: process.env.TECHNICAL_RESPONSIBLE_PHONE,
+        });
 
 
         return NFe.xml();

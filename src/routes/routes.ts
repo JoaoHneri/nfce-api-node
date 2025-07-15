@@ -33,7 +33,6 @@ async function routes(fastify: FastifyInstance) {
                             taxes: { type: 'object', properties: { orig: { type: 'string' }, CSOSN: { type: 'string' }, cstPis: { type: 'string' }, cstCofins: { type: 'string' } }, nullable: true },
                             transport: { type: 'object', properties: { mode: { type: 'string' } }, nullable: true },
                             payment: { type: 'object', properties: { detPag: { type: 'array', items: { type: 'object', properties: { indPag: { type: 'string' }, tPag: { type: 'string' }, vPag: { type: 'string' } } } }, change: { type: 'string' } }, nullable: true },
-                            technicalResponsible: { type: 'object', properties: { CNPJ: { type: 'string' }, xContact: { type: 'string' }, email: { type: 'string' }, phone: { type: 'string' } }, nullable: true }
                         }
                     }
                 }

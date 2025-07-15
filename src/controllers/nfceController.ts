@@ -411,12 +411,6 @@ export class NFCeController {
                   indTot: "1"
                 }
               ],
-              technicalResponsible: {
-                CNPJ: "11222333000181",
-                xContact: "João Silva - Desenvolvedor",
-                email: "joao.silva@empresa.com.br",
-                phone: "11999887766"
-              },
               payment: {
                 detPag: [{
                   indPag: "0",
