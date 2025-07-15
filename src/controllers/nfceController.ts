@@ -419,9 +419,6 @@ export class NFCeController {
                   vPag: "10.00"
                 }],
                 change: "0.00"
-              },
-              transport: {
-                mode: "9"
               }
             }
           };

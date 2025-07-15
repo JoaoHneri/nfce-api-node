@@ -31,7 +31,6 @@ async function routes(fastify: FastifyInstance) {
                             recipient: { type: 'object', properties: { cpf: { type: 'string' }, xName: { type: 'string' }, ieInd: { type: 'string' } }, nullable: true },
                             products: { type: 'array', items: { type: 'object', properties: { cProd: { type: 'string' }, cEAN: { type: 'string' }, xProd: { type: 'string' }, NCM: { type: 'string' }, CFOP: { type: 'string' }, uCom: { type: 'string' }, qCom: { type: 'string' }, vUnCom: { type: 'string' }, vProd: { type: 'string' }, cEANTrib: { type: 'string' }, uTrib: { type: 'string' }, qTrib: { type: 'string' }, vUnTrib: { type: 'string' }, vDesc: { type: 'string' }, indTot: { type: 'string' } } }, nullable: true },
                             taxes: { type: 'object', properties: { orig: { type: 'string' }, CSOSN: { type: 'string' }, cstPis: { type: 'string' }, cstCofins: { type: 'string' } }, nullable: true },
-                            transport: { type: 'object', properties: { mode: { type: 'string' } }, nullable: true },
                             payment: { type: 'object', properties: { detPag: { type: 'array', items: { type: 'object', properties: { indPag: { type: 'string' }, tPag: { type: 'string' }, vPag: { type: 'string' } } } }, change: { type: 'string' } }, nullable: true },
                         }
                     }

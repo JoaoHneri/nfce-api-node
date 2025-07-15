@@ -165,7 +165,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         }
       }
     ],
-      "transport": { "mode": "9" },
+      // O transporte é sempre gerado automaticamente como "mode": "9" (sem transporte)
+      // Não inclua o campo transport na requisição. A API define isso de forma fixa conforme o modelo 65 NFC-e.
       "payment": {
         "detPag": [
           {

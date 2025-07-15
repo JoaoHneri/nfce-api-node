@@ -705,11 +705,8 @@ export class EmissaoNfceHandler {
         NFe.tagICMSTot();
 
         // Transport
-        if (dados.transport) {
-            NFe.tagTransp({ modFrete: dados.transport.mode});
-        } else {
-            NFe.tagTransp({ modFrete: "9" }); // No transport occurrence
-        }
+        // Transporte sempre estático: modFrete "9" (sem transporte)
+        NFe.tagTransp({ modFrete: "9" });
 
         // Payment
         NFe.tagDetPag(dados.payment.detPag);
