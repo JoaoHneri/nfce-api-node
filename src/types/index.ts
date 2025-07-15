@@ -33,10 +33,12 @@ export interface NFCeData {
 
   // Recipient data (optional for NFCe)
   recipient?: {
-    cpf?: string;        // era CPF
-    cnpj?: string;       // era CNPJ
-    xName?: string;      // era xNome
-    ieInd?: string;      // era indIEDest
+    cpf?: string;
+    cnpj?: string;
+    xName?: string;
+    ieInd?: string;
+    ie?: string;
+    email?: string;
   };
 
   // Dados da NFCe

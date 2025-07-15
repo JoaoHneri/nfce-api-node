@@ -88,6 +88,18 @@ POST /api/notes/database/initialize    # Inicializar banco
 ## 💡 **Exemplos Práticos - Sistema de Tributação Autodetectado**
 
 ### **🔥 1. Produto Simples (Tributação Automática)**
+
+#### Sobre o campo `ieInd` (`indIEDest`) e `IE` no destinatário (recipient)
+
+O campo `ieInd` (ou `indIEDest` no XML) indica a situação do destinatário em relação à Inscrição Estadual (IE):
+
+- **"9" (Consumidor final não contribuinte)**: Não é necessário informar o campo `IE`.
+- **"1" (Contribuinte ICMS)**: O campo `IE` deve ser preenchido obrigatoriamente.
+- **"2" (Contribuinte isento de IE)**: O campo `IE` pode ser omitido ou preenchido conforme regras estaduais.
+
+**Recomendação:** Para NFC-e, normalmente utilize `ieInd: "9"` para vendas ao consumidor final, pois dispensa o preenchimento da IE e evita rejeições de schema.
+
+**Exemplo abaixo já está com `ieInd: "9"` (sem IE), mas a API aceita os demais cenários conforme a legislação.**
 ```bash
 curl -X POST http://localhost:3000/api/notes/nfce/issue \
   -H "Content-Type: application/json" \
@@ -100,6 +112,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "cpf": "11750943077",
         "xName": "CONSUMIDOR FINAL",
         "ieInd": "9"
+        // Se ieInd for "1", inclua também o campo "IE":
+        // "IE": "123456789"
       },
       "products": [{
         "cProd": "001",

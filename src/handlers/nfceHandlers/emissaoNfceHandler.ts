@@ -625,16 +625,18 @@ export class EmissaoNfceHandler {
 
 
         if (dados.recipient) {
-            NFe.tagDest({
-                CPF: dados.recipient.cpf,
-                CNPJ: dados.recipient.cnpj,
-                xNome: dados.recipient.xName,
-                indIEDest: dados.recipient.ieInd || "9"
-            });
+        NFe.tagDest({
+            CPF: dados.recipient.cpf,
+            xNome: dados.recipient.xName,
+            indIEDest: dados.recipient.ieInd,
+            IE: dados.recipient.ie,
+            email: dados.recipient.email
+        });
+
+
         }
 
         // Products
-
         // Adiciona os produtos sem o campo 'taxes'
         NFe.tagProd(
             dados.products.map(({ taxes, ...produto }) => produto)

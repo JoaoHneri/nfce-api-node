@@ -391,7 +391,8 @@ export class NFCeController {
               recipient: {
                 cpf: "12345678901",
                 xName: "CONSUMIDOR FINAL",
-                ieInd: "9"
+                ieInd: "9",
+                email: "consumidor@exemplo.com",
               },
               products: [
                 {
