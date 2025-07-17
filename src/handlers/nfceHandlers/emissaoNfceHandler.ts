@@ -719,8 +719,8 @@ export class EmissaoNfceHandler {
                 orig: regra.orig,
                 CSOSN: regra.csosn,
                 cstIcms: regra.cst_icms,
-                modalidadeBC: regra.modbc_icms, // padronize para modalidadeBC
-                icmsPercent: regra.p_icms,      // padronize para icmsPercent
+                modalidadeBC: regra.modalidade_bc,      // padronizado
+                icmsPercent: regra.icms_percent,      // padronize para icmsPercent
                 cstPis: regra.cst_pis,
                 pisPercent: regra.pis_percent,
                 cstCofins: regra.cst_cofins,

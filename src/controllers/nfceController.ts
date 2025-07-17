@@ -758,8 +758,8 @@ export class NFCeController {
           orig VARCHAR(1) NOT NULL DEFAULT '0' COMMENT 'Origem da mercadoria conforme legislação',
           csosn VARCHAR(3) DEFAULT NULL COMMENT 'CSOSN para Simples Nacional',
           cst_icms VARCHAR(3) DEFAULT NULL COMMENT 'CST ICMS para regime normal',
-          modbc_icms VARCHAR(2) DEFAULT NULL COMMENT 'Modalidade base cálculo ICMS',
-          p_icms DECIMAL(5,2) DEFAULT NULL COMMENT 'Alíquota ICMS (%)',
+          modalidade_bc VARCHAR(2) DEFAULT NULL,   -- padronize para modalidade_bc
+          icms_percent DECIMAL(5,2) DEFAULT NULL,
           cst_pis VARCHAR(2) DEFAULT NULL COMMENT 'CST PIS',
           pis_percent DECIMAL(5,2) DEFAULT NULL COMMENT 'Alíquota PIS (%)',
           cst_cofins VARCHAR(2) DEFAULT NULL COMMENT 'CST COFINS',
