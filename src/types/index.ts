@@ -81,18 +81,21 @@ export interface NFCeData {
     vDesc?: string;
     indTot: string;
     taxes?: {
-      // ICMS fields
+      // ICMS
       orig?: string;
       CSOSN?: string;
+      cstIcms?: string;        // CST ICMS para Regime Normal
+      modalidadeBC?: string;   // Modalidade de base de cálculo ICMS
+      icmsPercent?: string;    // Alíquota ICMS
 
-      // PIS fields
+      // PIS
       cstPis?: string;
       pisPercent?: string;
       pisValue?: string;
       pisQuantity?: string;
       pisQuantityValue?: string;
 
-      // COFINS fields
+      // COFINS
       cstCofins?: string;
       cofinsPercent?: string;
       cofinsValue?: string;

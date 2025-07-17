@@ -750,10 +750,31 @@ export class NFCeController {
         )
       `;
 
+      const createNcmTaxRulesTable = `
+        CREATE TABLE IF NOT EXISTS ncm_tax_rules (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          ncm VARCHAR(8) NOT NULL,
+          crt VARCHAR(1) NOT NULL COMMENT 'Regime tributário da empresa (ex: 1=Simples, 3=Normal)',
+          orig VARCHAR(1) NOT NULL DEFAULT '0' COMMENT 'Origem da mercadoria conforme legislação',
+          csosn VARCHAR(3) DEFAULT NULL COMMENT 'CSOSN para Simples Nacional',
+          cst_icms VARCHAR(3) DEFAULT NULL COMMENT 'CST ICMS para regime normal',
+          modbc_icms VARCHAR(2) DEFAULT NULL COMMENT 'Modalidade base cálculo ICMS',
+          p_icms DECIMAL(5,2) DEFAULT NULL COMMENT 'Alíquota ICMS (%)',
+          cst_pis VARCHAR(2) DEFAULT NULL COMMENT 'CST PIS',
+          pis_percent DECIMAL(5,2) DEFAULT NULL COMMENT 'Alíquota PIS (%)',
+          cst_cofins VARCHAR(2) DEFAULT NULL COMMENT 'CST COFINS',
+          cofins_percent DECIMAL(5,2) DEFAULT NULL COMMENT 'Alíquota COFINS (%)',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE KEY uq_ncm_crt (ncm, crt)
+        )
+      `;
+
+
       // Executar as queries
       await connection.execute(createMemberTable);
       await connection.execute(createCertificatesTable);
       await connection.execute(createInvoicesTable);
+      await connection.execute(createNcmTaxRulesTable);
 
       await connection.end();
       

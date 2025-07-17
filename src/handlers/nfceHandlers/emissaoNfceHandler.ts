@@ -13,9 +13,11 @@ import https from 'https';
 import fs from 'fs';
 import path from 'path';
 
+
 export class EmissaoNfceHandler {
     private numeracaoService: NumeracaoService;
     private memberService: MemberService;
+    private tributacaoService: TributacaoService;
 
     // UF code mapping - moved to class level to avoid recreation
     private static readonly UF_CODES: { [key: string]: string } = {
@@ -50,6 +52,7 @@ export class EmissaoNfceHandler {
         // Inicializa o service de numeração com configuração do banco
         const dbConfig = getDatabaseConfig();
         this.numeracaoService = new NumeracaoService(dbConfig);
+        this.tributacaoService = new TributacaoService(dbConfig);
         this.memberService = new MemberService();
     }
 
@@ -678,30 +681,78 @@ export class EmissaoNfceHandler {
             dados.products.map(({ taxes, ...produto }) => produto)
         );
 
-        dados.products.forEach((produto, index) => {
-            // Process tax data using taxes from each product
-            let valorProduto = parseFloat(produto.vProd);
-            if (isNaN(valorProduto)) {
-                valorProduto = 0;
-                console.warn(`Produto com vProd inválido ou ausente (index ${index}):`, produto);
+        // dados.products.forEach((produto, index) => {
+            //     // Process tax data using taxes from each product
+            //     let valorProduto = parseFloat(produto.vProd);
+            //     if (isNaN(valorProduto)) {
+            //         valorProduto = 0;
+            //         console.warn(`Produto com vProd inválido ou ausente (index ${index}):`, produto);
+            //     }
+            //     const processedTaxes = TributacaoService.processTaxData(
+            //         produto.taxes,
+            //         valorProduto,
+            //         dados.issuer.crt
+            //     );
+
+            //     // ICMS
+            //     NFe.tagProdICMSSN(index, processedTaxes.icms);
+            //     // PIS
+            //     NFe.tagProdPIS(index, processedTaxes.pis);
+
+            //     // COFINS
+            //     NFe.tagProdCOFINS(index, processedTaxes.cofins);
+        // });
+
+
+
+        for (let i = 0; i < dados.products.length; i++) {
+            const produto = dados.products[i];
+
+            // Dentro do loop dos produtos:
+            const regra = await this.tributacaoService.buscarRegraNcm(produto.NCM, dados.issuer.cnpj);
+
+            if (!regra) {
+                throw new Error(`Regra fiscal não encontrada para NCM ${produto.NCM} e empresa ${dados.issuer.cnpj}`);
             }
+
+            produto.taxes = {
+                orig: regra.orig,
+                CSOSN: regra.csosn,
+                cstIcms: regra.cst_icms,
+                modalidadeBC: regra.modbc_icms, // padronize para modalidadeBC
+                icmsPercent: regra.p_icms,      // padronize para icmsPercent
+                cstPis: regra.cst_pis,
+                pisPercent: regra.pis_percent,
+                cstCofins: regra.cst_cofins,
+                cofinsPercent: regra.cofins_percent,
+            };
+
             const processedTaxes = TributacaoService.processTaxData(
                 produto.taxes,
-                valorProduto,
+                parseFloat(produto.vProd),
                 dados.issuer.crt
             );
 
-            // ICMS
-            NFe.tagProdICMSSN(index, processedTaxes.icms);
+            if (dados.issuer.crt === '1') {
+                NFe.tagProdICMSSN(i, {
+                    orig: processedTaxes.icms.orig,
+                    CSOSN: processedTaxes.icms.CSOSN
+                });
+                } else {
+                NFe.tagProdICMS(i, {
+                    orig: processedTaxes.icms.orig,
+                    CST: processedTaxes.icms.CST,
+                    modBC: processedTaxes.icms.modBC,
+                    pICMS: processedTaxes.icms.pICMS,
+                    vBC: processedTaxes.icms.vBC,
+                    vICMS: processedTaxes.icms.vICMS
+                });
+            }
+            NFe.tagProdPIS(i, processedTaxes.pis);
+            NFe.tagProdCOFINS(i, processedTaxes.cofins);
+        }
 
-            // PIS
-            NFe.tagProdPIS(index, processedTaxes.pis);
 
-            // COFINS
-            NFe.tagProdCOFINS(index, processedTaxes.cofins);
-        });
-
-        // Calcular totais
         NFe.tagICMSTot();
 
         // Transport
