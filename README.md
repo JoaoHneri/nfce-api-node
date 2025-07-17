@@ -87,7 +87,9 @@ POST /api/notes/database/initialize    # Inicializar banco
 
 ## 💡 **Exemplos Práticos - Sistema de Tributação Autodetectado**
 
-### **🔥 1. Produto Simples (Tributação Automática)**
+## 💡 **Exemplos Práticos - Tributação 100% Automática**
+
+### **🔥 1. Produto Simples (Tributação Automática e Inteligente)**
 
 #### Sobre o campo `ieInd` (`indIEDest`) e `IE` no destinatário (recipient)
 
@@ -156,13 +158,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "qTrib": "1.00",
         "vUnTrib": "1.00",
         "vDesc": "0.10",
-        "indTot": "1",
-        "taxes": {
-          "orig": "0",
-          "CSOSN": "102",
-          "cstPis": "49",
-          "cstCofins": "49"
-        }
+        "indTot": "1"
+        // Não é mais necessário informar o campo taxes!
       }
     ],
       // O transporte é sempre gerado automaticamente como "mode": "9" (sem transporte)
@@ -225,13 +222,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "UNID",
         "qTrib": "1.00",
         "vUnTrib": "50.00",
-        "indTot": "1",
-        "taxes": {
-          "orig": "0",
-          "CSOSN": "102",
-          "cstPis": "07",
-          "cstCofins": "07"
-        }
+        "indTot": "1"
+        // Não é mais necessário informar o campo taxes!
       }
     ],
       "payment": {
@@ -290,15 +282,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "UNID",
         "qTrib": "1.00",
         "vUnTrib": "2500.00",
-        "indTot": "1",
-        "taxes": {
-          "orig": "0",
-          "CSOSN": "400",
-          "cstPis": "01",
-          "pisPercent": "1.65",
-          "cstCofins": "01",
-          "cofinsPercent": "7.60"
-        }
+        "indTot": "1"
+        // Não é mais necessário informar o campo taxes!
       }
     ],
       "payment": {
@@ -363,15 +348,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "UNID",
         "qTrib": "1.00",
         "vUnTrib": "200.00",
-        "indTot": "1",
-        "taxes": {
-          "orig": "0",
-          "CSOSN": "400",
-          "cstPis": "99",
-          "pisValue": "5.00",
-          "cstCofins": "99",
-          "cofinsValue": "15.00"
-        }
+        "indTot": "1"
+        // Não é mais necessário informar o campo taxes!
       }
     ],
       "payment": {
@@ -410,17 +388,8 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "LT",
         "qTrib": "50.000",
         "vUnTrib": "6.00",
-        "indTot": "1",
-        "taxes": {
-          "orig": "0",
-          "CSOSN": "400",
-          "cstPis": "03",
-          "pisQuantity": "50.0000",
-          "pisQuantityValue": "0.15",
-          "cstCofins": "03",
-          "cofinsQuantity": "50.0000",
-          "cofinsQuantityValue": "0.45"
-        }
+        "indTot": "1"
+        // Não é mais necessário informar o campo taxes!
       }
     ],
       "payment": {
@@ -630,63 +599,40 @@ O processamento de taxas (tributação) realizado pela API é totalmente compat�
 - Toda a integração e conversão é feita automaticamente pela API.
 
 ---
-## 🤖 **Sistema de Tributação Inteligente**
+## 🤖 **Sistema de Tributação 100% Automático**
 
-### **🎯 Autodetecção Transparente**
+### **🎯 Tributação Transparente e Sem Configuração Manual**
 
-O sistema detecta automaticamente o modo de tributação baseado nos campos enviados:
+A API detecta automaticamente o cenário tributário de cada produto com base no NCM, CRT da empresa e regras parametrizadas no banco de dados. **Não é mais necessário informar o campo `taxes` no payload!**
 
-**🔄 Tributação Automática (Padrão)**
-- **Quando**: Sem campo `taxes` no produto
-- **Comportamento**: Aplica CSOSN 400 (Simples) + CST 49 (PIS/COFINS) com valores zero
-- **Ideal para**: Produtos não tributados, isentos, ou quando não há informação específica
+**Como funciona:**
+- A API busca a regra fiscal correta para cada produto (NCM + CRT)
+- Calcula automaticamente todos os valores de ICMS, PIS e COFINS
+- Gera o XML já no layout correto, sem necessidade de configuração manual
+- Mantém flexibilidade para atualização de regras fiscais sem alterar código
 
-**⚙️ Tributação com CSTs Específicos**
-- **Quando**: Campo `taxes` no produto contendo apenas CSTs (`CST_PIS`, `CST_COFINS`, etc.)
-- **Comportamento**: Usa os CSTs fornecidos, mas sem cálculo de valores
-- **Ideal para**: Produtos isentos, não incidência, outras operações sem valor
+**Vantagens:**
+- Reduz erros de preenchimento
+- Facilita manutenção e atualização tributária
+- Permite integração simples: basta informar os dados do produto
 
-**📊 Tributação com Cálculo Percentual**
-- **Quando**: Campo `taxes` no produto contendo percentuais (`pisPercent`, `cofinsPercent`)
-- **Comportamento**: Calcula automaticamente: `valor_produto × percentual / 100`
-- **Ideal para**: Produtos com alíquotas padrão de PIS/COFINS
-
-**💰 Tributação com Valores Fixos**
-- **Quando**: Campo `taxes` no produto contendo valores (`pisValue`, `cofinsValue`)
-- **Comportamento**: Usa os valores fornecidos diretamente
-- **Ideal para**: Produtos com tributação fixa independente do valor
-
-**⚡ Tributação por Quantidade**
-- **Quando**: Campo `taxes` no produto contendo quantidade (`pisQuantity`, `cofinsQuantity`)
-- **Comportamento**: Calcula: `quantidade × valor_por_unidade`
-- **Ideal para**: Combustíveis, bebidas, outros produtos com tributação específica
-
-### **📋 Campos de Tributação Disponíveis**
-
-```typescript
-interface ProdutoTaxes {
-  // ICMS
-  orig?: string;           // Origem da mercadoria (0-8)
-  CSOSN?: string;          // Código de Situação da Operação - Simples Nacional
-  
-  // PIS
-  cstPis?: string;         // Código de Situação Tributária do PIS
-  pisPercent?: string;     // Alíquota percentual do PIS
-  pisValue?: string;       // Valor fixo do PIS
-  pisQuantity?: string;    // Quantidade para tributação do PIS
-  pisQuantityValue?: string; // Valor por unidade para PIS
-  
-  // COFINS  
-  cstCofins?: string;      // Código de Situação Tributária do COFINS
-  cofinsPercent?: string;  // Alíquota percentual do COFINS
-  cofinsValue?: string;    // Valor fixo do COFINS
-  cofinsQuantity?: string; // Quantidade para tributação do COFINS
-  cofinsQuantityValue?: string; // Valor por unidade para COFINS
-  
-  // Base de cálculo customizada (opcional)
-  baseValue?: string;      // Base diferente do valor do produto
+**Exemplo de payload simplificado:**
+```json
+{
+  "products": [
+    {
+      "cProd": "001",
+      "xProd": "PRODUTO QUALQUER",
+      "NCM": "85044010",
+      "CFOP": "5102",
+      "vProd": "100.00"
+      // Não precisa mais do campo taxes!
+    }
+  ]
 }
 ```
+
+**A API cuida de toda a lógica tributária automaticamente!**
 
 ---
 
