@@ -85,6 +85,7 @@ POST /api/notes/database/initialize    # Inicializar banco
 
 ---
 
+
 ## 💡 **Exemplos Práticos - Sistema de Tributação Autodetectado**
 
 ## 💡 **Exemplos Práticos - Tributação 100% Automática**
@@ -600,6 +601,26 @@ O processamento de taxas (tributação) realizado pela API é totalmente compat�
 
 ---
 ## 🤖 **Sistema de Tributação 100% Automático**
+---
+
+## ❗ O que acontece se o NCM não estiver cadastrado?
+
+Se você tentar emitir uma NFC-e com um NCM que não está cadastrado na tabela `ncm_tax_rules` para o CRT da empresa:
+
+- **A nota NÃO será emitida.**
+- A API irá interromper o processamento e retornar um erro claro, por exemplo:
+
+```json
+{
+  "success": false,
+  "message": "Regra fiscal não encontrada para NCM 12345678 e empresa 12345678000100"
+}
+```
+- Nenhum XML é gerado e nenhum dado é salvo.
+
+**Recomendação:**
+Antes de emitir, cadastre todos os NCMs utilizados na tabela `ncm_tax_rules` para cada regime tributário da empresa.
+
 
 ### **🎯 Tributação Transparente e Sem Configuração Manual**
 
