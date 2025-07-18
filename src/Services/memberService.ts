@@ -2,8 +2,8 @@ import { Connection } from 'mysql2/promise';
 import { getDatabaseConfig, createDatabaseConnection } from '../config/database';
 
 export class MemberService {
-    
-    // ✅ Buscar empresa + certificado (único método necessário)
+
+    // Buscar empresa + certificado (único método necessário)
     async buscarDadosCompletos(cnpj: string, environment: number): Promise<{
         member: any;
         certificate: any;

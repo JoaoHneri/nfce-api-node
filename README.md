@@ -136,7 +136,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
     "memberCnpj": "12345678000100",
     "environment": 2,
     "noteData": {
-      "ide": { "natOp": "VENDA", "serie": "884" },
+      "ide": { "natOp": "VENDA" },
       "recipient": {
         "cpf": "11750943077",
         "xName": "CONSUMIDOR FINAL",
@@ -208,7 +208,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
     "memberCnpj": "12345678000100",
     "environment": 2,
     "noteData": {
-      "ide": { "natOp": "VENDA", "serie": "884" },
+      "ide": { "natOp": "VENDA" },
       "products": [{
         "cProd": "002",
         "cEAN": "SEM GTIN",
@@ -268,7 +268,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
     "memberCnpj": "12345678000100",
     "environment": 2,
     "noteData": {
-      "ide": { "natOp": "VENDA", "serie": "1" },
+      "ide": { "natOp": "VENDA"},
       "products": [{
         "cProd": "003",
         "cEAN": "SEM GTIN",
@@ -334,7 +334,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
     "memberCnpj": "12345678000100",
     "environment": 2,
     "noteData": {
-      "ide": { "natOp": "VENDA", "serie": "1" },
+      "ide": { "natOp": "VENDA" },
       "products": [{
         "cProd": "004",
         "cEAN": "SEM GTIN",
@@ -374,7 +374,7 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
     "memberCnpj": "12345678000100",
     "environment": 2,
     "noteData": {
-      "ide": { "natOp": "VENDA", "serie": "1" },
+      "ide": { "natOp": "VENDA"},
       "products": [{
         "cProd": "005",
         "cEAN": "SEM GTIN",
