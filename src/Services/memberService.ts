@@ -57,7 +57,7 @@ export class MemberService {
     async salvarNFCe(memberData: any, nfceData: any): Promise<void> {
         const dbConfig = getDatabaseConfig();
         const connection = await createDatabaseConnection(dbConfig);
-        
+        console.log("MemberData: ", memberData, "NFCeData: ", nfceData);
         try {
             await connection.execute(`
                 INSERT INTO invoices (

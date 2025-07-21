@@ -20,8 +20,6 @@ export class EmissaoNfceHandler {
     private memberService: MemberService;
     private tributacaoService: TributacaoService;
     private consultaHandler: ConsultaHandler; // Assuming consultaHandler is defined elsewhere
-
-    private static readonly SERIE_FIXA = "884";
    
    constructor() {
         // Inicializa o service de numeração com configuração do banco
@@ -61,10 +59,6 @@ export class EmissaoNfceHandler {
         '99': 'Others'
     };
 
-    /**
-     * Valida e formata o número da nota fiscal para evitar erros de schema
-     * Remove zeros à esquerda e valida range (1-999999999)
-     */
     private validarFormatoNumeroNota(numeroNota: number | string): string {
         const numero = typeof numeroNota === 'string' ? parseInt(numeroNota, 10) : numeroNota;
         
@@ -76,7 +70,7 @@ export class EmissaoNfceHandler {
         return numero.toString();
     }
     
-    async processarEmissaoCompleta(memberCnpj: string, environment: number, nfceData: any, sefazService: any): Promise<{
+    async processarEmissaoCompleta(company: any, certificate: any, nfceData: any, tools: any): Promise<{
         success: boolean;
         accessKey?: string;
         protocol?: string;
@@ -86,50 +80,25 @@ export class EmissaoNfceHandler {
         [key: string]: any;
     }> {
         try {
-            // 1. Buscar dados da empresa e certificado
-            const memberData = await this.memberService.buscarDadosCompletos(memberCnpj, environment);
-            if (!memberData) {
-                return {
-                    success: false,
-                    error: 'Company or certificate not found'
-                };
-            }
-
-            // 2. Gerar numeração
-            const dadosNumeracao = await this.numeracaoService.gerarProximaNumeracao({
-                cnpj: memberData.member.cnpj,
-                uf: memberData.member.state,
-                serie: EmissaoNfceHandler.SERIE_FIXA,
-                ambiente: environment.toString() as '1' | '2'
-            });
-
-            // 3. Preparar configuração do certificado
             const certificateConfig: CertificadoConfig = {
-                pfxPath: memberData.certificate.pfxPath,
-                password: memberData.certificate.password,
-                consumer_key: memberData.certificate.consumer_key,
-                consumer_key_id: memberData.certificate.consumer_key_id,
-                cnpj: memberData.member.cnpj,
-                environment: parseInt(memberData.certificate.environment),
-                uf: memberData.certificate.uf
+                pfxPath: certificate.pfxPath,
+                password: certificate.password,
+                consumer_key: certificate.consumer_key,
+                consumer_key_id: certificate.consumer_key_id,
+                cnpj: company.cnpj,
+                environment: certificate.environment,
+                uf: certificate.uf
             };
 
-            // 4. Obter tools
-            const tools = await sefazService.obterTools(certificateConfig);
+            const nfceDataCompleta = this.montarDadosNFCe(company, nfceData);
 
-            // 5. Montar dados completos da NFCe
-            const nfceDataCompleta = this.montarDadosNFCe(memberData.member, nfceData, dadosNumeracao, environment);
-
-            // 6. Emitir NFCe
             const resultadoEmissao = await this.emitirNFCe(tools, certificateConfig, nfceDataCompleta);
 
-            // 7. Processar resultado e salvar no banco
             const resultadoFinal = await this.processarResultadoEmissao(
                 resultadoEmissao,
-                memberData.member,
-                dadosNumeracao,
-                nfceData,
-                environment,
+                company,
+                nfceDataCompleta, 
+                certificate.environment,
             );
 
             return resultadoFinal;
@@ -143,81 +112,61 @@ export class EmissaoNfceHandler {
         }
     }
 
-
-    private montarDadosNFCe(memberData: any, nfceData: any, dadosNumeracao: any, environment: number): NFCeData {
+    private montarDadosNFCe(company: any, noteData: any): NFCeData {
+        noteData.ide.nNF = this.validarFormatoNumeroNota(noteData.ide.nNF);
         return {
             issuer: {
-                cnpj: memberData.cnpj,
-                xName: memberData.xName,
-                xFant: memberData.xFant,
-                ie: memberData.ie,
-                crt: memberData.crt,
+                cnpj: company.cnpj,
+                xName: company.xName,
+                xFant: company.xFant,
+                ie: company.ie,
+                crt: company.crt,
                 address: {
-                    street: memberData.street,
-                    number: memberData.number,
-                    neighborhood: memberData.neighborhood,
-                    cityCode: memberData.cityCode,
-                    city: memberData.city,
-                    state: memberData.state,
-                    zipCode: memberData.zipCode,
-                    cPais: memberData.cPais,
-                    xPais: memberData.xPais,
-                    phone: memberData.phone
+                    street: company.address.street,
+                    number: company.address.number,
+                    neighborhood: company.address.neighborhood,
+                    cityCode: company.address.cityCode,
+                    city: company.address.city,
+                    state: company.address.state,
+                    zipCode: company.address.zipCode,
+                    cPais: company.address.cCountry, 
+                    xPais: company.address.xCountry, 
+                    phone: company.address.phone
                 }
             },
-            recipient: nfceData.recipient,
-            ide: {
-                cUF: EmissaoNfceHandler.UF_CODES[memberData.state] || '35',
-                cNF: dadosNumeracao.cNF,
-                natOp: nfceData.ide.natOp,
-                serie: EmissaoNfceHandler.SERIE_FIXA,
-                nNF: dadosNumeracao.nNF,
-                dhEmi: new Date().toISOString(),
-                tpNF: "1",
-                idDest: "1",
-                cMunFG: memberData.cityCode,
-                tpImp: "4",
-                tpEmis: "1",
-                tpAmb: environment.toString(),
-                finNFe: "1",
-                indFinal: "1",
-                indPres: "1",
-                indIntermed: "0",
-                procEmi: "0",
-                verProc: "1.0",
-            },
-            products: nfceData.products,
-           
-            payment: nfceData.payment,
-            transport: nfceData.transport || { mode: "9" }
+            recipient: noteData.recipient,
+            ide: noteData.ide,
+            products: noteData.products,
+            payment: noteData.payment,
+            transport: noteData.transport || { mode: "9" }
         };
     }
 
     private async processarResultadoEmissao(
         resultadoEmissao: SefazResponse,
         memberData: any,
-        dadosNumeracao: any,
         nfceData: any,
         environment: number
     ): Promise<any> {
         if (resultadoEmissao.success) {
+
             // NFCe autorizada - extrair dados e salvar
             const dadosExtraidos = this.extrairDadosXML(resultadoEmissao, nfceData);
 
-            await this.memberService.salvarNFCe(memberData, {
-                accessKey: dadosExtraidos.accessKey,
-                number: dadosNumeracao.nNF.padStart(9, '0'),
-                cnf: dadosNumeracao.cNF,
-                series: EmissaoNfceHandler.SERIE_FIXA,
-                totalValue: dadosExtraidos.totalValue,
+            await this.memberService.salvarNFCe({ id: 1, ...memberData }, {
+                accessKey: dadosExtraidos.accessKey ?? null,
+                number: nfceData?.ide?.nNF ? nfceData.ide.nNF.toString().padStart(9, '0') : null,
+                cnf: nfceData?.ide?.cNF ? nfceData.ide.cNF.toString() : null,
+                series: nfceData?.ide?.serie ? nfceData.ide.serie.toString() : null,
+                totalValue: typeof dadosExtraidos.totalValue === 'number' ? dadosExtraidos.totalValue : 0,
                 status: 'authorized',
-                protocol: dadosExtraidos.protocol,
-                environment: environment.toString(),
-                operationNature: nfceData.ide.natOp,
-                recipientCpf: nfceData.recipient?.cpf || null,
-                recipientName: nfceData.recipient?.xName || null,
-                xmlContent: resultadoEmissao.xmlSigned,
-                qrCode: dadosExtraidos.qrCode,
+                protocol: dadosExtraidos.protocol ?? null,
+                environment: environment?.toString() ?? null,
+                operationNature: nfceData?.ide?.natOp ?? null,
+                recipientCpf: nfceData?.recipient?.cpf ?? null,
+                recipientName: nfceData?.recipient?.xName ?? null,
+                xmlContent: resultadoEmissao.xmlSigned ?? null,
+                qrCode: dadosExtraidos.qrCode ?? null,
                 rejectionReason: null
             });
 
@@ -227,21 +176,21 @@ export class EmissaoNfceHandler {
             // NFCe rejeitada - salvar como denied
             const totalValue = this.calcularTotalValue(nfceData);
 
-            await this.memberService.salvarNFCe(memberData, {
-                accessKey: resultadoEmissao.accessKey || `TEMP_${Date.now()}`,
-                number: dadosNumeracao.nNF.padStart(9, '0'),
-                cnf: dadosNumeracao.cNF,
-                series: EmissaoNfceHandler.SERIE_FIXA,
-                totalValue,
+            await this.memberService.salvarNFCe({ id: 1, ...memberData }, {
+                accessKey: resultadoEmissao.accessKey ?? `TEMP_${Date.now()}`,
+                number: nfceData?.ide?.nNF ? nfceData.ide.nNF.toString().padStart(9, '0') : null,
+                cnf: nfceData?.ide?.cNF ? nfceData.ide.cNF.toString() : null,
+                series: nfceData?.ide?.serie ? nfceData.ide.serie.toString() : null,
+                totalValue: typeof totalValue === 'number' ? totalValue : 0,
                 status: 'denied',
-                protocol: resultadoEmissao.protocol || null,
-                environment: environment.toString(),
-                operationNature: nfceData.ide.natOp,
-                recipientCpf: nfceData.recipient?.cpf || null,
-                recipientName: nfceData.recipient?.xName || null,
-                xmlContent: resultadoEmissao.xmlComplete,
+                protocol: resultadoEmissao.protocol ?? null,
+                environment: environment?.toString() ?? null,
+                operationNature: nfceData?.ide?.natOp ?? null,
+                recipientCpf: nfceData?.recipient?.cpf ?? null,
+                recipientName: nfceData?.recipient?.xName ?? null,
+                xmlContent: resultadoEmissao.xmlComplete ?? null,
                 qrCode: null,
-                rejectionReason: resultadoEmissao.reason || resultadoEmissao.error
+                rejectionReason: resultadoEmissao.reason ?? resultadoEmissao.error ?? null
             });
 
             return {
@@ -251,147 +200,6 @@ export class EmissaoNfceHandler {
             };
         }
     }
-
-
-    // private async processarResultadoEmissao(
-    // resultadoEmissao: SefazResponse,
-    // memberData: any,
-    // dadosNumeracao: any,
-    // nfceData: any,
-    // environment: number,
-    // tools?: any,
-    // certificadoConfig?: any
-    // ): Promise<any> {
-    // // Use os parâmetros ou o contexto da classe
-    // const sefazTools = tools;
-    // const sefazCertConfig = certificadoConfig;
-
-    // // 1) Se SEFAZ devolveu duplicidade (cStat 204 ou 539)
-    // if (['204', '539'].includes(String(resultadoEmissao.cStat ?? ''))) {
-    //     const chave = this.gerarChaveAcesso(memberData, nfceData.ide, dadosNumeracao.nNF);
-
-    //     // 🔍 Tenta consultar NFCe já autorizada na SEFAZ
-    //     const consulta = await this.consultaHandler.consultarNFCe(sefazTools, chave);
-
-    //     if (consulta.success) {
-    //     // ✅ Já existe na SEFAZ → salvar se não existir na base
-    //     const existe = await this.memberService.buscarNFCePorNumeroSerie(
-    //         memberData.cnpj,
-    //         EmissaoNfceHandler.SERIE_FIXA,
-    //         dadosNumeracao.nNF,
-    //         environment
-    //     );
-
-    //     if (!existe) {
-    //         await this.memberService.salvarNFCe(memberData, {
-    //         accessKey: chave,
-    //         number: String(dadosNumeracao.nNF).padStart(9, '0'),
-    //         cnf: dadosNumeracao.cNF,
-    //         series: EmissaoNfceHandler.SERIE_FIXA,
-    //         totalValue: this.calcularTotalValue(nfceData),
-    //         status: 'authorized',
-    //         protocol: consulta.protocol,
-    //         environment: environment.toString(),
-    //         operationNature: nfceData.ide.natOp,
-    //         recipientCpf: nfceData.recipient?.cpf || null,
-    //         recipientName: nfceData.recipient?.xName || null,
-    //         xmlContent: consulta.xmlComplete,
-    //         rejectionReason: null
-    //         });
-    //     }
-
-    //     // Responder cliente com nota existente
-    //     return this.formatarRespostaLimpa(this.extrairDadosXML(consulta, nfceData), memberData, consulta);
-    //     } else {
-    //     // 🔄 Não encontrou na SEFAZ, tente emitir nova NFCe com novo nNF (incrementando)
-    //     let tentativa = 0;
-    //     let ultimoErro: any = null;
-    //     while (tentativa < 5) {
-    //         tentativa++;
-    //         // Gere nova numeração (nNF/cNF) para a mesma série
-    //         const novoNumeracao = await this.numeracaoService.gerarProximaNumeracao({
-    //         ...dadosNumeracao,
-    //         nNF: undefined
-    //         });
-    //         // Clone nfceData para não sobrescrever o original
-    //         const novoNfceData = { ...nfceData, ide: { ...nfceData.ide, nNF: novoNumeracao.nNF } };
-    //         const resultadoNovaEmissao = await this.emitirNFCe(sefazTools, sefazCertConfig, novoNfceData);
-    //         if (resultadoNovaEmissao.success) {
-    //         // Se autorizado, finalize normalmente
-    //         return await this.processarResultadoEmissao(
-    //             resultadoNovaEmissao,
-    //             memberData,
-    //             novoNumeracao,
-    //             novoNfceData,
-    //             environment,
-    //             sefazTools,
-    //             sefazCertConfig
-    //         );
-    //         }
-    //         // Se continuar duplicidade, tenta de novo, senão para
-    //         if (!['204', '539'].includes(String(resultadoNovaEmissao.cStat ?? ''))) {
-    //         ultimoErro = resultadoNovaEmissao;
-    //         break;
-    //         }
-    //     }
-    //     return {
-    //         success: false,
-    //         error: 'Duplicidade na SEFAZ e não foi possível emitir nova NFCe com outro número.',
-    //         sefazError: ultimoErro?.error || null
-    //     };
-    //     }
-    // }
-
-    // // 2) NFCe autorizada normalmente
-    // if (resultadoEmissao.success) {
-    //     const dadosExtraidos = this.extrairDadosXML(resultadoEmissao, nfceData);
-
-    //     await this.memberService.salvarNFCe(memberData, {
-    //     accessKey: dadosExtraidos.accessKey,
-    //     number: String(dadosNumeracao.nNF).padStart(9, '0'),
-    //     cnf: dadosNumeracao.cNF,
-    //     series: EmissaoNfceHandler.SERIE_FIXA,
-    //     totalValue: dadosExtraidos.totalValue,
-    //     status: 'authorized',
-    //     protocol: dadosExtraidos.protocol,
-    //     environment: environment.toString(),
-    //     operationNature: nfceData.ide.natOp,
-    //     recipientCpf: nfceData.recipient?.cpf || null,
-    //     recipientName: nfceData.recipient?.xName || null,
-    //     xmlContent: resultadoEmissao.xmlSigned,
-    //     qrCode: dadosExtraidos.qrCode,
-    //     rejectionReason: null
-    //     });
-
-    //     return this.formatarRespostaLimpa(dadosExtraidos, memberData, resultadoEmissao);
-    // }
-
-    // // 3) NFCe rejeitada → salvar como denied
-    // const totalValue = this.calcularTotalValue(nfceData);
-
-    // await this.memberService.salvarNFCe(memberData, {
-    //     accessKey: resultadoEmissao.accessKey || `TEMP_${Date.now()}`,
-    //     number: String(dadosNumeracao.nNF).padStart(9, '0'),
-    //     cnf: dadosNumeracao.cNF,
-    //     series: EmissaoNfceHandler.SERIE_FIXA,
-    //     totalValue,
-    //     status: 'denied',
-    //     protocol: resultadoEmissao.protocol || null,
-    //     environment: environment.toString(),
-    //     operationNature: nfceData.ide.natOp,
-    //     recipientCpf: nfceData.recipient?.cpf || null,
-    //     recipientName: nfceData.recipient?.xName || null,
-    //     xmlContent: resultadoEmissao.xmlComplete,
-    //     qrCode: null,
-    //     rejectionReason: resultadoEmissao.reason || resultadoEmissao.error
-    // });
-
-    // return {
-    //     success: false,
-    //     error: resultadoEmissao.reason || resultadoEmissao.error,
-    //     message: 'NFCe was rejected by SEFAZ'
-    // };
-    // }
 
     private extrairDadosXML(resultado: SefazResponse, nfceData: any): any {
         let totalValue = 0;
@@ -661,19 +469,11 @@ export class EmissaoNfceHandler {
             configNumeracao = {
                 cnpj: dados.issuer.cnpj,
                 uf: dados.issuer.address.state,
-                serie: EmissaoNfceHandler.SERIE_FIXA,
+                serie: dados.ide.serie ? dados.ide.serie.toString() : "",
                 ambiente: certificadoConfig.environment?.toString() as '1' | '2' || '2'
             };
 
-            numeracaoGerada = await this.numeracaoService.gerarProximaNumeracao(configNumeracao);
-
-            // 🔧 Validar formato do número gerado (garantia adicional)
-            const numeroValidado = this.validarFormatoNumeroNota(numeracaoGerada.nNF);
-            
-            // Atribui nNF e cNF gerados automaticamente
-            dados.ide.nNF = numeroValidado;
-            dados.ide.cNF = numeracaoGerada.cNF;
-
+           
             // 🔄 Continuar com o processo normal
             const xmlNFCe = await this.criarXMLNFCe(dados);
 
@@ -695,28 +495,9 @@ export class EmissaoNfceHandler {
             return resultado;
 
         } catch (error: any) {
-            // � RECUPERAÇÃO: Liberar numeração em caso de falha técnica
-            if (numeracaoGerada && configNumeracao && this.isFalhaTecnica(error)) {
-                try {
-                    await this.numeracaoService.liberarNumeracaoReservada(
-                        configNumeracao,
-                        numeracaoGerada.nNF,
-                        `Falha técnica: ${error.message}`
-                    );
-                } catch (recoveryError) {
-                    console.error('❌ Erro ao liberar numeração:', recoveryError);
-                }
-            }
-
             return {
                 success: false,
                 error: error.message,
-                // Retornar numeração para debug se foi gerada
-                debugInfo: numeracaoGerada ? {
-                    nNF: numeracaoGerada.nNF,
-                    cNF: numeracaoGerada.cNF,
-                    recovered: this.isFalhaTecnica(error)
-                } : undefined
             } as any;
         }
     }
@@ -731,7 +512,7 @@ export class EmissaoNfceHandler {
             cNF: dados.ide.cNF!, // Agora garantido que existe
             natOp: dados.ide.natOp,
             mod: "65",
-            serie: EmissaoNfceHandler.SERIE_FIXA,
+            serie: dados.ide.serie ? dados.ide.serie.toString() : "",
             nNF: dados.ide.nNF!, // Agora garantido que existe
             dhEmi: NFe.formatData(),
             tpNF: dados.ide.tpNF,
@@ -820,59 +601,16 @@ export class EmissaoNfceHandler {
             }
         }
 
-
         // Products
         // Adiciona os produtos sem o campo 'taxes'
         NFe.tagProd(
             dados.products.map(({ taxes, ...produto }) => produto)
         );
 
-        // dados.products.forEach((produto, index) => {
-            //     // Process tax data using taxes from each product
-            //     let valorProduto = parseFloat(produto.vProd);
-            //     if (isNaN(valorProduto)) {
-            //         valorProduto = 0;
-            //         console.warn(`Produto com vProd inválido ou ausente (index ${index}):`, produto);
-            //     }
-            //     const processedTaxes = TributacaoService.processTaxData(
-            //         produto.taxes,
-            //         valorProduto,
-            //         dados.issuer.crt
-            //     );
-
-            //     // ICMS
-            //     NFe.tagProdICMSSN(index, processedTaxes.icms);
-            //     // PIS
-            //     NFe.tagProdPIS(index, processedTaxes.pis);
-
-            //     // COFINS
-            //     NFe.tagProdCOFINS(index, processedTaxes.cofins);
-        // });
-
-
-
         for (let i = 0; i < dados.products.length; i++) {
             const produto = dados.products[i];
 
-            // Dentro do loop dos produtos:
-            const regra = await this.tributacaoService.buscarRegraNcm(produto.NCM, dados.issuer.cnpj);
-
-            if (!regra) {
-                throw new Error(`Regra fiscal não encontrada para NCM ${produto.NCM} e empresa ${dados.issuer.cnpj}`);
-            }
-
-            produto.taxes = {
-                orig: regra.orig,
-                CSOSN: regra.csosn,
-                cstIcms: regra.cst_icms,
-                modalidadeBC: regra.modalidade_bc,      // padronizado
-                icmsPercent: regra.icms_percent,      // padronize para icmsPercent
-                cstPis: regra.cst_pis,
-                pisPercent: regra.pis_percent,
-                cstCofins: regra.cst_cofins,
-                cofinsPercent: regra.cofins_percent,
-            };
-
+            // Usa os impostos enviados pelo cliente, sem buscar regra fiscal
             const processedTaxes = TributacaoService.processTaxData(
                 produto.taxes,
                 parseFloat(produto.vProd),
@@ -884,7 +622,7 @@ export class EmissaoNfceHandler {
                     orig: processedTaxes.icms.orig,
                     CSOSN: processedTaxes.icms.CSOSN
                 });
-                } else {
+            } else {
                 NFe.tagProdICMS(i, {
                     orig: processedTaxes.icms.orig,
                     CST: processedTaxes.icms.CST,
@@ -1161,16 +899,6 @@ export class EmissaoNfceHandler {
         'timeout', 'connection', 'ssl', 'tls', 'socket', 'enotfound', 'econnrefused'
     ];
 
-    private isFalhaTecnica(error: any): boolean {
-        const errorMessage = error.message?.toLowerCase() || '';
-        const errorCode = error.code?.toLowerCase() || '';
-        const searchText = `${errorMessage} ${errorCode}`;
-
-        return EmissaoNfceHandler.TECHNICAL_ERROR_PATTERNS.some(pattern =>
-            searchText.includes(pattern)
-        );
-    }
-
     private formatarRespostaLimpa(dadosExtraidos: any, memberData: any, resultadoEmissao: SefazResponse): any {
         const nfcData = dadosExtraidos.nfcData;
         
@@ -1302,38 +1030,4 @@ export class EmissaoNfceHandler {
         return paymentTypes[tPag] || "Não identificado";
     }
 
-    private gerarChaveAcesso(memberData: any, ide: any, nNF: string | number): string {
-        // cUF (2) + AAMM (4) + CNPJ (14) + mod (2) + serie (3) + nNF (9) + tpEmis (1) + cNF (8)
-        const cUF = ide.cUF.padStart(2, '0');
-        const dhEmi = ide.dhEmi || new Date().toISOString();
-        // AAMM: ano e mês da emissão (formato YYMM)
-        const year = dhEmi.substring(2, 4);
-        const month = dhEmi.substring(5, 7);
-        const AAMM = year + month;
-        const CNPJ = memberData.cnpj.replace(/\D/g, '').padStart(14, '0');
-        const mod = "65";
-        const serie = String(ide.serie).padStart(3, '0');
-        const nNFstr = String(nNF).padStart(9, '0');
-        const tpEmis = ide.tpEmis || "1";
-        const cNF = String(ide.cNF).padStart(8, '0');
-
-        let chaveSemDV = `${cUF}${AAMM}${CNPJ}${mod}${serie}${nNFstr}${tpEmis}${cNF}`;
-        // Calcular DV (dígito verificador) usando módulo 11
-        const dv = this.calcularDVChave(chaveSemDV);
-        return chaveSemDV + dv;
-    }
-
-    // Função auxiliar para calcular o DV da chave de acesso (módulo 11)
-    private calcularDVChave(chave: string): string {
-        let peso = 2;
-        let soma = 0;
-        for (let i = chave.length - 1; i >= 0; i--) {
-            soma += parseInt(chave[i], 10) * peso;
-            peso = peso === 9 ? 2 : peso + 1;
-        }
-        const resto = soma % 11;
-        let dv = 11 - resto;
-        if (dv >= 10) dv = 0;
-        return String(dv);
-    }
 }

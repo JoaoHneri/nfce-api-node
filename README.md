@@ -1,6 +1,220 @@
+
 # 🏪 API Unificada para Notas Fiscais
 
-API robusta e **totalmente unificada** para emissão, consulta e cancelamento de múltiplos tipos de notas fiscais (NFCe, NFe, NFSe) que funciona como **Hub Multi-Empresa**, com endpoints RESTful unificados, busca automática de certificados por CNPJ e arquitetura moderna separada em camadas.
+API robusta e **totalmente unificada** para emissão, consulta e cancelamento de múltiplos tipos de notas fiscais (NFCe, NFe, NFSe) que funciona como **Hub Multi-Empresa**, com endpoints RESTful unificados e arquitetura moderna separada em camadas.
+
+---
+
+## 📦 Principais Endpoints
+
+### 1. Emissão de Nota (NFCe)
+
+**POST** `/api/notes/nfce/issue`
+
+**Corpo da requisição:**
+```json
+{
+  "company": {
+    "cnpj": "12345678000199",
+    "xName": "EMPRESA FICTICIA LTDA",
+    "xFant": "EMPRESA FICTICIA",
+    "ie": "123456789000",
+    "crt": "1",
+    "address": {
+      "street": "RUA FICTICIA",
+      "number": "100",
+      "district": "CENTRO",
+      "city": "CIDADE FICTICIA",
+      "state": "SP",
+      "zipCode": "00000000",
+      "phone": "11999999999"
+    }
+  },
+  "noteData": {
+    "ide": {
+      "cUF": "35",
+      "cNF": "1",
+      "natOp": "VENDA",
+      "serie": "884",
+      "nNF": "1",
+      "tpNF": "1",
+      "idDest": "1",
+      "cMunFG": "3550308",
+      "tpImp": "4",
+      "tpEmis": "1",
+      "tpAmb": "2",
+      "finNFe": "1",
+      "indFinal": "1",
+      "indPres": "1",
+      "indIntermed": "0",
+      "procEmi": "0",
+      "verProc": "1.0"
+    },
+    "recipient": {
+      "cpf": "11750943077",
+      "xName": "CONSUMIDOR FINAL",
+      "ieInd": "9",
+      "email": "consumidor@exemplo.com"
+    },
+    "products": [
+      {
+        "cProd": "001",
+        "cEAN": "SEM GTIN",
+        "xProd": "PRODUTO EXEMPLO",
+        "NCM": "85044010",
+        "CFOP": "5102",
+        "uCom": "UNID",
+        "qCom": "1.00",
+        "vUnCom": "10.00",
+        "vProd": "10.00",
+        "cEANTrib": "SEM GTIN",
+        "uTrib": "UNID",
+        "qTrib": "1.00",
+        "vUnTrib": "10.00",
+        "indTot": "1"
+      }
+    ],
+    "payment": {
+      "detPag": [
+        {
+          "indPag": "0",
+          "tPag": "01",
+          "vPag": "10.00"
+        }
+      ],
+      "change": "0.00"
+    }
+  },
+  "certificate": {
+    "pfxPath": "/certificates/12345678000199.pfx",
+    "password": "senha123",
+    "consumer_key": "csc",
+    "consumer_key_id": "1",
+    "uf": "SP",
+    "environment": 2,
+    "cnpj": "12345678000199"
+  }
+}
+```
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "NFCe issued successfully",
+  "data": {
+    "fiscal": { ... },
+    "financial": { ... },
+    "company": { ... },
+    "customer": { ... },
+    "products": [ ... ],
+    "payment": { ... },
+    "qrCode": "...",
+    "xmlSigned": "..."
+  }
+}
+```
+
+---
+
+### 2. Consulta de Nota
+
+**POST** `/api/notes/nfce/consult`
+
+**Corpo da requisição:**
+```json
+{
+  "accessKey": "35250760142655000126658840000000761101638000",
+  "certificate": {
+    "pfxPath": "/certificates/12345678000199.pfx",
+    "password": "senha123",
+    "consumer_key": "csc",
+    "consumer_key_id": "1",
+    "uf": "SP",
+    "environment": 2,
+    "cnpj": "12345678000199"
+  }
+}
+```
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "NFCe consulted successfully",
+  "data": {
+    ...dados da nota consultada...
+  }
+}
+```
+
+---
+
+### 3. Cancelamento de Nota
+
+**POST** `/api/notes/nfce/cancel`
+
+**Corpo da requisição:**
+```json
+{
+  "accessKey": "35250760142655000126658840000000761101638000",
+  "protocol": "135250001387032",
+  "justification": "Cancelamento por motivo de teste de integração com o sistema.",
+  "certificate": {
+    "pfxPath": "/certificates/12345678000199.pfx",
+    "password": "senha123",
+    "consumer_key": "csc",
+    "consumer_key_id": "1",
+    "uf": "SP",
+    "environment": 2,
+    "cnpj": "12345678000199"
+  }
+}
+```
+
+**Resposta:**
+```json
+{
+  "success": true,
+  "message": "NFCe cancelled successfully",
+  "data": {
+    "accessKey": "35250760142655000126658840000000761101638000",
+    "protocol": "135250001387032",
+    "justification": "Cancelamento por motivo de teste de integração com o sistema.",
+    "cancelDate": "2025-07-21T14:50:23.000Z",
+    "company": {
+      "cnpj": "12345678000199",
+      "name": "EMPRESA FICTICIA LTDA"
+    },
+    "sefaz": {
+      "cStat": "135",
+      "reason": "Cancelamento homologado",
+      "protocol": "135250001387032"
+    }
+  }
+}
+```
+
+---
+
+## 📝 Observações Importantes
+
+- Todos os dados necessários para emissão, consulta e cancelamento devem ser enviados **diretamente no corpo da requisição**.
+- Não é mais necessário informar apenas o CNPJ para buscar dados no banco; a API espera o objeto completo da empresa e do certificado.
+- Os exemplos acima refletem o novo padrão das rotas principais.
+- Para outros tipos de nota (NFe, NFSe), consulte a documentação ou aguarde futuras versões.
+
+---
+
+## 📚 Compatibilidade
+
+Se você utilizava o formato antigo (apenas CNPJ e ambiente), adapte seu cliente para enviar os dados completos conforme os exemplos acima.
+
+---
+
+## 💬 Dúvidas ou Suporte
+
+Abra uma issue ou entre em contato para dúvidas sobre integração ou migração para o novo padrão.
 
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)](https://www.typescriptlang.org/)
@@ -159,8 +373,13 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "qTrib": "1.00",
         "vUnTrib": "1.00",
         "vDesc": "0.10",
-        "indTot": "1"
-        // Não é mais necessário informar o campo taxes!
+        "indTot": "1",
+        "taxes": {
+          "orig": "0",
+          "CSOSN": "400",
+          "cstPis": "49",
+          "cstCofins": "49"
+        }
       }
     ],
       // O transporte é sempre gerado automaticamente como "mode": "9" (sem transporte)
@@ -223,8 +442,13 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "UNID",
         "qTrib": "1.00",
         "vUnTrib": "50.00",
-        "indTot": "1"
-        // Não é mais necessário informar o campo taxes!
+        "indTot": "1",
+        "taxes": {
+          "orig": "0",
+          "CSOSN": "102",
+          "cstPis": "07",
+          "cstCofins": "07"
+        }
       }
     ],
       "payment": {
@@ -283,8 +507,15 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "UNID",
         "qTrib": "1.00",
         "vUnTrib": "2500.00",
-        "indTot": "1"
-        // Não é mais necessário informar o campo taxes!
+        "indTot": "1",
+        "taxes": {
+          "orig": "0",
+          "CSOSN": "400",
+          "cstPis": "01",
+          "cstCofins": "01",
+          "pPIS": "1.65",
+          "pCOFINS": "7.60"
+        }
       }
     ],
       "payment": {
@@ -349,8 +580,13 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "UNID",
         "qTrib": "1.00",
         "vUnTrib": "200.00",
-        "indTot": "1"
-        // Não é mais necessário informar o campo taxes!
+        "indTot": "1",
+        "taxes": {
+          "orig": "0",
+          "CSOSN": "102",
+          "cstPis": "49",
+          "cstCofins": "49"
+        }
       }
     ],
       "payment": {
@@ -389,8 +625,13 @@ curl -X POST http://localhost:3000/api/notes/nfce/issue \
         "uTrib": "LT",
         "qTrib": "50.000",
         "vUnTrib": "6.00",
-        "indTot": "1"
-        // Não é mais necessário informar o campo taxes!
+        "indTot": "1",
+        "taxes": {
+          "orig": "0",
+          "CSOSN": "400",
+          "cstPis": "49",
+          "cstCofins": "49"
+        }
       }
     ],
       "payment": {
@@ -603,41 +844,39 @@ O processamento de taxas (tributação) realizado pela API é totalmente compat�
 ## 🤖 **Sistema de Tributação 100% Automático**
 ---
 
+
 ## ❗ O que acontece se o NCM não estiver cadastrado?
 
-Se você tentar emitir uma NFC-e com um NCM que não está cadastrado na tabela `ncm_tax_rules` para o CRT da empresa:
+Se você tentar emitir uma NFC-e com um NCM sem informar corretamente os campos de tributação (`taxes`), a nota NÃO será emitida.
+A API agora **não faz mais busca automática de regras fiscais no banco**: todos os campos fiscais devem ser informados explicitamente no payload.
 
-- **A nota NÃO será emitida.**
-- A API irá interromper o processamento e retornar um erro claro, por exemplo:
-
+**Exemplo de erro:**
 ```json
 {
   "success": false,
-  "message": "Regra fiscal não encontrada para NCM 12345678 e empresa 12345678000100"
+  "message": "Campos fiscais obrigatórios não informados para o produto NCM 12345678"
 }
 ```
-- Nenhum XML é gerado e nenhum dado é salvo.
+Nenhum XML é gerado e nenhum dado é salvo.
 
 **Recomendação:**
-Antes de emitir, cadastre todos os NCMs utilizados na tabela `ncm_tax_rules` para cada regime tributário da empresa.
+Informe sempre o campo `taxes` para cada produto, conforme exemplos abaixo. Não é mais necessário cadastrar regras fiscais no banco, pois a API não faz mais selects automáticos.
 
+### **🎯 Tributação Transparente e Manual no Payload**
 
-### **🎯 Tributação Transparente e Sem Configuração Manual**
-
-A API detecta automaticamente o cenário tributário de cada produto com base no NCM, CRT da empresa e regras parametrizadas no banco de dados. **Não é mais necessário informar o campo `taxes` no payload!**
+Agora, **é obrigatório informar o campo `taxes`** no payload de cada produto. A API utiliza os dados enviados para gerar o XML fiscal, sem autodetecção ou busca de regras fiscais.
 
 **Como funciona:**
-- A API busca a regra fiscal correta para cada produto (NCM + CRT)
-- Calcula automaticamente todos os valores de ICMS, PIS e COFINS
-- Gera o XML já no layout correto, sem necessidade de configuração manual
-- Mantém flexibilidade para atualização de regras fiscais sem alterar código
+- Você informa todos os campos fiscais necessários no payload (`taxes`)
+- A API utiliza esses dados para calcular ICMS, PIS, COFINS e gerar o XML
+- Não há mais autodetecção ou busca automática de regras fiscais
 
 **Vantagens:**
-- Reduz erros de preenchimento
-- Facilita manutenção e atualização tributária
-- Permite integração simples: basta informar os dados do produto
+- Controle total sobre a tributação de cada produto
+- Flexibilidade para diferentes cenários fiscais
+- Integração simples: basta informar os dados completos do produto
 
-**Exemplo de payload simplificado:**
+**Exemplo de payload obrigatório:**
 ```json
 {
   "products": [
@@ -646,14 +885,19 @@ A API detecta automaticamente o cenário tributário de cada produto com base no
       "xProd": "PRODUTO QUALQUER",
       "NCM": "85044010",
       "CFOP": "5102",
-      "vProd": "100.00"
-      // Não precisa mais do campo taxes!
+      "vProd": "100.00",
+      "taxes": {
+        "orig": "0",
+        "CSOSN": "102",
+        "cstPis": "49",
+        "cstCofins": "49"
+      }
     }
   ]
 }
 ```
 
-**A API cuida de toda a lógica tributária automaticamente!**
+**A API utiliza os dados de tributação enviados no payload!**
 
 ---
 

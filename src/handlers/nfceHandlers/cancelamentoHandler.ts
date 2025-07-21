@@ -17,74 +17,96 @@ export class CancelamentoHandler {
 
     constructor() {
         this.parser = new SefazResponseParser();
-        
+
         const dbConfig = getDatabaseConfig();
         this.numeracaoService = new NumeracaoService(dbConfig);
         this.memberService = new MemberService();
     }
 
-    async processarCancelamentoPorCNPJ(
-        memberCnpj: string,
-        environment: number,
-        accessKey: string,
-        protocol: string,
-        justification: string,
-        sefazService: any
+    private async atualizarStatusNoBanco(accessKey: string, justification: string): Promise<void> {
+        try {
+            // Verificar se a NFCe existe
+            const nfce = await this.memberService.buscarNfcePorChave(accessKey);
+
+            if (nfce) {
+                // Atualizar status para cancelado
+                await this.memberService.atualizarStatusNfce(
+                    accessKey,
+                    'cancelled',
+                    `Cancelamento: ${justification}`
+                );
+            }
+        } catch (error) {
+            console.error('❌ Erro ao atualizar status no banco:', error);
+            // Não falha a operação principal se não conseguir atualizar
+        }
+    }
+
+    async cancelarNFCe(
+        tools: any,
+        certificadoConfig: CertificadoConfig,
+        dados: CancelamentoRequest,
+        memberData?: any // opcional, se quiser passar dados da empresa para resposta
     ): Promise<{
         success: boolean;
         data?: any;
         error?: string;
+        reason?: string;
+        cStat?: string;
+        protocol?: string;
+        accessKey?: string;
+        cancelDate?: string;
+        justification?: string;
     }> {
         try {
-            // 1. Buscar dados da empresa + certificado automaticamente
-            const dados = await this.memberService.buscarDadosCompletos(memberCnpj, environment);
-            
-            if (!dados) {
+            // Validações
+            const validacao = this.validarDados(dados);
+            if (!validacao.valido) {
                 return {
                     success: false,
-                    error: `No active company/certificate found for CNPJ: ${memberCnpj} in environment: ${environment}`
+                    error: validacao.erro,
+                    data: {
+                        accessKey: dados.accessKey,
+                        cStat: "999",
+                        reason: validacao.erro,
+                        justification: dados.justification
+                    }
                 };
             }
 
-            const { member: memberData, certificate: certificateData } = dados;
+            // 1. Criar estrutura do evento
+            const eventoObj = this.criarObjetoEvento(dados, certificadoConfig);
 
-            // 2. Preparar configuração do certificado
-            const certificateConfig: CertificadoConfig = {
-                pfxPath: certificateData.pfxPath,
-                password: certificateData.password,
-                consumer_key: certificateData.consumer_key,
-                consumer_key_id: certificateData.consumer_key_id,
-                cnpj: memberData.cnpj,
-                environment: parseInt(certificateData.environment),
-                uf: certificateData.uf
-            };
+            let xmlEvento;
+            if (typeof tools.json2xml === 'function') {
+                xmlEvento = await tools.json2xml(eventoObj);
+            } else {
+                xmlEvento = this.converterParaXML(eventoObj);
+            }
 
-            // 3. Preparar dados do cancelamento
-            const dadosCancelamento: CancelamentoRequest = {
-                accessKey,
-                protocol,
-                justification
-            };
+            const xmlAssinado = await tools.xmlSign(xmlEvento, { tag: "infEvento" });
 
-            // 4. Obter tools e executar cancelamento
-            const tools = await sefazService.obterTools(certificateConfig);
-            const resultado = await this.cancelarNFCe(tools, certificateConfig, dadosCancelamento);
+            const soapEnvelope = this.criarSOAPEnvelope(xmlAssinado, dados.accessKey.substring(0, 2));
+
+            const xmlResponse = await this.enviarParaSefaz(soapEnvelope, dados.accessKey, certificadoConfig);
+
+            const resultado = this.parser.parseCancelamentoResponse(xmlResponse, dados.accessKey);
+
+            if (resultado.success && resultado.cStat === '135') {
+                await this.atualizarStatusCancelamento(dados.accessKey, resultado);
+            }
 
             if (resultado.success) {
-                // 5. Atualizar status no banco usando MemberService
-                await this.atualizarStatusNoBanco(accessKey, justification);
-
                 return {
                     success: true,
                     data: {
-                        accessKey,
+                        accessKey: dados.accessKey,
                         protocol: resultado.protocol,
-                        justification,
+                        justification: dados.justification,
                         cancelDate: new Date().toISOString(),
-                        company: {
-                            cnpj: memberData.cnpj,
-                            name: memberData.xName
-                        },
+                        company: memberData
+                            ? { cnpj: memberData.cnpj, name: memberData.xName }
+                            : undefined,
                         sefaz: {
                             cStat: resultado.cStat,
                             reason: resultado.reason,
@@ -97,91 +119,16 @@ export class CancelamentoHandler {
                     success: false,
                     error: resultado.reason || resultado.error,
                     data: {
-                        accessKey,
+                        accessKey: dados.accessKey,
                         cStat: resultado.cStat,
                         reason: resultado.reason,
-                        justification
+                        justification: dados.justification
                     }
                 };
             }
-
-        } catch (error: any) {
-            console.error('❌ Erro no processamento do cancelamento:', error);
-            return {
-                success: false,
-                error: error.message
-            };
-        }
-    }
-
-    private async atualizarStatusNoBanco(accessKey: string, justification: string): Promise<void> {
-        try {
-            // Verificar se a NFCe existe
-            const nfce = await this.memberService.buscarNfcePorChave(accessKey);
-            
-            if (nfce) {
-                // Atualizar status para cancelado
-                await this.memberService.atualizarStatusNfce(
-                    accessKey, 
-                    'cancelled', 
-                    `Cancelamento: ${justification}`
-                );
-            }
-        } catch (error) {
-            console.error('❌ Erro ao atualizar status no banco:', error);
-            // Não falha a operação principal se não conseguir atualizar
-        }
-    }
-
-    async cancelarNFCe(tools: any, certificadoConfig: CertificadoConfig, dados: CancelamentoRequest): Promise<CancelamentoResponse> {
-        try {
-            // Validações
-            const validacao = this.validarDados(dados);
-            if (!validacao.valido) {
-                return {
-                    success: false,
-                    status: "validation_error",
-                    cStat: "999",
-                    reason: validacao.erro!,
-                    accessKey: dados.accessKey,
-                    xmlComplete: "",
-                    error: validacao.erro
-                };
-            }
-
-            // 1. Criar estrutura do evento
-            const eventoObj = this.criarObjetoEvento(dados, certificadoConfig);
-
-            let xmlEvento;
-            if (typeof tools.json2xml === 'function') {
-                xmlEvento = await tools.json2xml(eventoObj);
-            } else {
-                // Fallback: usar XMLBuilder
-                xmlEvento = this.converterParaXML(eventoObj);
-            }
-
-            const xmlAssinado = await tools.xmlSign(xmlEvento, { tag: "infEvento" });
-
-            const soapEnvelope = this.criarSOAPEnvelope(xmlAssinado, dados.accessKey.substring(0, 2));
-
-            const xmlResponse = await this.enviarParaSefaz(soapEnvelope, dados.accessKey, certificadoConfig);
-
-            const resultado = this.parser.parseCancelamentoResponse(xmlResponse, dados.accessKey);
-
-            if (resultado.success && resultado.cStat === '135') { // 135 = Cancelamento homologado
-                await this.atualizarStatusCancelamento(dados.accessKey, resultado);
-            }
-
-            return resultado;
-
         } catch (error: any) {
             return {
                 success: false,
-                status: "communication_error",
-                cStat: "999",
-                reason: "Error processing cancellation",
-                accessKey: dados.accessKey,
-                xmlComplete: "",
                 error: error.message
             };
         }
@@ -189,16 +136,16 @@ export class CancelamentoHandler {
 
     private criarObjetoEvento(dados: CancelamentoRequest, certificadoConfig: CertificadoConfig): any {
         const agora = new Date();
-        
+
         const brasiliaTime = new Date(agora.getTime() - (3 * 60 * 60 * 1000));
-        
+
         brasiliaTime.setMinutes(brasiliaTime.getMinutes());
-        
+
         const dhEvento = brasiliaTime.toISOString().replace(/\.\d{3}Z$/, '-03:00');
-        
+
         const nSeqEvento = 1;
         const cOrgao = dados.accessKey.substring(0, 2);
-        
+
         const idLote = this.gerarIdLote();
 
         const detEvento = {
@@ -222,7 +169,7 @@ export class CancelamentoHandler {
                         "tpAmb": "2",
                         "CNPJ": certificadoConfig.cnpj || "",
                         "chNFe": dados.accessKey,
-                        "dhEvento": dhEvento, 
+                        "dhEvento": dhEvento,
                         "tpEvento": "110111",
                         "nSeqEvento": nSeqEvento,
                         "verEvento": "1.00",
@@ -234,112 +181,115 @@ export class CancelamentoHandler {
     }
 
     private async enviarParaSefaz(soapEnvelope: string, chaveAcesso: string, certificadoConfig: CertificadoConfig): Promise<string> {
-    try {
-        const cUF = chaveAcesso.substring(0, 2);
-        const ufMap: Record<string, string> = {
-            '35': 'SP', '33': 'RJ', '31': 'MG', '41': 'PR', '42': 'SC', '43': 'RS'
-        };
-        
-        const uf = ufMap[cUF] || 'SP';
+        try {
+            const cUF = chaveAcesso.substring(0, 2);
+            const ufMap: Record<string, string> = {
+                '35': 'SP', '33': 'RJ', '31': 'MG', '41': 'PR', '42': 'SC', '43': 'RS'
+            };
 
-        const tpAmb = Number(certificadoConfig?.environment) || 2;
-        const ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
-        const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
-        const url = endpoints[uf]?.nfceCancelamento;
+            const uf = ufMap[cUF] || 'SP';
 
-        if (!url) {
-            throw new Error(`Endpoint de cancelamento não configurado para UF: ${uf}`);
-        }
+            const tpAmb = Number(certificadoConfig?.environment) || 2;
+            const ambiente = tpAmb === 1 ? 'producao' : 'homologacao';
+            const endpoints = ambiente === 'producao' ? ENDPOINTS_PRODUCAO : ENDPOINTS_HOMOLOGACAO;
+            const url = endpoints[uf]?.nfceCancelamento;
 
-        if (!certificadoConfig.pfxPath || !certificadoConfig.password) {
-            throw new Error('Certificado não configurado adequadamente');
-        }
+            if (!url) {
+                throw new Error(`Endpoint de cancelamento não configurado para UF: ${uf}`);
+            }
 
-        if (!fs.existsSync(certificadoConfig.pfxPath)) {
-            throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfxPath}`);
-        }
+            if (!certificadoConfig.pfxPath || !certificadoConfig.password) {
+                throw new Error('Certificado não configurado adequadamente');
+            }
 
-        const certificado = fs.readFileSync(certificadoConfig.pfxPath);
+            if (!fs.existsSync(certificadoConfig.pfxPath)) {
+                throw new Error(`Arquivo de certificado não encontrado: ${certificadoConfig.pfxPath}`);
+            }
 
-        return new Promise((resolve, reject) => {
-            try {
-                const urlObj = new URL(url);
-                
-                // 🚀 Headers específicos por estado para CANCELAMENTO
-                const headers = SoapHeadersUtil.obterCabecalhosCancelamentoPorEstado(uf, soapEnvelope);
+            const certificado = fs.readFileSync(certificadoConfig.pfxPath);
 
-                const options = {
-                    hostname: urlObj.hostname,
-                    port: urlObj.port || 443,
-                    path: urlObj.pathname,
-                    method: 'POST',
-                    headers,
-                    pfx: certificado,
-                    passphrase: certificadoConfig.password,
-                    rejectUnauthorized: false,
-                    secureProtocol: 'TLSv1_2_method'
-                };
+            return new Promise((resolve, reject) => {
+                try {
+                    const urlObj = new URL(url);
 
-                const req = https.request(options, (res) => {
-                    try {
+                    // 🚀 Headers específicos por estado para CANCELAMENTO
+                    const headers = SoapHeadersUtil.obterCabecalhosCancelamentoPorEstado(uf, soapEnvelope);
 
-                        let data = '';
-                        res.on('data', (chunk) => {
-                            data += chunk.toString();
-                        });
+                    const options = {
+                        hostname: urlObj.hostname,
+                        port: urlObj.port || 443,
+                        path: urlObj.pathname,
+                        method: 'POST',
+                        headers,
+                        pfx: certificado,
+                        passphrase: certificadoConfig.password,
+                        rejectUnauthorized: false,
+                        secureProtocol: 'TLSv1_2_method'
+                    };
 
-                        res.on('end', () => {
-                            try {
-                                // 🚨 Verificar se é erro HTTP
-                                if (res.statusCode && res.statusCode >= 400) {
-                                    reject(new Error(`Erro HTTP ${res.statusCode}: ${data}`));
-                                    return;
-                                }
+                    const req = https.request(options, (res) => {
+                        try {
 
-                                // 🚨 Verificar se contém erro SOAP
-                                if (data.includes('soap:Fault') || data.includes('faultstring')) {
-                                    reject(new Error(`Erro SOAP: ${data}`));
-                                    return;
-                                }
+                            let data = '';
+                            res.on('data', (chunk) => {
+                                data += chunk.toString();
+                            });
 
+                            res.on('end', () => {
                                 try {
-                                    const xmlLimpo = this.limparSOAP(data);
-                                    resolve(xmlLimpo);
-                                } catch (xmlError) {
-                                    resolve(data);
-                                }                                } catch (endError) {
+                                    // 🚨 Verificar se é erro HTTP
+                                    if (res.statusCode && res.statusCode >= 400) {
+                                        reject(new Error(`Erro HTTP ${res.statusCode}: ${data}`));
+                                        return;
+                                    }
+
+                                    // 🚨 Verificar se contém erro SOAP
+                                    if (data.includes('soap:Fault') || data.includes('faultstring')) {
+                                        reject(new Error(`Erro SOAP: ${data}`));
+                                        return;
+                                    }
+
+                                    try {
+                                        const xmlLimpo = this.limparSOAP(data);
+                                        resolve(xmlLimpo);
+                                    } catch (xmlError) {
+                                        resolve(data);
+                                    }
+                                } catch (endError) {
                                     console.error(`❌ Erro no processamento final:`, endError);
                                     reject(endError);
                                 }
-                        });                            res.on('error', (resError) => {
+                            }); res.on('error', (resError) => {
                                 console.error(`❌ Erro na resposta:`, resError);
                                 reject(resError);
-                            });                        } catch (responseError) {
+                            });
+                        } catch (responseError) {
                             console.error(`❌ Erro ao processar resposta:`, responseError);
                             reject(responseError);
                         }
-                });
+                    });
 
-                req.on('error', (err) => {
-                    reject(err);
-                });
+                    req.on('error', (err) => {
+                        reject(err);
+                    });
 
-                req.on('timeout', () => {
-                    req.destroy();
-                    reject(new Error('Timeout na requisição de cancelamento (30s)'));
-                });
+                    req.on('timeout', () => {
+                        req.destroy();
+                        reject(new Error('Timeout na requisição de cancelamento (30s)'));
+                    });
 
-                req.setTimeout(30000);
-                
-                req.write(soapEnvelope);
-                req.end();                } catch (promiseError) {
+                    req.setTimeout(30000);
+
+                    req.write(soapEnvelope);
+                    req.end();
+                } catch (promiseError) {
                     reject(promiseError);
                 }
-        });
+            });
 
-    } catch (methodError) {
-        throw methodError;
-    }
+        } catch (methodError) {
+            throw methodError;
+        }
     }
 
     private gerarIdLote(): string {
@@ -447,7 +397,7 @@ export class CancelamentoHandler {
             // Não falha a operação principal se não conseguir atualizar o histórico
         }
     }
-
+    
     /**
      * Extrair CNPJ da chave de acesso (posições 6-19)
      */

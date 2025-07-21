@@ -34,17 +34,17 @@ export class NFCeController {
   async emitirNota(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { type = 'nfce' } = request.params as { type?: string };
-      const { memberCnpj, environment, noteData } = request.body as {
-        memberCnpj: string;
-        environment: number;
+      const { company, noteData, certificate } = request.body as {
+        company: string;
         noteData: any;
+        certificate: CertificadoConfig;
       };
 
-      if (!memberCnpj || !environment || !noteData) {
+      if (!company || !noteData || !certificate) {
         reply.status(400).send({
           success: false,
           message: 'Missing required parameters',
-          error: 'memberCnpj, environment, and noteData are required'
+          error: 'company, noteData, and certificate are required'
         });
         return;
       }
@@ -62,20 +62,19 @@ export class NFCeController {
       switch (type.toLowerCase()) {
         case 'nfce':
           try {
-            if (!memberCnpj || !environment || !noteData) {
+            if (!company || !noteData || !certificate) {
               reply.status(400).send({
                 success: false,
                 message: 'Missing required parameters',
-                error: 'memberCnpj, environment, and noteData are required'
+                error: 'company, environment, noteData, and certificate are required'
               });
               return;
             }
 
-            const resultado = await this.emissaoHandler.processarEmissaoCompleta(
-              memberCnpj, 
-              environment, 
+            const resultado = await this.sefazNfceService.emitirNFCe(
+              company, 
+              certificate,
               noteData, // noteData já vem como nfceData
-              this.sefazNfceService
             );
 
             const isSuccess = resultado.fiscal?.status?.code === "100";
@@ -149,12 +148,12 @@ export class NFCeController {
 
   async consultarNota(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const { type = 'nfce', accessKey, memberCnpj, environment } = request.params as {
+      const { type = 'nfce', accessKey } = request.params as {
         type?: string;
         accessKey: string;
-        memberCnpj: string;
-        environment: string;
       };
+
+      const { certificate } = request.body as { certificate: CertificadoConfig };
 
       const tiposSuportados = ['nfce', 'nfe', 'nfse'];
       if (!tiposSuportados.includes(type.toLowerCase())) {
@@ -170,16 +169,25 @@ export class NFCeController {
         case 'nfce':
           try {
             
-            if (!accessKey || !memberCnpj || !environment) {
+            if (!accessKey ) {
               reply.status(400).send({
                 success: false,
                 message: 'Missing required parameters',
-                error: 'accessKey, memberCnpj, and environment are required'
+                error: 'accessKey is required'
               });
               return;
             }
 
-            const environmentNumber = parseInt(environment);
+            if (!certificate || !certificate.cnpj || !certificate.environment) {
+              reply.status(400).send({
+                success: false,
+                message: 'Missing certificate parameters',
+                error: 'certificate.cnpj and certificate.environment are required'
+              });
+              return;
+            }
+
+            const environmentNumber = certificate.environment;
             if (environmentNumber !== 1 && environmentNumber !== 2) {
               reply.status(400).send({
                 success: false,
@@ -189,12 +197,7 @@ export class NFCeController {
               return;
             }
 
-            const resultado = await this.consultaHandler.consultarNFCePorCNPJ(
-              accessKey,
-              memberCnpj,
-              environmentNumber,
-              this.sefazNfceService
-            );
+            const resultado = await this.sefazNfceService.consultarNFCe(accessKey, certificate);
 
             if (resultado.success) {
               reply.status(200).send({
@@ -264,12 +267,13 @@ export class NFCeController {
   async cancelarNota(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { type = 'nfce' } = request.params as { type?: string };
-      const { memberCnpj, environment, accessKey, protocol, justification } = request.body as {
+      const { memberCnpj, environment, accessKey, protocol, justification, certificate } = request.body as {
         memberCnpj: string;
         environment: number;
         accessKey: string;
         protocol: string;
         justification: string;
+        certificate: CertificadoConfig;
       };
 
       // ✅ Validar tipo suportado
@@ -288,23 +292,21 @@ export class NFCeController {
         case 'nfce':
           try {
             // 🎯 Lógica direta para cancelamento NFCe
-            if (!memberCnpj || !environment || !accessKey || !protocol || !justification) {
+            if (!accessKey || !protocol || !justification || !certificate) {
               reply.status(400).send({
                 success: false,
                 message: 'Missing required parameters',
-                error: 'memberCnpj, environment, accessKey, protocol and justification are required'
+                error: 'accessKey, protocol, justification and certificate are required'
               });
               return;
             }
 
-            const resultado = await this.cancelamentoHandler.processarCancelamentoPorCNPJ(
-              memberCnpj,
-              environment,
-              accessKey,
-              protocol,
-              justification,
-              this.sefazNfceService
-            );
+            const cancelData = {
+               accessKey,
+               protocol,
+               justification
+            }
+            const resultado = await this.sefazNfceService.cancelarNFCe(cancelData, certificate);
 
             if (resultado.success) {
               reply.status(200).send({
@@ -371,7 +373,6 @@ export class NFCeController {
     }
   }
 
-
   async obterExemploUnificado(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const { type = 'nfce' } = request.params as { type?: string };
@@ -380,25 +381,53 @@ export class NFCeController {
         case 'nfce':
           // 🎯 Usar exemplo NFCe existente mas adaptar para formato unificado
           const exemploNFCe = {
-            type: 'nfce',
-            memberCnpj: "12345678000199",
-            environment: 2,
+            company: {
+              cnpj: "12345678000199",
+              xName: "EMPRESA FICTICIA LTDA",
+              xFant: "EMPRESA FICTICIA",
+              ie: "123456789000",
+              crt: "1",
+              address: {
+                street: "RUA FICTICIA",
+                number: "100",
+                district: "CENTRO",
+                city: "CIDADE FICTICIA",
+                state: "SP",
+                zipCode: "00000000",
+                phone: "11999999999"
+              }
+            },
             noteData: {
               ide: {
-                natOp: "VENDA",
-                serie: "1"
+              cUF: "35",
+              cNF: "1",
+              natOp: "VENDA",
+              serie: "884",
+              nNF: "1",
+              tpNF: "1",
+              idDest: "1",
+              cMunFG: "3550308",
+              tpImp: "4",
+              tpEmis: "1",
+              tpAmb: "2",
+              finNFe: "1",
+              indFinal: "1",
+              indPres: "1",
+              indIntermed: "0",
+              procEmi: "0",
+              verProc: "1.0"
               },
               recipient: {
-                cpf: "12345678901",
+                cpf: "11750943077",
                 xName: "CONSUMIDOR FINAL",
                 ieInd: "9",
-                email: "consumidor@exemplo.com",
+                email: "consumidor@exemplo.com"
               },
               products: [
                 {
                   cProd: "001",
                   cEAN: "SEM GTIN",
-                  xProd: "PRODUTO EXEMPLO - AMBIENTE HOMOLOGAÇÃO",
+                  xProd: "PRODUTO EXEMPLO",
                   NCM: "85044010",
                   CFOP: "5102",
                   uCom: "UNID",
@@ -413,13 +442,24 @@ export class NFCeController {
                 }
               ],
               payment: {
-                detPag: [{
-                  indPag: "0",
-                  tPag: "01",
-                  vPag: "10.00"
-                }],
+                detPag: [
+                  {
+                    indPag: "0",
+                    tPag: "01",
+                    vPag: "10.00"
+                  }
+                ],
                 change: "0.00"
               }
+            },
+            certificate: {
+              pfxPath: "/certificates/12345678000199.pfx",
+              password: "senha123",
+              consumer_key: "csc",
+              consumer_key_id: "1",
+              uf: "SP",
+              environment: 2, // 1=Produção, 2=Homologação
+              cnpj: "12345678000199"
             }
           };
 
@@ -435,8 +475,8 @@ export class NFCeController {
               specificFormat: {
                 endpoint: 'POST /api/nfce/create-nfc',
                 body: {
-                  memberCnpj: exemploNFCe.memberCnpj,
-                  environment: exemploNFCe.environment,
+                  memberCnpj: exemploNFCe.company.cnpj,
+                  environment: exemploNFCe.certificate.environment,
                   nfceData: exemploNFCe.noteData
                 }
               }

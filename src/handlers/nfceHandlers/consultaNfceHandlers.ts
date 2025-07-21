@@ -11,46 +11,9 @@ export class ConsultaHandler {
         this.memberService = new MemberService();
     }
 
-    async consultarNFCe(tools: any, chave: string): Promise<ConsultaResponse> {
-        try {
-            // Validação da chave
-            if (!chave || chave.length !== 44) {
-                return {
-                    success: false,
-                    status: "validation_error",
-                    cStat: "999",
-                    reason: "Invalid access key - must have 44 digits",
-                    accessKey: chave,
-                    xmlComplete: "",
-                    error: "Invalid key"
-                };
-            }
-
-            // Consulta na SEFAZ
-            const xmlResponse = await tools.consultarNFe(chave);
-            
-            // Parse da resposta
-            return this.parser.parseConsultaResponse(xmlResponse, chave);
-
-        } catch (error: any) {
-            return {
-                success: false,
-                status: "communication_error",
-                cStat: "999",
-                reason: "SEFAZ communication error",
-                accessKey: chave,
-                xmlComplete: "",
-                error: error.message
-            };
-        }
-    }
-
-    // ✅ Método para consulta usando apenas CNPJ
-    async consultarNFCePorCNPJ(
+    async consultarNfce(
+        tools: any,
         accessKey: string,
-        memberCnpj: string,
-        environment: number,
-        sefazService: any
     ): Promise<{
         success: boolean;
         data?: any;
@@ -66,38 +29,16 @@ export class ConsultaHandler {
             }
 
             // 2. Buscar certificado automaticamente
-            const certificateData = await this.memberService.buscarCertificadoPorCNPJ(memberCnpj, environment);
+           const xmlResponse = await tools.consultarNFe(accessKey);
             
-            if (!certificateData) {
-                return {
-                    success: false,
-                    error: `No active certificate found for CNPJ: ${memberCnpj} in environment: ${environment}`
-                };
-            }
-
-            // 3. Preparar configuração do certificado
-            const certificateConfig: CertificadoConfig = {
-                pfxPath: certificateData.pfxPath,
-                password: certificateData.password,
-                consumer_key: certificateData.consumer_key,
-                consumer_key_id: certificateData.consumer_key_id,
-                cnpj: memberCnpj,
-                environment: parseInt(certificateData.environment),
-                uf: certificateData.uf
-            };
-
-            // 4. Obter tools e executar consulta
-            const tools = await sefazService.obterTools(certificateConfig);
-            const resultado = await this.consultarNFCe(tools, accessKey);
+            // Parse da resposta
+            const resultado = this.parser.parseConsultaResponse(xmlResponse, accessKey);
 
             if (resultado.success) {
                 return {
                     success: true,
                     data: {
                         accessKey,
-                        company: {
-                            cnpj: memberCnpj
-                        },
                         sefaz: {
                             cStat: resultado.cStat,
                             reason: resultado.reason,

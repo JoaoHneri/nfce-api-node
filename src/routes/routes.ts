@@ -5,7 +5,6 @@ const noteController = new NFCeController();
 
 async function routes(fastify: FastifyInstance) {
 
-
     fastify.post('/notes/:type/issue', {
         schema: {
             tags: ['Notas'],
@@ -20,37 +19,92 @@ async function routes(fastify: FastifyInstance) {
             },
             body: {
                 type: 'object',
-                required: ['memberCnpj', 'environment', 'noteData'],
+                required: ['certificate', 'company', 'noteData'],
                 properties: {
-                    memberCnpj: { type: 'string', description: 'CNPJ da empresa emissora' },
                     environment: { type: 'number', enum: [1, 2], description: '1=Produção, 2=Homologação' },
+                    certificate: {
+                        type: 'object',
+                        required: ['pfxPath', 'password', 'consumer_key', 'consumer_key_id', 'uf'],
+                        properties: {
+                            pfxPath: { type: 'string' },
+                            password: { type: 'string' },
+                            consumer_key: { type: 'string' },
+                            consumer_key_id: { type: 'string' },
+                            uf: { type: 'string' },
+                            environment: { type: 'number', enum: [1, 2] },
+                            cnpj: { type: 'string' },
+                        }
+                    },
+                    company: {
+                        type: 'object',
+                        required: ['cnpj', 'xName', 'xFant', 'ie', 'crt', 'address'],
+                        properties: {
+                            cnpj: { type: 'string' },
+                            xName: { type: 'string' },
+                            xFant: { type: 'string' },
+                            ie: { type: 'string' },
+                            crt: { type: 'string' },
+                            address: {
+                                type: 'object',
+                                required: ['street', 'number', 'neighborhood', 'cityCode', 'city', 'state', 'zipCode', 'cCountry', 'xCountry', 'phone'],
+                                properties: {
+                                    street: { type: 'string' },
+                                    number: { type: 'string' },
+                                    neighborhood: { type: 'string' },
+                                    cityCode: { type: 'string' },
+                                    city: { type: 'string' },
+                                    state: { type: 'string' },
+                                    zipCode: { type: 'string' },
+                                    cCountry: { type: 'string' },
+                                    xCountry: { type: 'string' },
+                                    phone: { type: 'string' }
+                                }
+                            }
+                        }
+                    },
                     noteData: {
                         type: 'object',
+                        required: ['ide', 'recipient', 'products', 'payment'],
                         properties: {
-                            ide: { type: 'object', properties: { natOp: { type: 'string' } }, nullable: true },
-                            recipient: { type: 'object', properties: { cpf: { type: 'string' }, xName: { type: 'string' }, ieInd: { type: 'string' } }, nullable: true },
-                            products: { type: 'array', items: { type: 'object', properties: { cProd: { type: 'string' }, cEAN: { type: 'string' }, xProd: { type: 'string' }, NCM: { type: 'string' }, CFOP: { type: 'string' }, uCom: { type: 'string' }, qCom: { type: 'string' }, vUnCom: { type: 'string' }, vProd: { type: 'string' }, cEANTrib: { type: 'string' }, uTrib: { type: 'string' }, qTrib: { type: 'string' }, vUnTrib: { type: 'string' }, vDesc: { type: 'string' }, indTot: { type: 'string' } } }, nullable: true },
-                            taxes: { type: 'object', properties: { orig: { type: 'string' }, CSOSN: { type: 'string' }, cstPis: { type: 'string' }, cstCofins: { type: 'string' } }, nullable: true },
-                            payment: { type: 'object', properties: { detPag: { type: 'array', items: { type: 'object', properties: { indPag: { type: 'string' }, tPag: { type: 'string' }, vPag: { type: 'string' } } } }, change: { type: 'string' } }, nullable: true },
+                            ide: { type: 'object' }, // pode detalhar mais se quiser
+                            recipient: { type: 'object' },
+                            products: { type: 'array', items: { type: 'object' } },
+                            payment: { type: 'object' }
                         }
                     }
                 }
-            },
+            }
         },
         handler: noteController.emitirNota.bind(noteController)
     });
 
-    fastify.get('/notes/:type/consult/:accessKey/:memberCnpj/:environment', {
+    fastify.post('/notes/:type/consult/:accessKey', {
         schema: {
             params: {
                 type: 'object',
                 properties: {
                     type: { type: 'string' },
-                    accessKey: { type: 'string' },
-                    memberCnpj: { type: 'string' },
-                    environment: { type: 'string', enum: ['1', '2'] }
+                    accessKey: { type: 'string' }
                 },
-                required: ['type', 'accessKey', 'memberCnpj', 'environment']
+                required: ['type', 'accessKey']
+            },
+            body: {
+                type: 'object',
+                required: ['certificate'],
+                properties: {
+                    certificate: {
+                        type: 'object',
+                        required: ['pfxPath', 'password', 'consumer_key', 'consumer_key_id', 'uf', 'environment'],
+                        properties: {
+                            pfxPath: { type: 'string' },
+                            password: { type: 'string' },
+                            consumer_key: { type: 'string' },
+                            consumer_key_id: { type: 'string' },
+                            uf: { type: 'string' },
+                            environment: { type: 'number', enum: [1, 2] }
+                        }
+                    },
+                }
             }
         },
         handler: noteController.consultarNota.bind(noteController)
@@ -67,13 +121,23 @@ async function routes(fastify: FastifyInstance) {
             },
             body: {
                 type: 'object',
-                required: ['memberCnpj', 'environment', 'accessKey', 'protocol', 'justification'],
+                required: ['accessKey', 'protocol', 'justification', 'certificate'],
                 properties: {
-                    memberCnpj: { type: 'string' },
-                    environment: { type: 'number', enum: [1, 2] },
                     accessKey: { type: 'string' },
                     protocol: { type: 'string' },
-                    justification: { type: 'string', minLength: 15 }
+                    justification: { type: 'string', minLength: 15 },
+                    certificate: {
+                        type: 'object',
+                        required: ['pfxPath', 'password', 'consumer_key', 'consumer_key_id', 'uf', 'environment'],
+                        properties: {
+                            pfxPath: { type: 'string' },
+                            password: { type: 'string' },
+                            consumer_key: { type: 'string' },
+                            consumer_key_id: { type: 'string' },
+                            uf: { type: 'string' },
+                            environment: { type: 'number', enum: [1, 2] }
+                        }
+                    }
                 }
             }
         },
