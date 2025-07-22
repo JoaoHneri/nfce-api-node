@@ -438,7 +438,15 @@ export class NFCeController {
                   uTrib: "UNID",
                   qTrib: "1.00",
                   vUnTrib: "10.00",
-                  indTot: "1"
+                  indTot: "1",
+                  taxes: {
+                    orig: 0,
+                    CSOSN: 400,        // Isento de ICMS (Simples Nacional)
+                    cstPis: 49,        // Isento de PIS
+                    pisPercent: 0.00,
+                    cstCofins: 49,     // Isento de COFINS
+                    cofinsPercent: 0.00
+                  }
                 }
               ],
               payment: {
