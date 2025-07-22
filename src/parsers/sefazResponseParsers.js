@@ -1,22 +1,16 @@
 import { XMLParser } from 'fast-xml-parser';
-import { ConsultaResponse, CancelamentoResponse } from '../types';
 
 export class SefazResponseParser {
-    private parser: XMLParser;
-
     constructor() {
         this.parser = new XMLParser({ ignoreAttributes: false });
     }
 
-    parseConsultaResponse(xmlResponse: string, chave: string): ConsultaResponse {
+    parseConsultaResponse(xmlResponse, chave) {
         try {
-            // Limpar e extrair XML se estiver dentro de SOAP envelope
             const xmlLimpo = this.extrairXMLdoSOAP(xmlResponse);
             const dadosXML = this.parser.parse(xmlLimpo);
-            
-            // Tentar diferentes estruturas baseadas no estado/órgão
             let retConsSit = this.encontrarRetConsSitNFe(dadosXML);
-            
+
             if (!retConsSit) {
                 throw new Error('Structure retConsSitNFe not found in XML');
             }
@@ -36,7 +30,7 @@ export class SefazResponseParser {
             };
 
             switch (cStat) {
-                case "100": // Autorizada
+                case "100":
                     return {
                         ...baseResponse,
                         success: true,
@@ -44,46 +38,41 @@ export class SefazResponseParser {
                         protocol: this.extrairProtocolo(retConsSit) || undefined,
                         authorizationDate: this.extrairDataAutorizacao(retConsSit) || undefined
                     };
-
-                case "101": // Cancelada
+                case "101":
                     return {
                         ...baseResponse,
                         success: true,
                         status: "canceled",
                         protocol: this.extrairProtocolo(retConsSit) || undefined
                     };
-
-                case "110": // Denegada
+                case "110":
                     return {
                         ...baseResponse,
                         success: true,
                         status: "denied",
                         protocol: this.extrairProtocolo(retConsSit) || undefined
                     };
-
-                case "656": // Processando
+                case "656":
                     return {
                         ...baseResponse,
                         success: false,
                         status: "processing",
                         waitRequired: true
                     };
-
-                case "217": // Não encontrada
+                case "217":
                     return {
                         ...baseResponse,
                         success: false,
                         status: "not_found"
                     };
-
-                default: // Outros erros
+                default:
                     return {
                         ...baseResponse,
                         success: false,
                         status: "error"
                     };
             }
-        } catch (error: any) {
+        } catch (error) {
             return {
                 success: false,
                 status: "parser_error",
@@ -96,7 +85,7 @@ export class SefazResponseParser {
         }
     }
 
-    parseCancelamentoResponse(xmlResponse: string, chave: string): CancelamentoResponse {
+    parseCancelamentoResponse(xmlResponse, chave) {
         try {
             if (!xmlResponse) {
                 return {
@@ -110,13 +99,11 @@ export class SefazResponseParser {
                 };
             }
 
-            // Limpar XML se estiver em envelope SOAP
             const xmlLimpo = this.extrairXMLdoSOAP(xmlResponse);
             const dadosXML = this.parser.parse(xmlLimpo);
 
-            // Encontrar estrutura de retEvento em diferentes formatos
             let retEvento = this.encontrarRetEvento(dadosXML);
-            
+
             if (!retEvento) {
                 return {
                     success: false,
@@ -132,12 +119,10 @@ export class SefazResponseParser {
             const cStat = this.extrairValor(retEvento.infEvento || retEvento, 'cStat');
             const xMotivo = this.extrairValor(retEvento.infEvento || retEvento, 'xMotivo');
 
-            // Se é array, pegar o primeiro elemento
             if (Array.isArray(retEvento)) {
                 retEvento = retEvento[0];
             }
 
-            // Buscar dados no infEvento ou diretamente no retEvento
             const infEvento = retEvento.infEvento || retEvento;
             const cStatFinal = cStat || this.extrairValor(infEvento, 'cStat') || "999";
             const xMotivoFinal = xMotivo || this.extrairValor(infEvento, 'xMotivo') || "Motivo não informado";
@@ -150,7 +135,7 @@ export class SefazResponseParser {
                 xmlComplete: xmlResponse
             };
 
-            if (cStatFinal === "135") { // Cancelamento homologado
+            if (cStatFinal === "135") {
                 return {
                     ...baseResponse,
                     success: true,
@@ -158,7 +143,6 @@ export class SefazResponseParser {
                     protocol: nProt || undefined
                 };
             } else {
-                // Tentar identificar tipo específico de erro
                 let status = "cancellation_error";
                 if (xMotivoFinal.includes("data do evento")) {
                     status = "invalid_date";
@@ -167,7 +151,7 @@ export class SefazResponseParser {
                 } else if (xMotivoFinal.includes("justificativa")) {
                     status = "invalid_justification";
                 }
-                
+
                 return {
                     ...baseResponse,
                     success: false,
@@ -176,7 +160,7 @@ export class SefazResponseParser {
                 };
             }
 
-        } catch (error: any) {
+        } catch (error) {
             return {
                 success: false,
                 status: "parser_error",
@@ -189,19 +173,11 @@ export class SefazResponseParser {
         }
     }
 
-    // ===== MÉTODOS AUXILIARES PARA PARSER ROBUSTO =====
-
-    /**
-     * Extrai XML limpo removendo envelope SOAP se presente
-     */
-    private extrairXMLdoSOAP(xmlResponse: string): string {
+    extrairXMLdoSOAP(xmlResponse) {
         try {
-            // Se contém envelope SOAP, extrair o conteúdo interno
             if (xmlResponse.includes('soap:Envelope') || xmlResponse.includes('env:Envelope')) {
-                // Regex para extrair conteúdo entre tags do body
                 const matches = xmlResponse.match(/<(?:soap:Body|env:Body)[^>]*>(.*?)<\/(?:soap:Body|env:Body)>/s);
                 if (matches && matches[1]) {
-                    // Extrair o XML interno (retConsSitNFe, retEnviNFe, etc.)
                     const innerContent = matches[1];
                     const innerMatches = innerContent.match(/<(ret\w+)[^>]*>.*?<\/\1>/s);
                     if (innerMatches) {
@@ -209,39 +185,22 @@ export class SefazResponseParser {
                     }
                 }
             }
-            
-            // Se não tem envelope SOAP, retornar como está
             return xmlResponse;
         } catch (error) {
             return xmlResponse;
         }
     }
 
-    /**
-     * Encontra a estrutura retConsSitNFe em diferentes formatos de resposta
-     */
-    private encontrarRetConsSitNFe(dadosXML: any): any {
-        // Tentativas em ordem de prioridade baseadas nos diferentes estados
+    encontrarRetConsSitNFe(dadosXML) {
         const possiveisCaminhos = [
-            // Formato padrão direto
             dadosXML.retConsSitNFe,
-            
-            // Formato com envelope SOAP (alguns estados)
             dadosXML['soap:Envelope']?.['soap:Body']?.retConsSitNFe,
             dadosXML['env:Envelope']?.['env:Body']?.retConsSitNFe,
-            
-            // Formato com nfeResultMsg (PR, SC)
             dadosXML.nfeResultMsg?.retConsSitNFe,
-            
-            // Formato aninhado profundo
             dadosXML['env:Envelope']?.['env:Body']?.nfeResultMsg?.retConsSitNFe,
             dadosXML['soap:Envelope']?.['soap:Body']?.nfeResultMsg?.retConsSitNFe,
-            
-            // Formato alternativo (alguns estados usam estruturas diferentes)
             dadosXML.retConsNFe,
             dadosXML.retConsSitNFCe,
-            
-            // Fallback: procurar qualquer objeto que tenha cStat
             this.encontrarObjetoComCStat(dadosXML)
         ];
 
@@ -254,10 +213,7 @@ export class SefazResponseParser {
         return null;
     }
 
-    /**
-     * Encontra estrutura retEvento em diferentes formatos
-     */
-    private encontrarRetEvento(dadosXML: any): any {
+    encontrarRetEvento(dadosXML) {
         const possiveisCaminhos = [
             dadosXML.retEvento,
             dadosXML.retEventoNFe,
@@ -277,73 +233,48 @@ export class SefazResponseParser {
         return null;
     }
 
-    /**
-     * Procura recursivamente por objetos que contenham cStat
-     */
-    private encontrarObjetoComCStat(obj: any, maxDepth: number = 5): any {
+    encontrarObjetoComCStat(obj, maxDepth = 5) {
         if (maxDepth <= 0 || !obj || typeof obj !== 'object') {
             return null;
         }
-
-        // Se o objeto atual tem cStat, retornar ele
         if (this.temCampoCStat(obj)) {
             return obj;
         }
-
-        // Procurar nos filhos
         for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
                 const resultado = this.encontrarObjetoComCStat(obj[key], maxDepth - 1);
                 if (resultado) {
                     return resultado;
                 }
             }
         }
-
         return null;
     }
 
-    /**
-     * Verifica se o objeto tem o campo cStat
-     */
-    private temCampoCStat(obj: any): boolean {
+    temCampoCStat(obj) {
         return obj && (obj.cStat !== undefined || obj['@_cStat'] !== undefined);
     }
 
-    /**
-     * Extrai valor de um campo, lidando com diferentes formatos XML
-     */
-    private extrairValor(obj: any, campo: string): string | null {
+    extrairValor(obj, campo) {
         if (!obj) return null;
-
-        // Formato direto
         if (obj[campo] !== undefined) {
             return String(obj[campo]);
         }
-
-        // Formato com atributo @_
         if (obj[`@_${campo}`] !== undefined) {
             return String(obj[`@_${campo}`]);
         }
-
-        // Formato aninhado
         if (obj[campo] && typeof obj[campo] === 'object' && obj[campo]['#text']) {
             return String(obj[campo]['#text']);
         }
-
         return null;
     }
 
-    /**
-     * Extrai protocolo de autorização de diferentes estruturas
-     */
-    private extrairProtocolo(retConsSit: any): string | null {
+    extrairProtocolo(retConsSit) {
         const possiveisCaminhos = [
             retConsSit.protNFe?.infProt?.nProt,
             retConsSit.protNFe?.nProt,
             retConsSit.nProt,
             retConsSit.protocolo,
-            // Para respostas de cancelamento
             retConsSit.retEvento?.infEvento?.nProt
         ];
 
@@ -356,10 +287,7 @@ export class SefazResponseParser {
         return null;
     }
 
-    /**
-     * Extrai data de autorização
-     */
-    private extrairDataAutorizacao(retConsSit: any): string | null {
+    extrairDataAutorizacao(retConsSit) {
         const possiveisCaminhos = [
             retConsSit.protNFe?.infProt?.dhRecbto,
             retConsSit.protNFe?.dhRecbto,
@@ -375,6 +303,4 @@ export class SefazResponseParser {
 
         return null;
     }
-
-
 }

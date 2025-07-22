@@ -1,10 +1,9 @@
-// src/utils/cache/cacheUtils.ts
+// src/utils/cache/cacheUtils.js
 import crypto from 'crypto';
-import { CertificadoConfig } from '../types';
 
 export class CacheUtils {
 
-    static gerarChaveCache(config: CertificadoConfig): string {
+    static gerarChaveCache(config) {
         const dadosUnicos = [
             config.cnpj || '',
             config.consumer_key_id || '',
@@ -15,11 +14,11 @@ export class CacheUtils {
         return crypto.createHash('md5').update(dadosUnicos).digest('hex');
     }
 
-    static mascararEmpresa(chave: string): string {
+    static mascararEmpresa(chave) {
         return chave.substring(0, 8) + '***';
     }
 
-    static formatarTempo(timestamp: number): string {
+    static formatarTempo(timestamp) {
         const segundos = Math.round(timestamp / 1000);
         
         if (segundos < 60) return `${segundos}s`;
@@ -27,11 +26,11 @@ export class CacheUtils {
         return `${Math.round(segundos / 3600)}h`;
     }
 
-    static isEntradaValida(timestamp: number, ttl: number): boolean {
+    static isEntradaValida(timestamp, ttl) {
         return (Date.now() - timestamp) < ttl;
     }
 
-    static tempoParaExpirar(timestamp: number, ttl: number): number {
+    static tempoParaExpirar(timestamp, ttl) {
         return Math.max(0, ttl - (Date.now() - timestamp));
     }
 }

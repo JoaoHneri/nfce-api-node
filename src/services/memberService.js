@@ -1,13 +1,9 @@
-import { Connection } from 'mysql2/promise';
-import { getDatabaseConfig, createDatabaseConnection } from '../config/database';
+import { getDatabaseConfig, createDatabaseConnection } from '../config/database.js';
 
 export class MemberService {
 
     // Buscar empresa + certificado (único método necessário)
-    async buscarDadosCompletos(cnpj: string, environment: number): Promise<{
-        member: any;
-        certificate: any;
-    } | null> {
+    async buscarDadosCompletos(cnpj, environment) {
         const dbConfig = getDatabaseConfig();
         const connection = await createDatabaseConnection(dbConfig);
         
@@ -53,8 +49,8 @@ export class MemberService {
         }
     }
 
-    // ✅ Salvar NFCe (único método de save necessário)
-    async salvarNFCe(memberData: any, nfceData: any): Promise<void> {
+    // Salvar NFCe (único método de save necessário)
+    async salvarNFCe(memberData, nfceData) {
         const dbConfig = getDatabaseConfig();
         const connection = await createDatabaseConnection(dbConfig);
         console.log("MemberData: ", memberData, "NFCeData: ", nfceData);
@@ -72,7 +68,7 @@ export class MemberService {
                 nfceData.cnf,
                 nfceData.series,
                 nfceData.totalValue,
-                nfceData.status, // 'authorized' ou 'denied'
+                nfceData.status,
                 nfceData.protocol,
                 nfceData.environment,
                 nfceData.operationNature,
@@ -87,8 +83,8 @@ export class MemberService {
         }
     }
 
-    // ✅ Buscar NFCe por chave de acesso
-    async buscarNfcePorChave(accessKey: string): Promise<any | null> {
+    // Buscar NFCe por chave de acesso
+    async buscarNfcePorChave(accessKey) {
         const dbConfig = getDatabaseConfig();
         const connection = await createDatabaseConnection(dbConfig);
         
@@ -113,8 +109,8 @@ export class MemberService {
         }
     }
 
-    // ✅ Atualizar status da NFCe
-    async atualizarStatusNfce(accessKey: string, status: string, justification?: string): Promise<void> {
+    // Atualizar status da NFCe
+    async atualizarStatusNfce(accessKey, status, justification) {
         const dbConfig = getDatabaseConfig();
         const connection = await createDatabaseConnection(dbConfig);
         
@@ -139,8 +135,8 @@ export class MemberService {
         }
     }
 
-    // ✅ Buscar apenas certificado por CNPJ (para consulta)
-    async buscarCertificadoPorCNPJ(cnpj: string, environment: number): Promise<any | null> {
+    // Buscar apenas certificado por CNPJ (para consulta)
+    async buscarCertificadoPorCNPJ(cnpj, environment) {
         const dbConfig = getDatabaseConfig();
         const connection = await createDatabaseConnection(dbConfig);
         

@@ -1,19 +1,5 @@
-// src/config/soap-config.ts
 
-export interface SOAPConfig {
-    protocoloSOAP: 'soap' | 'soap12';
-    envelopePrefixo: string;
-    tagMsg: string;
-    xmlnsTagMsg: string;
-    namespaceCabecalho?: string;
-}
-
-export interface SOAPConfigPorOperacao {
-    autorizacao: SOAPConfig;
-    cancelamento: SOAPConfig;
-}
-
-export const CONFIG_SOAP_POR_UF: Record<string, SOAPConfigPorOperacao> = {
+export const CONFIG_SOAP_POR_UF = {
     '35': { // SP
         autorizacao: {
             protocoloSOAP: 'soap12',
@@ -63,7 +49,7 @@ export const CONFIG_SOAP_POR_UF: Record<string, SOAPConfigPorOperacao> = {
     }
 };
 
-export function obterConfigSOAP(cUF: string, operacao: 'autorizacao' | 'cancelamento'): SOAPConfig {
+export function obterConfigSOAP(cUF, operacao){
     const configUF = CONFIG_SOAP_POR_UF[cUF];
     if (!configUF) {
         throw new Error(`UF ${cUF} não suportada para operação ${operacao}.`);
@@ -72,7 +58,7 @@ export function obterConfigSOAP(cUF: string, operacao: 'autorizacao' | 'cancelam
     return configUF[operacao];
 }
 
-export function obterNamespaceSOAP(protocoloSOAP: 'soap' | 'soap12'): string {
+export function obterNamespaceSOAP(protocoloSOAP){
     return protocoloSOAP === 'soap12'
         ? 'http://www.w3.org/2003/05/soap-envelope'
         : 'http://schemas.xmlsoap.org/soap/envelope/';

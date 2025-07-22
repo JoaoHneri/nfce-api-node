@@ -1,11 +1,4 @@
-export interface SefazEndpoints {
-  nfceAutorizacao: string;
-  nfceConsulta: string;
-  nfceStatusServico: string;
-  nfceCancelamento: string;
-}
-
-export const ENDPOINTS_HOMOLOGACAO: Record<string, SefazEndpoints> = {
+export const ENDPOINTS_HOMOLOGACAO = {
   'SP': {
     nfceAutorizacao: 'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeAutorizacao4.asmx',
     nfceConsulta: 'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx',
@@ -26,7 +19,7 @@ export const ENDPOINTS_HOMOLOGACAO: Record<string, SefazEndpoints> = {
   }
 };
 
-export const ENDPOINTS_PRODUCAO: Record<string, SefazEndpoints> = {
+export const ENDPOINTS_PRODUCAO = {
   'SP': {
     nfceAutorizacao: 'https://nfce.fazenda.sp.gov.br/ws/NFeAutorizacao4.asmx',
     nfceConsulta: 'https://nfce.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx',

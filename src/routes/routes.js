@@ -1,9 +1,9 @@
-import { FastifyInstance } from 'fastify';
-import { NFCeController } from '../controllers/nfceController';
+import fastify from 'fastify';
+import { NFCeController } from '../controllers/nfceController.js';
 
 const noteController = new NFCeController();
 
-async function routes(fastify: FastifyInstance) {
+async function routes(fastify) {
 
     fastify.post('/notes/:type/issue', {
         schema: {

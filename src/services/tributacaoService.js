@@ -1,83 +1,23 @@
-
 import mysql from 'mysql2/promise';
-import { DatabaseConfig } from '../config/database';
+import { getDatabaseConfig } from '../config/database.js';
 
-export interface TaxData {
-    // ICMS fields
-    orig?: string;
-    CSOSN?: string;
-    cstIcms?: string;
-    modalidadeBC?: string;
-    icmsPercent?: string;
+// Remover interfaces TypeScript
 
-    // PIS fields
-    cstPis?: string;
-    pisPercent?: string;
-    pisValue?: string;
-    pisQuantity?: string;
-    pisQuantityValue?: string;
-
-    // COFINS fields
-    cstCofins?: string;
-    cofinsPercent?: string;
-    cofinsValue?: string;
-    cofinsQuantity?: string;
-    cofinsQuantityValue?: string;
-
-    // Base calculation value (when using percentage)
-    baseValue?: string;
-}
-
-export interface ProcessedTaxData {
-    // ICMS
-    icms: {
-    orig: string;
-    CSOSN?: string;  // se CRT = 1
-    CST?: string;    // se CRT = 3
-    modBC?: string;
-    pICMS?: string;
-    vBC?: string;
-    vICMS?: string;
-    };
-
-
-    // PIS
-    pis: {
-        CST: string;
-        vBC?: string;
-        pPIS?: string;
-        vPIS?: string;
-        qBCProd?: string;
-        vAliqProd?: string;
-    };
-
-    // COFINS
-    cofins: {
-        CST: string;
-        vBC?: string;
-        pCOFINS?: string;
-        vCOFINS?: string;
-        qBCProd?: string;
-        vAliqProd?: string;
-    };
-}
+// Remover tipos dos parâmetros e retornos
 
 export class TributacaoService {
 
-    private connectionPool: mysql.Pool;
-
-    
-      constructor(connectionConfig: DatabaseConfig) {
+    constructor(connectionConfig) {
         this.connectionPool = mysql.createPool({
-          ...connectionConfig,
-          waitForConnections: true,
-          connectionLimit: 10,
-          queueLimit: 0
+            ...connectionConfig,
+            waitForConnections: true,
+            connectionLimit: 10,
+            queueLimit: 0
         });
-      }
+    }
 
     // Default values for automatic mode
-    private static readonly DEFAULT_VALUES = {
+    static DEFAULT_VALUES = {
         ICMS: {
             orig: "0",        // Nacional
             CSOSN: "400"      // Não tributada pelo Simples Nacional
@@ -97,7 +37,7 @@ export class TributacaoService {
     /**
      * 🆕 DETECTAR MODO AUTOMATICAMENTE
      */
-    private static detectMode(taxes: TaxData | undefined): 'auto' | 'manual' {
+    static detectMode(taxes) {
         // Se não tem taxes, é automático
         if (!taxes || Object.keys(taxes).length === 0) {
             return 'auto';
@@ -113,7 +53,7 @@ export class TributacaoService {
 
         // Se tem algum campo de controle manual, é manual
         const hasManualFields = manualFields.some(field =>
-            taxes[field as keyof TaxData] !== undefined
+            taxes[field] !== undefined
         );
 
         return hasManualFields ? 'manual' : 'auto';
@@ -121,14 +61,8 @@ export class TributacaoService {
 
     /**
      * Process tax data from request and return structured tax information
-     * 
-     * @param taxes Tax data from request
-     * @param productValue Product value for calculations
-     * @param crt Company tax regime (for automatic mode)
-     * @returns Processed tax data ready for XML generation
      */
-    static processTaxData(taxes: TaxData | undefined, productValue: number, crt?: string): ProcessedTaxData {
-
+    static processTaxData(taxes, productValue, crt) {
         // Detectar modo automaticamente
         const mode = this.detectMode(taxes);
 
@@ -137,81 +71,79 @@ export class TributacaoService {
         if (mode === 'auto') {
             return this.processAutomaticMode(taxes, productValue, crt);
         } else {
-            return this.processManualMode(taxes!, productValue, crt);
+            return this.processManualMode(taxes, productValue, crt);
         }
     }
 
     /**
      * Process taxes in automatic mode using fallback values
      */
-    private static processAutomaticMode(taxes: TaxData | undefined, productValue: number, crt?: string): ProcessedTaxData {
-    const icmsOrig = taxes?.orig || this.DEFAULT_VALUES.ICMS.orig;
+    static processAutomaticMode(taxes, productValue, crt) {
+        const icmsOrig = taxes?.orig || this.DEFAULT_VALUES.ICMS.orig;
 
-    let icms: any = { orig: icmsOrig };
+        let icms = { orig: icmsOrig };
 
-    if (crt === "1") {
-        // Simples Nacional
-        icms.CSOSN = taxes?.CSOSN || this.DEFAULT_VALUES.ICMS.CSOSN;
-    } else {
-        // Regime Normal
-        icms.CST = taxes?.cstIcms || "00"; // por padrão
-        icms.modBC = taxes?.modalidadeBC || "3"; // base = valor operação
-        icms.pICMS = taxes?.icmsPercent || "18.00";
-        icms.vBC = productValue.toFixed(2);
-        icms.vICMS = this.calculateTaxValue(productValue, icms.pICMS);
+        if (crt === "1") {
+            // Simples Nacional
+            icms.CSOSN = taxes?.CSOSN || this.DEFAULT_VALUES.ICMS.CSOSN;
+        } else {
+            // Regime Normal
+            icms.CST = taxes?.cstIcms || "00"; // por padrão
+            icms.modBC = taxes?.modalidadeBC || "3"; // base = valor operação
+            icms.pICMS = taxes?.icmsPercent || "18.00";
+            icms.vBC = productValue.toFixed(2);
+            icms.vICMS = this.calculateTaxValue(productValue, icms.pICMS);
+        }
+
+        const pisCst = taxes?.cstPis || this.DEFAULT_VALUES.PIS.CST;
+        const pisPercent = taxes?.pisPercent || this.DEFAULT_VALUES.PIS.percent;
+        const pisValue = taxes?.pisValue || this.calculateTaxValue(productValue, pisPercent);
+
+        const cofinsCst = taxes?.cstCofins || this.DEFAULT_VALUES.COFINS.CST;
+        const cofinsPercent = taxes?.cofinsPercent || this.DEFAULT_VALUES.COFINS.percent;
+        const cofinsValue = taxes?.cofinsValue || this.calculateTaxValue(productValue, cofinsPercent);
+
+        return {
+            icms,
+            pis: this.buildPisData(pisCst, productValue, pisPercent, pisValue, taxes),
+            cofins: this.buildCofinsData(cofinsCst, productValue, cofinsPercent, cofinsValue, taxes)
+        };
     }
-
-    const pisCst = taxes?.cstPis || this.DEFAULT_VALUES.PIS.CST;
-    const pisPercent = taxes?.pisPercent || this.DEFAULT_VALUES.PIS.percent;
-    const pisValue = taxes?.pisValue || this.calculateTaxValue(productValue, pisPercent);
-
-    const cofinsCst = taxes?.cstCofins || this.DEFAULT_VALUES.COFINS.CST;
-    const cofinsPercent = taxes?.cofinsPercent || this.DEFAULT_VALUES.COFINS.percent;
-    const cofinsValue = taxes?.cofinsValue || this.calculateTaxValue(productValue, cofinsPercent);
-
-    return {
-        icms,
-        pis: this.buildPisData(pisCst, productValue, pisPercent, pisValue, taxes),
-        cofins: this.buildCofinsData(cofinsCst, productValue, cofinsPercent, cofinsValue, taxes)
-    };
-    }
-
 
     /**
      * Process taxes in manual mode using only provided values
      */
-    private static processManualMode(taxes: TaxData, productValue: number, crt?: string): ProcessedTaxData {
-    this.validateManualModeData(taxes);
+    static processManualMode(taxes, productValue, crt) {
+        this.validateManualModeData(taxes);
 
-    const baseValue = taxes.baseValue ? parseFloat(taxes.baseValue) : productValue;
+        const baseValue = taxes.baseValue ? parseFloat(taxes.baseValue) : productValue;
 
-    let icms: any = {
-        orig: taxes.orig!
-    };
+        let icms = {
+            orig: taxes.orig
+        };
 
-    if (crt === "1") {
-        icms.CSOSN = taxes.CSOSN!;
-    } else {
-        icms.CST = taxes.cstIcms || "00";
-        icms.modBC = taxes.modalidadeBC || "3";
-        icms.pICMS = taxes.icmsPercent || "18.00";
-        icms.vBC = baseValue.toFixed(2);
-        icms.vICMS = this.calculateTaxValue(baseValue, icms.pICMS);
+        if (crt === "1") {
+            icms.CSOSN = taxes.CSOSN;
+        } else {
+            icms.CST = taxes.cstIcms || "00";
+            icms.modBC = taxes.modalidadeBC || "3";
+            icms.pICMS = taxes.icmsPercent || "18.00";
+            icms.vBC = baseValue.toFixed(2);
+            icms.vICMS = this.calculateTaxValue(baseValue, icms.pICMS);
+        }
+
+        return {
+            icms,
+            pis: this.buildPisData(taxes.cstPis, baseValue, taxes.pisPercent, taxes.pisValue, taxes),
+            cofins: this.buildCofinsData(taxes.cstCofins, baseValue, taxes.cofinsPercent, taxes.cofinsValue, taxes)
+        };
     }
-
-    return {
-        icms,
-        pis: this.buildPisData(taxes.cstPis!, baseValue, taxes.pisPercent, taxes.pisValue, taxes),
-        cofins: this.buildCofinsData(taxes.cstCofins!, baseValue, taxes.cofinsPercent, taxes.cofinsValue, taxes)
-    };
-    }
-
 
     /**
      * Build PIS tax data structure
      */
-    private static buildPisData(cst: string, baseValue: number, percent?: string, value?: string, taxes?: TaxData) {
-        const pisData: any = { CST: cst };
+    static buildPisData(cst, baseValue, percent, value, taxes) {
+        const pisData = { CST: cst };
 
         // Check if it's quantity-based taxation
         if (taxes?.pisQuantity && taxes?.pisQuantityValue) {
@@ -239,8 +171,8 @@ export class TributacaoService {
     /**
      * Build COFINS tax data structure
      */
-    private static buildCofinsData(cst: string, baseValue: number, percent?: string, value?: string, taxes?: TaxData) {
-        const cofinsData: any = { CST: cst };
+    static buildCofinsData(cst, baseValue, percent, value, taxes) {
+        const cofinsData = { CST: cst };
 
         // Check if it's quantity-based taxation
         if (taxes?.cofinsQuantity && taxes?.cofinsQuantityValue) {
@@ -268,7 +200,7 @@ export class TributacaoService {
     /**
      * Calculate tax value based on percentage
      */
-    private static calculateTaxValue(baseValue: number, percent: string): string {
+    static calculateTaxValue(baseValue, percent) {
         const percentValue = parseFloat(percent);
         return (baseValue * percentValue / 100).toFixed(2);
     }
@@ -276,7 +208,7 @@ export class TributacaoService {
     /**
      * Calculate tax value based on quantity
      */
-    private static calculateQuantityTax(quantity: string, valuePerUnit: string): string {
+    static calculateQuantityTax(quantity, valuePerUnit) {
         const qty = parseFloat(quantity);
         const unitValue = parseFloat(valuePerUnit);
         return (qty * unitValue).toFixed(2);
@@ -285,8 +217,8 @@ export class TributacaoService {
     /**
      * Validate required fields for manual mode
      */
-    private static validateManualModeData(taxes: TaxData): void {
-        const errors: string[] = [];
+    static validateManualModeData(taxes) {
+        const errors = [];
 
         if (!taxes.orig) errors.push("orig is required in manual mode");
         if (!taxes.CSOSN) errors.push("CSOSN is required in manual mode");
@@ -301,7 +233,7 @@ export class TributacaoService {
     /**
      * Validate CST codes
      */
-    static validateCst(cst: string): { valid: boolean; description?: string; note?: string } {
+    static validateCst(cst) {
         const validCsts = {
             "01": { description: "Taxable operation (base = operation value)", taxed: true },
             "02": { description: "Taxable operation (base = operation value, differentiated rate)", taxed: true },
@@ -317,7 +249,7 @@ export class TributacaoService {
             "99": { description: "Other operations", taxed: false }
         };
 
-        const cstInfo = validCsts[cst as keyof typeof validCsts];
+        const cstInfo = validCsts[cst];
 
         if (!cstInfo) {
             return {
@@ -334,9 +266,9 @@ export class TributacaoService {
     }
 
     async buscarRegraNcm(
-        ncm: string,
-        cnpjEmpresa: string
-    ): Promise<any | null> {
+        ncm,
+        cnpjEmpresa
+    ) {
         const [rows] = await this.connectionPool.execute(
             `SELECT tr.*
        FROM ncm_tax_rules tr
@@ -346,8 +278,8 @@ export class TributacaoService {
        LIMIT 1`,
             [cnpjEmpresa.replace(/\D/g, ''), ncm]
         );
-        if ((rows as any[]).length === 0) return null;
-        return (rows as any[])[0];
+        if (rows.length === 0) return null;
+        return rows[0];
     }
 
 }

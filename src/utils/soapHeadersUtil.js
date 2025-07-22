@@ -1,6 +1,6 @@
 export class SoapHeadersUtil {
     
-    static obterCabecalhosEmissaoPorEstado(uf: string, soapEnvelope: string): Record<string, string> {
+    static obterCabecalhosEmissaoPorEstado(uf, soapEnvelope) {
         const contentLength = Buffer.byteLength(soapEnvelope, 'utf8');
         
         const baseHeaders = {
@@ -62,7 +62,7 @@ export class SoapHeadersUtil {
         }
     }
 
-    static obterCabecalhosCancelamentoPorEstado(uf: string, soapEnvelope: string): Record<string, string> {
+    static obterCabecalhosCancelamentoPorEstado(uf, soapEnvelope){
         const contentLength = Buffer.byteLength(soapEnvelope, 'utf8');
         
         const baseHeaders = {

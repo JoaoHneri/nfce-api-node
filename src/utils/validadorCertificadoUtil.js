@@ -1,7 +1,4 @@
-import { CertificadoConfig } from "../types";
-import { FastifyReply } from 'fastify';
-
-export function validarCertificado(certificado: CertificadoConfig, reply: FastifyReply): boolean {
+export function validarCertificado(certificado, reply){
     // Validação se certificado existe
     if (!certificado) {
       reply.status(400).send({
@@ -12,7 +9,7 @@ export function validarCertificado(certificado: CertificadoConfig, reply: Fastif
       return false;
     }
 
-    const camposObrigatorios: (keyof CertificadoConfig)[] = ['pfxPath', 'password', 'consumer_key', 'consumer_key_id'];
+    const camposObrigatorios = ['pfxPath', 'password', 'consumer_key', 'consumer_key_id'];
 
     const camposFaltando = camposObrigatorios.filter(campo => !certificado[campo]);
     

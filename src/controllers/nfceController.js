@@ -1,27 +1,14 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { SefazNfceService } from '../services/sefazNfceService';
-import { NumeracaoService } from '../services/numeracaoService';
-import { getDatabaseConfig, createDatabaseConnection } from '../config/database';
-import { CertificadoConfig } from '../types';
-import { validarCertificado } from '../utils/validadorCertificadoUtil';
-import { MemberService } from '../services/memberService';
-import { EmissaoNfceHandler } from '../handlers/nfceHandlers/emissaoNfceHandler';
-import { CancelamentoHandler } from '../handlers/nfceHandlers/cancelamentoHandler';
-import { ConsultaHandler } from '../handlers/nfceHandlers/consultaNfceHandlers';
+import { SefazNfceService } from '../services/sefazNfceService.js';
+import { NumeracaoService } from '../services/numeracaoService.js';
+import { getDatabaseConfig, createDatabaseConnection } from '../config/database.js';
+import { MemberService } from '../services/memberService.js';
+import { EmissaoNfceHandler } from '../handlers/nfceHandlers/emissaoNfceHandler.js';
+import { CancelamentoHandler } from '../handlers/nfceHandlers/cancelamentoHandler.js';
+import { ConsultaHandler } from '../handlers/nfceHandlers/consultaNfceHandlers.js';
 
 export class NFCeController {
-  private sefazNfceService: SefazNfceService;
-  private numeracaoService: NumeracaoService;
-  private memberService: MemberService; 
-  private emissaoHandler: EmissaoNfceHandler;
-  private cancelamentoHandler: CancelamentoHandler;
-  private consultaHandler: ConsultaHandler;
-
   constructor() {
-    // Carregar configuração do certificado
     this.sefazNfceService = new SefazNfceService();
-    
-    // Inicializar service de numeração
     const dbConfig = getDatabaseConfig();
     this.numeracaoService = new NumeracaoService(dbConfig);
     this.memberService = new MemberService();
@@ -30,15 +17,10 @@ export class NFCeController {
     this.consultaHandler = new ConsultaHandler();
   }
 
-
-  async emitirNota(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async emitirNota(request, reply) {
     try {
-      const { type = 'nfce' } = request.params as { type?: string };
-      const { company, noteData, certificate } = request.body as {
-        company: string;
-        noteData: any;
-        certificate: CertificadoConfig;
-      };
+      const { type = 'nfce' } = request.params;
+      const { company, noteData, certificate } = request.body;
 
       if (!company || !noteData || !certificate) {
         reply.status(400).send({
@@ -72,9 +54,9 @@ export class NFCeController {
             }
 
             const resultado = await this.sefazNfceService.emitirNFCe(
-              company, 
+              company,
               certificate,
-              noteData, // noteData já vem como nfceData
+              noteData
             );
 
             const isSuccess = resultado.fiscal?.status?.code === "100";
@@ -93,7 +75,7 @@ export class NFCeController {
                 data: resultado
               });
             }
-          } catch (error: any) {
+          } catch (error) {
             reply.status(500).send({
               success: false,
               message: 'Internal server error',
@@ -101,7 +83,7 @@ export class NFCeController {
             });
           }
           return;
-          
+
         case 'nfe':
           reply.status(501).send({
             success: false,
@@ -114,7 +96,7 @@ export class NFCeController {
             }
           });
           return;
-          
+
         case 'nfse':
           reply.status(501).send({
             success: false,
@@ -127,7 +109,7 @@ export class NFCeController {
             }
           });
           return;
-          
+
         default:
           reply.status(400).send({
             success: false,
@@ -137,7 +119,7 @@ export class NFCeController {
           return;
       }
 
-    } catch (error: any) {
+    } catch (error) {
       reply.status(500).send({
         success: false,
         message: 'Internal server error',
@@ -146,14 +128,10 @@ export class NFCeController {
     }
   }
 
-  async consultarNota(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async consultarNota(request, reply) {
     try {
-      const { type = 'nfce', accessKey } = request.params as {
-        type?: string;
-        accessKey: string;
-      };
-
-      const { certificate } = request.body as { certificate: CertificadoConfig };
+      const { type = 'nfce', accessKey } = request.params;
+      const { certificate } = request.body;
 
       const tiposSuportados = ['nfce', 'nfe', 'nfse'];
       if (!tiposSuportados.includes(type.toLowerCase())) {
@@ -168,8 +146,7 @@ export class NFCeController {
       switch (type.toLowerCase()) {
         case 'nfce':
           try {
-            
-            if (!accessKey ) {
+            if (!accessKey) {
               reply.status(400).send({
                 success: false,
                 message: 'Missing required parameters',
@@ -213,7 +190,7 @@ export class NFCeController {
                 data: resultado.data
               });
             }
-          } catch (error: any) {
+          } catch (error) {
             reply.status(500).send({
               success: false,
               message: 'Internal server error',
@@ -221,7 +198,7 @@ export class NFCeController {
             });
           }
           return;
-          
+
         case 'nfe':
           reply.status(501).send({
             success: false,
@@ -233,7 +210,7 @@ export class NFCeController {
             }
           });
           return;
-          
+
         case 'nfse':
           reply.status(501).send({
             success: false,
@@ -245,7 +222,7 @@ export class NFCeController {
             }
           });
           return;
-          
+
         default:
           reply.status(400).send({
             success: false,
@@ -255,7 +232,7 @@ export class NFCeController {
           return;
       }
 
-    } catch (error: any) {
+    } catch (error) {
       reply.status(500).send({
         success: false,
         message: 'Internal server error',
@@ -264,19 +241,11 @@ export class NFCeController {
     }
   }
 
-  async cancelarNota(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async cancelarNota(request, reply) {
     try {
-      const { type = 'nfce' } = request.params as { type?: string };
-      const { memberCnpj, environment, accessKey, protocol, justification, certificate } = request.body as {
-        memberCnpj: string;
-        environment: number;
-        accessKey: string;
-        protocol: string;
-        justification: string;
-        certificate: CertificadoConfig;
-      };
+      const { type = 'nfce' } = request.params;
+      const { memberCnpj, environment, accessKey, protocol, justification, certificate } = request.body;
 
-      // ✅ Validar tipo suportado
       const tiposSuportados = ['nfce', 'nfe', 'nfse'];
       if (!tiposSuportados.includes(type.toLowerCase())) {
         reply.status(400).send({
@@ -287,11 +256,9 @@ export class NFCeController {
         return;
       }
 
-      // ✅ Rotear baseado no tipo
       switch (type.toLowerCase()) {
         case 'nfce':
           try {
-            // 🎯 Lógica direta para cancelamento NFCe
             if (!accessKey || !protocol || !justification || !certificate) {
               reply.status(400).send({
                 success: false,
@@ -302,9 +269,9 @@ export class NFCeController {
             }
 
             const cancelData = {
-               accessKey,
-               protocol,
-               justification
+              accessKey,
+              protocol,
+              justification
             }
             const resultado = await this.sefazNfceService.cancelarNFCe(cancelData, certificate);
 
@@ -322,7 +289,7 @@ export class NFCeController {
                 data: resultado.data
               });
             }
-          } catch (error: any) {
+          } catch (error) {
             reply.status(500).send({
               success: false,
               message: 'Internal server error',
@@ -330,7 +297,7 @@ export class NFCeController {
             });
           }
           return;
-          
+
         case 'nfe':
           reply.status(501).send({
             success: false,
@@ -342,7 +309,7 @@ export class NFCeController {
             }
           });
           return;
-          
+
         case 'nfse':
           reply.status(501).send({
             success: false,
@@ -354,7 +321,7 @@ export class NFCeController {
             }
           });
           return;
-          
+
         default:
           reply.status(400).send({
             success: false,
@@ -364,7 +331,7 @@ export class NFCeController {
           return;
       }
 
-    } catch (error: any) {
+    } catch (error) {
       reply.status(500).send({
         success: false,
         message: 'Internal server error',
@@ -373,13 +340,12 @@ export class NFCeController {
     }
   }
 
-  async obterExemploUnificado(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async obterExemploUnificado(request, reply) {
     try {
-      const { type = 'nfce' } = request.params as { type?: string };
+      const { type = 'nfce' } = request.params;
 
       switch (type.toLowerCase()) {
         case 'nfce':
-          // 🎯 Usar exemplo NFCe existente mas adaptar para formato unificado
           const exemploNFCe = {
             company: {
               cnpj: "12345678000199",
@@ -399,23 +365,23 @@ export class NFCeController {
             },
             noteData: {
               ide: {
-              cUF: "35",
-              cNF: "1",
-              natOp: "VENDA",
-              serie: "884",
-              nNF: "1",
-              tpNF: "1",
-              idDest: "1",
-              cMunFG: "3550308",
-              tpImp: "4",
-              tpEmis: "1",
-              tpAmb: "2",
-              finNFe: "1",
-              indFinal: "1",
-              indPres: "1",
-              indIntermed: "0",
-              procEmi: "0",
-              verProc: "1.0"
+                cUF: "35",
+                cNF: "1",
+                natOp: "VENDA",
+                serie: "884",
+                nNF: "1",
+                tpNF: "1",
+                idDest: "1",
+                cMunFG: "3550308",
+                tpImp: "4",
+                tpEmis: "1",
+                tpAmb: "2",
+                finNFe: "1",
+                indFinal: "1",
+                indPres: "1",
+                indIntermed: "0",
+                procEmi: "0",
+                verProc: "1.0"
               },
               recipient: {
                 cpf: "11750943077",
@@ -441,10 +407,10 @@ export class NFCeController {
                   indTot: "1",
                   taxes: {
                     orig: 0,
-                    CSOSN: 400,        // Isento de ICMS (Simples Nacional)
-                    cstPis: 49,        // Isento de PIS
+                    CSOSN: 400,
+                    cstPis: 49,
                     pisPercent: 0.00,
-                    cstCofins: 49,     // Isento de COFINS
+                    cstCofins: 49,
                     cofinsPercent: 0.00
                   }
                 }
@@ -466,7 +432,7 @@ export class NFCeController {
               consumer_key: "csc",
               consumer_key_id: "1",
               uf: "SP",
-              environment: 2, // 1=Produção, 2=Homologação
+              environment: 2,
               cnpj: "12345678000199"
             }
           };
@@ -520,7 +486,7 @@ export class NFCeController {
           });
       }
 
-    } catch (error: any) {
+    } catch (error) {
       reply.status(500).send({
         success: false,
         message: 'Error getting unified example',
@@ -529,9 +495,8 @@ export class NFCeController {
     }
   }
 
-  async testeConectividade(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async testeConectividade(request, reply) {
     try {
-      // Teste básico
       const agora = new Date().toISOString();
 
       reply.status(200).send({
@@ -544,7 +509,7 @@ export class NFCeController {
         }
       });
 
-    } catch (error: any) {
+    } catch (error) {
       reply.status(500).send({
         success: false,
         message: 'Error in connectivity test',
@@ -553,47 +518,45 @@ export class NFCeController {
     }
   }
 
-  async obterEstatisticasCache(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-      try {
-          const stats = this.sefazNfceService.obterEstatisticasCache();
-          
-          reply.status(200).send({
-              success: true,
-              message: 'Tools cache statistics',
-              data: stats
-          });
-      } catch (error: any) {
-          reply.status(500).send({
-              success: false,
-              message: 'Error getting cache statistics',
-              error: error.message
-          });
-      }
+  async obterEstatisticasCache(request, reply) {
+    try {
+      const stats = this.sefazNfceService.obterEstatisticasCache();
+
+      reply.status(200).send({
+        success: true,
+        message: 'Tools cache statistics',
+        data: stats
+      });
+    } catch (error) {
+      reply.status(500).send({
+        success: false,
+        message: 'Error getting cache statistics',
+        error: error.message
+      });
+    }
   }
 
-  async limparCacheManual(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-      try {
-          this.sefazNfceService.limparCache();
-          
-          reply.status(200).send({
-              success: true,
-              message: 'Cache cleared successfully'
-          });
-      } catch (error: any) {
-          reply.status(500).send({
-              success: false,
-              message: 'Error clearing cache',
-              error: error.message
-          });
-      }
+  async limparCacheManual(request, reply) {
+    try {
+      this.sefazNfceService.limparCache();
+
+      reply.status(200).send({
+        success: true,
+        message: 'Cache cleared successfully'
+      });
+    } catch (error) {
+      reply.status(500).send({
+        success: false,
+        message: 'Error clearing cache',
+        error: error.message
+      });
+    }
   }
 
-  async obterEstatisticasNumeracao(request: FastifyRequest<{
-    Querystring: { cnpj: string; uf: string; serie: string; ambiente: '1' | '2' }
-  }>, reply: FastifyReply): Promise<void> {
+  async obterEstatisticasNumeracao(request, reply) {
     try {
       const { cnpj, uf, serie, ambiente } = request.query;
-      
+
       if (!cnpj || !uf || !serie || !ambiente) {
         reply.status(400).send({
           success: false,
@@ -608,7 +571,7 @@ export class NFCeController {
         serie,
         ambiente
       });
-      
+
       reply.status(200).send({
         success: true,
         message: 'Numbering statistics retrieved successfully',
@@ -624,8 +587,8 @@ export class NFCeController {
           environment: ambiente === '1' ? 'Production' : 'Staging'
         }
       });
-      
-    } catch (error: any) {
+
+    } catch (error) {
       reply.status(500).send({
         success: false,
         message: 'Error getting numbering statistics',
@@ -634,12 +597,10 @@ export class NFCeController {
     }
   }
 
-  async liberarNumeracao(request: FastifyRequest<{
-    Body: { cnpj: string; uf: string; serie: string; ambiente: '1' | '2'; nNF: string; motivo: string }
-  }>, reply: FastifyReply): Promise<void> {
+  async liberarNumeracao(request, reply) {
     try {
       const { cnpj, uf, serie, ambiente, nNF, motivo } = request.body;
-      
+
       if (!cnpj || !uf || !serie || !ambiente || !nNF || !motivo) {
         reply.status(400).send({
           success: false,
@@ -654,7 +615,7 @@ export class NFCeController {
         serie,
         ambiente
       }, nNF, motivo);
-      
+
       reply.status(200).send({
         success: true,
         message: 'Numbering released successfully',
@@ -667,8 +628,8 @@ export class NFCeController {
           environment: ambiente === '1' ? 'Production' : 'Staging'
         }
       });
-      
-    } catch (error: any) {
+
+    } catch (error) {
       reply.status(500).send({
         success: false,
         message: 'Error releasing numbering',
@@ -677,43 +638,34 @@ export class NFCeController {
     }
   }
 
-  async criarTabelas(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async criarTabelas(request, reply) {
     try {
       const dbConfig = getDatabaseConfig();
       const connection = await createDatabaseConnection(dbConfig);
 
-      // SQL para criar tabela de membros - COMPLETA com todos os campos do JSON
       const createMemberTable = `
         CREATE TABLE IF NOT EXISTS member (
           id INT AUTO_INCREMENT PRIMARY KEY,
           cnpj VARCHAR(14) NOT NULL UNIQUE,
-          company_name VARCHAR(255) NOT NULL,          -- xName
-          trade_name VARCHAR(255),                     -- xFant
-          state_registration VARCHAR(20) NOT NULL,     -- ie
-          tax_regime VARCHAR(1) NOT NULL,              -- crt
-          
-          -- Endereço completo
-          street VARCHAR(255) NOT NULL,                -- street
-          number VARCHAR(20) NOT NULL,                 -- number
-          complement VARCHAR(100),                     -- complement
-          neighborhood VARCHAR(100) NOT NULL,          -- neighborhood
-          city_code VARCHAR(7) NOT NULL,               -- cityCode
-          city VARCHAR(100) NOT NULL,                  -- city
-          state VARCHAR(2) NOT NULL,                   -- state
-          zipcode VARCHAR(8) NOT NULL,                 -- zipCode
-          country_code VARCHAR(4) DEFAULT '1058',      -- cPais
-          country VARCHAR(50) DEFAULT 'BRASIL',        -- xPais
-          
-          -- Contato
-          phone VARCHAR(20),                           -- phone
+          company_name VARCHAR(255) NOT NULL,
+          trade_name VARCHAR(255),
+          state_registration VARCHAR(20) NOT NULL,
+          tax_regime VARCHAR(1) NOT NULL,
+          street VARCHAR(255) NOT NULL,
+          number VARCHAR(20) NOT NULL,
+          complement VARCHAR(100),
+          neighborhood VARCHAR(100) NOT NULL,
+          city_code VARCHAR(7) NOT NULL,
+          city VARCHAR(100) NOT NULL,
+          state VARCHAR(2) NOT NULL,
+          zipcode VARCHAR(8) NOT NULL,
+          country_code VARCHAR(4) DEFAULT '1058',
+          country VARCHAR(50) DEFAULT 'BRASIL',
+          phone VARCHAR(20),
           email VARCHAR(255),
-          
-          -- Controle
           is_active BOOLEAN DEFAULT TRUE,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          
-          -- Índices
           INDEX idx_cnpj (cnpj),
           INDEX idx_state (state),
           INDEX idx_active (is_active),
@@ -721,80 +673,62 @@ export class NFCeController {
         )
       `;
 
-      // SQL para criar tabela de certificados - COMPLETA
       const createCertificatesTable = `
         CREATE TABLE IF NOT EXISTS certificates (
           id INT AUTO_INCREMENT PRIMARY KEY,
           member_id INT NOT NULL,
           pfx_path VARCHAR(500) NOT NULL,
           password VARCHAR(255) NOT NULL,
-          consumer_key VARCHAR(100),                    -- era csc
-          consumer_key_id VARCHAR(10),                   -- era csc_id
-          environment VARCHAR(1) NOT NULL,             -- 1=Production, 2=Homologation
-          uf VARCHAR(2) NOT NULL,                      -- UF do certificado
+          consumer_key VARCHAR(100),
+          consumer_key_id VARCHAR(10),
+          environment VARCHAR(1) NOT NULL,
+          uf VARCHAR(2) NOT NULL,
           is_active BOOLEAN DEFAULT TRUE,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          
           FOREIGN KEY (member_id) REFERENCES member(id) ON DELETE CASCADE,
           INDEX idx_member_environment (member_id, environment),
           INDEX idx_active (is_active)
         )
       `;
 
-      // SQL para criar tabela de NFCe - COMPLETA com todos os campos
       const createInvoicesTable = `
         CREATE TABLE IF NOT EXISTS invoices (
           id INT AUTO_INCREMENT PRIMARY KEY,
           member_id INT NOT NULL,
-          
-          -- Dados da NFCe
-          access_key VARCHAR(44) NOT NULL UNIQUE,      -- Chave de acesso completa (44 caracteres)
-          number INT NOT NULL,                         -- nNF - número da nota
-          cnf VARCHAR(8) NOT NULL,                     -- cNF - código numérico da NF
-          series VARCHAR(3) NOT NULL DEFAULT '001',    -- série da nota
-          issue_date DATETIME NOT NULL,                -- dhEmi - data/hora de emissão
-          
-          -- Status da NFCe
-          status VARCHAR(20) DEFAULT 'pending',        -- pending, authorized, rejected, canceled
-          protocol VARCHAR(20),                        -- nProt - protocolo da SEFAZ
-          authorization_date DATETIME,                 -- dhRecbto - data autorização
-          
-          -- Valores totais da NFCe
-          total_value DECIMAL(15,2) NOT NULL,          -- vNF - valor total da nota
-          discount_value DECIMAL(15,2) DEFAULT 0.00,   -- vDesc - valor desconto
-          products_value DECIMAL(15,2) NOT NULL,       -- vProd - valor produtos
-          
-          -- Impostos
-          icms_value DECIMAL(15,2) DEFAULT 0.00,       -- vICMS
-          pis_value DECIMAL(15,2) DEFAULT 0.00,        -- vPIS
-          cofins_value DECIMAL(15,2) DEFAULT 0.00,     -- vCOFINS
-          
-          -- XML e dados técnicos
-          xml_content LONGTEXT,                        -- XML completo da NFCe
-          qr_code TEXT,                                -- QR Code da NFCe
-          rejection_reason TEXT,                       -- xMotivo em caso de rejeição
-          
-          -- Dados adicionais da NFCe
-          environment VARCHAR(1),                      -- 1=Production, 2=Homologation
-          operation_nature VARCHAR(100),               -- natOp
-          recipient_cpf VARCHAR(11),                   -- CPF do destinatário
-          recipient_name VARCHAR(255),                 -- Nome do destinatário
-          
-          -- Controle
+          access_key VARCHAR(44) NOT NULL UNIQUE,
+          number INT NOT NULL,
+          cnf VARCHAR(8) NOT NULL,
+          series VARCHAR(3) NOT NULL DEFAULT '001',
+          issue_date DATETIME NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending',
+          protocol VARCHAR(20),
+          authorization_date DATETIME,
+          total_value DECIMAL(15,2) NOT NULL,
+          discount_value DECIMAL(15,2) DEFAULT 0.00,
+          products_value DECIMAL(15,2) NOT NULL,
+          icms_value DECIMAL(15,2) DEFAULT 0.00,
+          pis_value DECIMAL(15,2) DEFAULT 0.00,
+          cofins_value DECIMAL(15,2) DEFAULT 0.00,
+          xml_content LONGTEXT,
+          qr_code TEXT,
+          rejection_reason TEXT,
+          environment VARCHAR(1),
+          operation_nature VARCHAR(100),
+          recipient_cpf VARCHAR(11),
+          recipient_name VARCHAR(255),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          
           FOREIGN KEY (member_id) REFERENCES member(id) ON DELETE CASCADE,
           INDEX idx_access_key (access_key),
           INDEX idx_member_date (member_id, issue_date),
           INDEX idx_status (status),
           INDEX idx_environment (environment),
           INDEX idx_number_series (number, series),
-          INDEX idx_cnf (cnf),                         -- ✅ Índice para cNF
-          INDEX idx_member_number_series_env (member_id, number, series, environment), -- ✅ Índice composto para unicidade
-          UNIQUE KEY uk_member_number_series_env (member_id, number, series, environment), -- ✅ Garantir unicidade do nNF por empresa/série/ambiente
-          UNIQUE KEY uk_member_cnf_series_env (member_id, cnf, series, environment) -- ✅ Garantir unicidade do cNF por empresa/série/ambiente
+          INDEX idx_cnf (cnf),
+          INDEX idx_member_number_series_env (member_id, number, series, environment),
+          UNIQUE KEY uk_member_number_series_env (member_id, number, series, environment),
+          UNIQUE KEY uk_member_cnf_series_env (member_id, cnf, series, environment)
         )
       `;
 
@@ -802,30 +736,28 @@ export class NFCeController {
         CREATE TABLE IF NOT EXISTS ncm_tax_rules (
           id INT AUTO_INCREMENT PRIMARY KEY,
           ncm VARCHAR(8) NOT NULL,
-          crt VARCHAR(1) NOT NULL COMMENT 'Regime tributário da empresa (ex: 1=Simples, 3=Normal)',
-          orig VARCHAR(1) NOT NULL DEFAULT '0' COMMENT 'Origem da mercadoria conforme legislação',
-          csosn VARCHAR(3) DEFAULT NULL COMMENT 'CSOSN para Simples Nacional',
-          cst_icms VARCHAR(3) DEFAULT NULL COMMENT 'CST ICMS para regime normal',
-          modalidade_bc VARCHAR(2) DEFAULT NULL,   -- padronize para modalidade_bc
+          crt VARCHAR(1) NOT NULL,
+          orig VARCHAR(1) NOT NULL DEFAULT '0',
+          csosn VARCHAR(3) DEFAULT NULL,
+          cst_icms VARCHAR(3) DEFAULT NULL,
+          modalidade_bc VARCHAR(2) DEFAULT NULL,
           icms_percent DECIMAL(5,2) DEFAULT NULL,
-          cst_pis VARCHAR(2) DEFAULT NULL COMMENT 'CST PIS',
-          pis_percent DECIMAL(5,2) DEFAULT NULL COMMENT 'Alíquota PIS (%)',
-          cst_cofins VARCHAR(2) DEFAULT NULL COMMENT 'CST COFINS',
-          cofins_percent DECIMAL(5,2) DEFAULT NULL COMMENT 'Alíquota COFINS (%)',
+          cst_pis VARCHAR(2) DEFAULT NULL,
+          pis_percent DECIMAL(5,2) DEFAULT NULL,
+          cst_cofins VARCHAR(2) DEFAULT NULL,
+          cofins_percent DECIMAL(5,2) DEFAULT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           UNIQUE KEY uq_ncm_crt (ncm, crt)
         )
       `;
 
-
-      // Executar as queries
       await connection.execute(createMemberTable);
       await connection.execute(createCertificatesTable);
       await connection.execute(createInvoicesTable);
       await connection.execute(createNcmTaxRulesTable);
 
       await connection.end();
-      
+
       reply.status(200).send({
         success: true,
         message: 'Database tables created successfully',
@@ -840,7 +772,7 @@ export class NFCeController {
         }
       });
 
-    } catch (error: any) {
+    } catch (error) {
       reply.status(500).send({
         success: false,
         message: 'Error creating database tables',
@@ -848,5 +780,4 @@ export class NFCeController {
       });
     }
   }
-
 }

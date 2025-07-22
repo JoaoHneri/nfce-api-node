@@ -1,15 +1,8 @@
 // src/config/database.ts
 import mysql from 'mysql2/promise';
 
-export interface DatabaseConfig {
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  database: string;
-}
 
-export const getDatabaseConfig = (): DatabaseConfig => {
+export const getDatabaseConfig = () => {
   return {
     host: process.env.DB_HOST || '',
     port: parseInt(process.env.DB_PORT || ''),
@@ -19,7 +12,7 @@ export const getDatabaseConfig = (): DatabaseConfig => {
   };
 };
 
-export const createDatabaseConnection = (config: DatabaseConfig): mysql.Pool => {
+export const createDatabaseConnection = (config) => {
   return mysql.createPool({
     ...config,
     waitForConnections: true,

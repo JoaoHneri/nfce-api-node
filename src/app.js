@@ -1,8 +1,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import fastify, { FastifyRequest, FastifyReply } from 'fastify';
-import routes from './routes/routes';
+import fastify from 'fastify';
+import routes from './routes/routes.js';
+import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
 
 // Criar instância do Fastify
 const app = fastify({ 
@@ -11,7 +13,7 @@ const app = fastify({
 });
 
 // Rota principal - registrada diretamente na instância principal
-app.get('/', async (request: any, reply: any) => {
+app.get('/', async (request, reply) => {
   return {
     message: 'API NFCe - SEFAZ (Unified)',
     version: '2.0.0',
@@ -40,14 +42,14 @@ app.get('/', async (request: any, reply: any) => {
 // Registrar plugins
 async function registerPlugins() {
   // CORS
-  await app.register(require('@fastify/cors'), {
+  await app.register(cors, {
     origin: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
   });
 
   // Helmet para segurança
-  await app.register(require('@fastify/helmet'));
+  await app.register(helmet);
 
   // Swagger/OpenAPI
   const fastifySwagger = await import('@fastify/swagger');
@@ -74,7 +76,7 @@ async function registerPlugins() {
 }
 
 // Handler para rotas não encontradas
-app.setNotFoundHandler((request: any, reply: any) => {
+app.setNotFoundHandler((request, reply) => {
   reply.status(404).send({
     success: false,
     message: 'Endpoint not found',
@@ -83,7 +85,7 @@ app.setNotFoundHandler((request: any, reply: any) => {
 });
 
 // Handler de erro global
-app.setErrorHandler((error: any, request: any, reply: any) => {
+app.setErrorHandler((error, request, reply) => {
   if (process.env.NODE_ENV !== 'production') {
     console.error('Erro não tratado:', error);
   }
@@ -124,8 +126,8 @@ process.on('SIGTERM', async () => {
 });
 
 // Iniciar aplicação
-if (require.main === module) {
-  start();
-}
+// Em ES Modules, não há um equivalente direto para require.main === module
+// A execução é controlada pelo import, então chamamos start() diretamente
+start();
 
 export default app;
