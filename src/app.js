@@ -28,9 +28,6 @@ app.get('/', async (request, reply) => {
       'GET /api/notes/test': 'Connectivity test',
       'GET /api/notes/cache/stats': 'Cache statistics',
       'DELETE /api/notes/cache/clear': 'Clear cache',
-      'GET /api/notes/numbering/stats': 'Numbering statistics',
-      'POST /api/notes/numbering/release': 'Release numbering',
-      'POST /api/notes/database/initialize': 'Initialize database tables'
     },
     supportedTypes: {
       available: ['nfce'],
