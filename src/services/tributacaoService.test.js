@@ -1,14 +1,8 @@
-/**
- * Tests for the flexible taxation service
- * 
- * This file demonstrates the new taxation system and serves as validation
- * for the migration from fixed backend rates to request-controlled taxation.
- */
 
-import { TributacaoService, TaxData } from './tributacaoService';
+import { TributacaoService } from './tributacaoService';
 
 // Test utility function
-function testTaxationScenario(name: string, taxes: TaxData | undefined, productValue: number, crt?: string) {
+function testTaxationScenario(name, taxes, productValue, crt) {
     console.log(`\n=== ${name} ===`);
     console.log('Input:', JSON.stringify({ taxes, productValue, crt }, null, 2));
     
@@ -17,7 +11,7 @@ function testTaxationScenario(name: string, taxes: TaxData | undefined, productV
         console.log('Output:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
-        console.log('Error:', (error as Error).message);
+        console.log('Error:', error.message);
         return null;
     }
 }
@@ -141,7 +135,7 @@ testTaxationScenario(
     {
 
         // Missing required fields
-    } as TaxData,
+    },
     100.00
 );
 

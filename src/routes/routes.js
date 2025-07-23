@@ -173,48 +173,6 @@ async function routes(fastify) {
         handler: noteController.limparCacheManual.bind(noteController)
     });
 
-    fastify.get('/notes/numbering/stats', {
-        schema: {
-            description: 'Get numbering statistics',
-            querystring: {
-                type: 'object',
-                required: ['cnpj', 'uf', 'serie', 'ambiente'],
-                properties: {
-                    cnpj: { type: 'string', description: 'Company CNPJ' },
-                    uf: { type: 'string', description: 'State code' },
-                    serie: { type: 'string', description: 'Note series' },
-                    ambiente: { type: 'string', enum: ['1', '2'], description: 'Environment' }
-                }
-            },
-            tags: ['Numbering', 'Statistics']
-        },
-        handler: noteController.obterEstatisticasNumeracao.bind(noteController)
-    });
-
-    fastify.post('/notes/numbering/release', {
-        schema: {
-            description: 'Release reserved numbering',
-            body: {
-                type: 'object',
-                required: ['cnpj', 'uf', 'serie', 'ambiente', 'nNF', 'motivo'],
-                properties: {
-                    cnpj: { type: 'string' },
-                    uf: { type: 'string' },
-                    serie: { type: 'string' },
-                    ambiente: { type: 'string', enum: ['1', '2'] },
-                    nNF: { type: 'string' },
-                    motivo: { type: 'string' }
-                }
-            },
-            tags: ['Numbering', 'Maintenance']
-        },
-        handler: noteController.liberarNumeracao.bind(noteController)
-    });
-
-    fastify.post('/notes/database/initialize', {
-        handler: noteController.criarTabelas.bind(noteController)
-    });
-
 }
 
 export default routes;
