@@ -8,6 +8,7 @@ async function routes(fastify) {
     fastify.post('/notes/:type/issue', {
         schema: {
             tags: ['Notas'],
+            description: 'Emitir nota fiscal (NFC-e, NFe, NFSe)',
             summary: 'Emitir nota fiscal (NFC-e, NFe, NFSe)',
             description: 'Emite nota fiscal conforme o tipo informado. O payload de noteData varia conforme o tipo, obtenha json para exemplo usando o endpoint /notes/:type/example.',
             params: {
@@ -80,6 +81,8 @@ async function routes(fastify) {
 
     fastify.post('/notes/:type/consult/:accessKey', {
         schema: {
+            tags: ['Notas'],
+            description: 'Consultar nota fiscal informando a chave de acesso',
             params: {
                 type: 'object',
                 properties: {
@@ -112,6 +115,8 @@ async function routes(fastify) {
 
     fastify.post('/notes/:type/cancel', {
         schema: {
+            tags: ['Notas'],
+            description: 'Cancelar nota fiscal informando a chave de acesso, protocolo e justificativa',
             params: {
                 type: 'object',
                 properties: {
@@ -144,9 +149,9 @@ async function routes(fastify) {
         handler: noteController.cancelarNota.bind(noteController)
     });
 
-    fastify.get('/notes/:type/example', {
-
+    fastify.get('/notes/:type/example', {  
         schema: {
+            tags: ['Notas'],
             description: 'Tipos de notas: nfce, nfe, nfse',
             params: {
                 type: 'object',
@@ -160,16 +165,27 @@ async function routes(fastify) {
     });
 
     fastify.get('/notes/test', {
+        schema:{
+             tags: ['Api Status'],
+                description: 'Teste de conectividade da API',
+        },
         handler: noteController.testeConectividade.bind(noteController)
     });
 
-
     fastify.get('/notes/cache/stats', {
+        schema: {
+            tags: ['Cache'],
+            description: 'Obter estatísticas do cache de notas fiscais',
+        },
         handler: noteController.obterEstatisticasCache.bind(noteController)
     });
 
 
     fastify.delete('/notes/cache/clear', {
+        schema: {
+            tags: ['Cache'],
+            description: 'Limpar o cache de notas fiscais',
+        },
         handler: noteController.limparCacheManual.bind(noteController)
     });
 
