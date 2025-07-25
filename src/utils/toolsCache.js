@@ -1,3 +1,4 @@
+import path from 'path';
 import { Tools } from 'node-sped-nfe';
 import { CacheUtils } from './cacheUtil.js';
 
@@ -58,6 +59,8 @@ export class ToolsCache {
 
     async criarTools(certificadoConfig) {
         try {
+            const xmllintPath = path.resolve(process.cwd(), 'libs/libxml2-2.9.3-win32-x86_64/bin/xmllint.exe');
+            const opensslPath = path.resolve(process.cwd(), 'libs/openssl-3.5.0.win86/bin/openssl.exe');
             const tools = new Tools(
                 {
                     mod: "65",
@@ -67,8 +70,8 @@ export class ToolsCache {
                     CSC: certificadoConfig.consumer_key,
                     CSCid: certificadoConfig.consumer_key_id,
                     timeout: 10000,
-                    xmllint: `C:/Users/joaoh/Downloads/windowsLibs/libs/libxml2-2.9.3-win32-x86_64/bin/xmllint.exe`,
-                    openssl: "C:/Users/joaoh/Downloads/windowsLibs/libs/openssl-3.5.0.win86/bin/openssl.exe",
+                    xmllint: xmllintPath,
+                    openssl: opensslPath,
                     CPF: certificadoConfig.cpf || "",
                     CNPJ: certificadoConfig.cnpj || "",
                 },
@@ -144,4 +147,3 @@ export class ToolsCache {
         this.cache.clear();
     }
 }
-
